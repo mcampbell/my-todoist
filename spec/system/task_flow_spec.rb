@@ -1,23 +1,21 @@
 require "rails_helper"
 
-# rack_test driver: no JS. The complete checkbox submits via an inline
-# onchange handler, so its round-trip is proven by request specs
-# (PATCH /tasks/:id/complete); here we assert the checkbox is wired to the
-# complete action. The delete icon button is button_to (a real form), so it
-# fires without JS and we exercise it directly.
+# rack_test driver: no JS needed. Every control is a button_to / link_to
+# (a real form or anchor), so each one submits or navigates without a browser.
 RSpec.describe "Task flow", type: :system do
   before { driven_by(:rack_test) }
 
-  it "wires the left checkbox to the complete action" do
-    task = Task.create!(title: "wire-check-complete")
+  it "completes a task via the checkbox control" do
+    task = Task.create!(title: "complete-me")
     visit tasks_path
-    expect(page).to have_css(
-      "form[action='#{complete_task_path(task)}'] input[type='checkbox']"
-    )
+    find("button[aria-label='Complete #{task.title}']").click
+
+    expect(task.reload).to be_completed
+    expect(page).to have_no_content("complete-me")
   end
 
   it "deletes a task via the trash icon button" do
-    task = Task.create!(title: "wire-check-delete")
+    task = Task.create!(title: "delete-me")
     visit tasks_path
     expect {
       find("button[aria-label='Delete #{task.title}']").click
@@ -25,25 +23,18 @@ RSpec.describe "Task flow", type: :system do
   end
 
   it "navigates to the edit page via the pencil icon" do
-    task = Task.create!(title: "wire-check-edit")
+    task = Task.create!(title: "edit-me")
     visit tasks_path
     find("a[aria-label='Edit #{task.title}']").click
     expect(page).to have_current_path(edit_task_path(task))
   end
 
-  it "renders edit and delete as svg icons, not text" do
+  it "renders the row controls as svg icons, not text" do
     task = Task.create!(title: "icon-check")
     visit tasks_path
+    expect(page).to have_css("button[aria-label='Complete #{task.title}'] svg")
     expect(page).to have_css("a[aria-label='Edit #{task.title}'] svg")
     expect(page).to have_css("button[aria-label='Delete #{task.title}'] svg")
     expect(find("a[aria-label='Edit #{task.title}']")).to have_no_text("Edit")
-  end
-
-  it "keeps edit and delete on one line (delete form is inline-block)" do
-    task = Task.create!(title: "layout-check")
-    visit tasks_path
-    expect(page).to have_css(
-      "form.is-inline-block button[aria-label='Delete #{task.title}']"
-    )
   end
 end
