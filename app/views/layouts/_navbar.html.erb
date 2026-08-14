@@ -1,0 +1,16 @@
+<nav class="navbar is-primary" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <%= link_to "My Todoist", root_path, class: "navbar-item has-text-weight-bold" %>
+  </div>
+  <div class="navbar-menu is-active">
+    <div class="navbar-start">
+      <%= link_to "Tasks", root_path, class: "navbar-item" %>
+      <%= link_to "Completed", completed_tasks_path, class: "navbar-item" %>
+    </div>
+    <div class="navbar-end">
+      <div class="navbar-item">
+        <%= link_to "New task", new_task_path, class: "button is-light" %>
+      </div>
+    </div>
+  </div>
+</nav>
