@@ -1,8 +1,10 @@
 class TasksController < ApplicationController
   before_action :set_task, only: %i[edit update destroy complete]
+  helper_method :task_list_path
 
   def index
-    @tasks = Task.active.order(Arel.sql("due_at ASC NULLS LAST, created_at DESC"))
+    @project = Project.find(params[:project_id]) if params[:project_id]
+    @tasks = Task.active.where(project: @project).ordered.includes(:labels)
   end
 
   def completed
@@ -16,7 +18,7 @@ class TasksController < ApplicationController
   def create
     @task = Task.new(task_params)
     if @task.save
-      redirect_to tasks_path
+      redirect_to task_list_path(@task)
     else
       render :new, status: :unprocessable_content
     end
@@ -26,7 +28,7 @@ class TasksController < ApplicationController
 
   def update
     if @task.update(task_params)
-      redirect_to tasks_path
+      redirect_to task_list_path(@task)
     else
       render :edit, status: :unprocessable_content
     end
@@ -34,12 +36,12 @@ class TasksController < ApplicationController
 
   def destroy
     @task.destroy
-    redirect_to tasks_path
+    redirect_to task_list_path(@task)
   end
 
   def complete
     @task.complete!
-    redirect_to tasks_path, notice: "Task completed."
+    redirect_to task_list_path(@task), notice: "Task completed."
   end
 
   private
@@ -48,7 +50,12 @@ class TasksController < ApplicationController
     @task = Task.find(params[:id])
   end
 
+  # Return to the task's own list: its project, or Inbox.
+  def task_list_path(task)
+    task.project ? project_tasks_path(task.project) : tasks_path
+  end
+
   def task_params
-    params.require(:task).permit(:title, :notes, :due_at)
+    params.require(:task).permit(:title, :notes, :due_at, :project_id, :priority, label_ids: [])
   end
 end

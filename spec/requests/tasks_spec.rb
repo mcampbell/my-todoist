@@ -130,4 +130,118 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body.index("newer")).to be < response.body.index("older")
     end
   end
+
+  describe "organization: form fields (slice 2)" do
+    it "assigns a project on create" do
+      project = Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "t", project_id: project.id } }
+      expect(Task.last.project).to eq(project)
+    end
+
+    it "leaves project nil (Inbox) when blank" do
+      post tasks_path, params: { task: { title: "t", project_id: "" } }
+      expect(Task.last.project_id).to be_nil
+    end
+
+    it "persists priority" do
+      post tasks_path, params: { task: { title: "t", priority: 3 } }
+      expect(Task.last.priority).to eq(3)
+    end
+
+    it "associates labels on create" do
+      a = Label.create!(name: "a")
+      b = Label.create!(name: "b")
+      post tasks_path, params: { task: { title: "t", label_ids: [ a.id, b.id ] } }
+      expect(Task.last.labels).to contain_exactly(a, b)
+    end
+
+    it "clears labels when the checkbox set submits empty" do
+      a = Label.create!(name: "a")
+      task = Task.create!(title: "t", labels: [ a ])
+      patch task_path(task), params: { task: { title: "t", label_ids: [ "" ] } }
+      expect(task.reload.labels).to be_empty
+    end
+
+    it "changes project, priority, and labels together on update" do
+      project = Project.create!(name: "Work")
+      label = Label.create!(name: "a")
+      task = Task.create!(title: "t")
+      patch task_path(task), params: {
+        task: { title: "t", project_id: project.id, priority: 2, label_ids: [ label.id ] }
+      }
+      task.reload
+      expect(task.project).to eq(project)
+      expect(task.priority).to eq(2)
+      expect(task.labels).to contain_exactly(label)
+    end
+
+    it "pre-checks current labels on the edit form" do
+      label = Label.create!(name: "chosen")
+      task = Task.create!(title: "t", labels: [ label ])
+      get edit_task_path(task)
+      expect(Capybara.string(response.body)).to have_css(
+        "input[type=checkbox][name='task[label_ids][]'][value='#{label.id}'][checked]"
+      )
+    end
+  end
+
+  describe "organization: Inbox + per-project views (slice 2)" do
+    it "Inbox shows only nil-project active tasks" do
+      project = Project.create!(name: "Work")
+      Task.create!(title: "inbox-task")
+      Task.create!(title: "work-task", project: project)
+      get tasks_path
+      expect(response.body).to include("inbox-task")
+      expect(response.body).not_to include("work-task")
+    end
+
+    it "per-project view shows only that project's active tasks, headed by its name" do
+      project = Project.create!(name: "Work")
+      other = Project.create!(name: "Home")
+      Task.create!(title: "work-task", project: project)
+      Task.create!(title: "home-task", project: other)
+      Task.create!(title: "inbox-task")
+      get project_tasks_path(project)
+      expect(response.body).to include("work-task")
+      expect(response.body).to include("Work")
+      expect(response.body).not_to include("home-task")
+      expect(response.body).not_to include("inbox-task")
+    end
+
+    it "renders a badge for P3 and none for P0" do
+      Task.create!(title: "urgent", priority: 3, due_at: Time.current)
+      get tasks_path
+      expect(Capybara.string(response.body)).to have_css("span.tag.is-danger", text: "P3")
+
+      Task.delete_all
+      Task.create!(title: "plain", priority: 0, due_at: Time.current)
+      get tasks_path
+      expect(response.body).not_to match(/>P[123]</)
+    end
+
+    it "renders each assigned label name on the row" do
+      label = Label.create!(name: "errand")
+      Task.create!(title: "t", labels: [ label ])
+      get tasks_path
+      expect(response.body).to include("errand")
+    end
+
+    it "redirects to the project list after completing a project task" do
+      project = Project.create!(name: "Work")
+      task = Task.create!(title: "t", project: project)
+      patch complete_task_path(task)
+      expect(response).to redirect_to(project_tasks_path(project))
+    end
+
+    it "redirects to Inbox after completing an inbox task" do
+      task = Task.create!(title: "t")
+      patch complete_task_path(task)
+      expect(response).to redirect_to(tasks_path)
+    end
+
+    it "returns 404 for a missing project view" do
+      get project_tasks_path(project_id: 0)
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

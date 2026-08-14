@@ -10,5 +10,10 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :projects, except: :show
+  resources :labels, except: :show
+
+  get "projects/:project_id/tasks", to: "tasks#index", as: :project_tasks
+
   root "tasks#index"
 end

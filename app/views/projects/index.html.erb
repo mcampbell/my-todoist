@@ -1,0 +1,22 @@
+<div class="level">
+  <h1 class="title level-left">Projects</h1>
+  <%= link_to "New project", new_project_path, class: "button is-primary level-right" %>
+</div>
+
+<% if @projects.empty? %>
+  <p class="has-text-grey">No projects yet.</p>
+<% else %>
+  <table class="table is-fullwidth is-hoverable is-vcentered">
+    <tbody>
+      <% @projects.each do |project| %>
+        <tr>
+          <td><%= link_to project.name, project_tasks_path(project) %></td>
+          <td class="is-narrow">
+            <%= link_to "Edit", edit_project_path(project), class: "button is-small" %>
+            <%= button_to "Delete", project_path(project), method: :delete, class: "button is-small is-danger is-light", form_class: "is-inline-block", data: { turbo_confirm: "Delete this project? Its tasks move to Inbox." } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

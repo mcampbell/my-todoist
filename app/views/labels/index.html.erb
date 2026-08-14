@@ -1,0 +1,22 @@
+<div class="level">
+  <h1 class="title level-left">Labels</h1>
+  <%= link_to "New label", new_label_path, class: "button is-primary level-right" %>
+</div>
+
+<% if @labels.empty? %>
+  <p class="has-text-grey">No labels yet.</p>
+<% else %>
+  <table class="table is-fullwidth is-hoverable is-vcentered">
+    <tbody>
+      <% @labels.each do |label| %>
+        <tr>
+          <td><span class="tag is-light"><%= label.name %></span></td>
+          <td class="is-narrow">
+            <%= link_to "Edit", edit_label_path(label), class: "button is-small" %>
+            <%= button_to "Delete", label_path(label), method: :delete, class: "button is-small is-danger is-light", form_class: "is-inline-block", data: { turbo_confirm: "Delete this label?" } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

@@ -37,4 +37,20 @@ RSpec.describe "Task flow", type: :system do
     expect(page).to have_css("button[aria-label='Delete #{task.title}'] svg")
     expect(find("a[aria-label='Edit #{task.title}']")).to have_no_text("Edit")
   end
+
+  it "adds a task from the new-task form" do
+    visit new_task_path
+    fill_in "Title", with: "from the form"
+    click_button "Save"
+    expect(page).to have_content("from the form")
+  end
+
+  it "adds a task from the form when labels and a project exist" do
+    Project.create!(name: "Work")
+    Label.create!(name: "errand")
+    visit new_task_path
+    fill_in "Title", with: "with fields"
+    click_button "Save"
+    expect(page).to have_content("with fields")
+  end
 end
