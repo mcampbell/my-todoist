@@ -129,5 +129,14 @@ RSpec.describe "Tasks", type: :request do
       get completed_tasks_path
       expect(response.body.index("newer")).to be < response.body.index("older")
     end
+
+    it "shows completed_at in the app's local time zone, not UTC" do
+      # 2030-06-01 16:00 UTC == 12:00 PM US Eastern (EDT). If the app rendered
+      # UTC, the page would read 4:00 PM.
+      Task.create!(title: "tz-check", completed_at: Time.utc(2030, 6, 1, 16, 0))
+      get completed_tasks_path
+      expect(response.body).to include("12:00 PM")
+      expect(response.body).not_to include("4:00 PM")
+    end
   end
 end
