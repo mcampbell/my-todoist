@@ -1,0 +1,18 @@
+<h1 class="title">Completed</h1>
+
+<% if @tasks.empty? %>
+  <p class="has-text-grey">No completed tasks yet.</p>
+<% else %>
+  <table class="table is-fullwidth">
+    <tbody>
+      <% @tasks.each do |task| %>
+        <tr>
+          <td><s><%= task.title %></s></td>
+          <td class="has-text-right has-text-grey">
+            <%= format_time(task.completed_at) %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
