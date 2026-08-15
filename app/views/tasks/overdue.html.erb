@@ -1,0 +1,8 @@
+<%= render "page_header", title: "Overdue" %>
+<% if @tasks.empty? %>
+  <p class="has-text-grey">Nothing overdue.</p>
+<% else %>
+  <table class="table is-fullwidth is-hoverable is-vcentered">
+    <tbody><%= render @tasks %></tbody>
+  </table>
+<% end %>

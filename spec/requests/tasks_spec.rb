@@ -20,6 +20,19 @@ RSpec.describe "Tasks", type: :request do
       order = %w[today tomorrow tie-new tie-old no-due].map { |t| response.body.index(t) }
       expect(order).to eq(order.sort)
     end
+
+    it "hides the time on an all-day task's due tag" do
+      Task.create!(title: "t", all_day: true, due_at: Time.zone.local(2030, 6, 5).beginning_of_day)
+      get tasks_path
+      expect(response.body).to include(%(>Jun 5<))
+      expect(response.body).not_to match(/Jun 5, \d/)
+    end
+
+    it "shows the time on a timed task's due tag" do
+      Task.create!(title: "t", all_day: false, due_at: Time.zone.local(2030, 6, 5, 14, 30))
+      get tasks_path
+      expect(response.body).to include("Jun 5, 2:30 PM")
+    end
   end
 
   describe "GET /tasks/new" do
@@ -33,11 +46,20 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include(%(value="#{today_tasks_path}"))
     end
 
-    it "defaults the date field to today" do
+    it "does not prefill the date field (quick-add owns the date)" do
       travel_to(Time.zone.local(2026, 2, 20, 12, 0, 0)) do
         get new_task_path
-        expect(response.body).to include(%(value="2026-02-20"))
+        expect(response.body).not_to include(%(value="2026-02-20"))
       end
+    end
+
+    it "renders only the quick-add title field on create (no structured controls)" do
+      get new_task_path
+      expect(response.body).not_to include('name="task[notes]"')
+      expect(response.body).not_to include('name="task[due_date]"')
+      expect(response.body).not_to include('name="task[due_time]"')
+      expect(response.body).not_to include('name="task[project_id]"')
+      expect(response.body).not_to include('name="task[priority]"')
     end
   end
 
@@ -98,12 +120,36 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "POST /tasks" do
-    it "creates a task, persists notes, and redirects" do
+    it "creates a task from the quick-add field, ignoring structured notes" do
       expect {
         post tasks_path, params: { task: { title: "new", notes: "keep me" } }
       }.to change(Task, :count).by(1)
       expect(response).to redirect_to(tasks_path)
-      expect(Task.last.notes).to eq("keep me")
+      expect(Task.last.notes).to be_nil
+    end
+
+    it "parses priority from quick-add text" do
+      post tasks_path, params: { task: { title: "call p2 dentist" } }
+      expect(Task.last.priority).to eq(2)
+      expect(Task.last.title).to eq("call dentist")
+    end
+
+    it "sets due_at from a quick-add date token" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        post tasks_path, params: { task: { title: "Call dentist tomorrow" } }
+        task = Task.last
+        expect(task.title).to eq("Call dentist")
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 16).beginning_of_day)
+        expect(task.all_day?).to eq(true)
+      end
+    end
+
+    it "rejects recurrence phrases with an error and creates nothing" do
+      expect {
+        post tasks_path, params: { task: { title: "water plants every! 10 minutes" } }
+      }.not_to change(Task, :count)
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("Recurrence not supported yet")
     end
 
     it "re-renders 422 on blank title, creating nothing" do
@@ -113,18 +159,15 @@ RSpec.describe "Tasks", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
     end
 
-    it "creates an all-day task when only due_date is submitted" do
-      post tasks_path, params: { task: { title: "t", due_date: "2026-02-20" } }
+    it "ignores posted structured fields on create (quick-add owns them)" do
+      project = Project.create!(name: "Work")
+      post tasks_path, params: {
+        task: { title: "t", due_date: "2026-02-20", due_time: "14:30", project_id: project.id, priority: 3 }
+      }
       task = Task.last
-      expect(task.all_day?).to eq(true)
-      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20).beginning_of_day)
-    end
-
-    it "creates a timed task when due_date and due_time are both submitted" do
-      post tasks_path, params: { task: { title: "t", due_date: "2026-02-20", due_time: "14:30" } }
-      task = Task.last
-      expect(task.all_day?).to eq(false)
-      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20, 14, 30))
+      expect(task.due_at).to be_nil
+      expect(task.project_id).to be_nil
+      expect(task.priority).to eq(0)
     end
 
     it "redirects back to return_to when present, instead of task_list_path" do
@@ -266,20 +309,9 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "organization: form fields (slice 2)" do
-    it "assigns a project on create" do
-      project = Project.create!(name: "Work")
-      post tasks_path, params: { task: { title: "t", project_id: project.id } }
-      expect(Task.last.project).to eq(project)
-    end
-
-    it "leaves project nil (Inbox) when blank" do
-      post tasks_path, params: { task: { title: "t", project_id: "" } }
+    it "creates an Inbox task when no #project token is present" do
+      post tasks_path, params: { task: { title: "t" } }
       expect(Task.last.project_id).to be_nil
-    end
-
-    it "persists priority" do
-      post tasks_path, params: { task: { title: "t", priority: 3 } }
-      expect(Task.last.priority).to eq(3)
     end
 
     it "associates labels on create" do
@@ -379,6 +411,56 @@ RSpec.describe "Tasks", type: :request do
     end
   end
 
+  describe "quick-add project tokens (slice 4c)" do
+    it "reuses an existing project on exact match" do
+      project = Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #Work dentist" } }
+      task = Task.last
+      expect(task.project).to eq(project)
+      expect(task.title).to eq("Call dentist")
+    end
+
+    it "reuses an existing project case-insensitively" do
+      Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #work dentist" } }
+      expect(Task.last.project.name).to eq("Work")
+    end
+
+    it "creates the project directly when no near-miss exists" do
+      post tasks_path, params: { task: { title: "Call #Errand dentist" } }
+      task = Task.last
+      expect(task.project.name).to eq("Errand")
+      expect(task.title).to eq("Call dentist")
+    end
+
+    it "re-renders with a confirm banner on a near-miss, creating nothing" do
+      Project.create!(name: "Work")
+      expect {
+        post tasks_path, params: { task: { title: "Call #Wrok dentist" } }
+      }.not_to change(Task, :count)
+      expect(Project.find_by(name: "Wrok")).to be_nil
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("Did you mean")
+      expect(response.body).to include("#Work")
+    end
+
+    it "creates the task in the suggested project when Use existing is submitted" do
+      project = Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #Wrok dentist" }, project_name: "Work" }
+      task = Task.last
+      expect(task.project).to eq(project)
+      expect(task.title).to eq("Call dentist")
+    end
+
+    it "creates the misspelled project when Create anyway is submitted" do
+      Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #Wrok dentist" }, force_create_project: "true" }
+      task = Task.last
+      expect(task.project.name).to eq("Wrok")
+      expect(task.title).to eq("Call dentist")
+    end
+  end
+
   describe "GET /tasks/today" do
     it "shows overdue, due-today, and undated tasks; hides due-tomorrow and completed" do
       overdue   = Task.create!(title: "overdue-task", due_at: 1.day.ago)
@@ -433,6 +515,30 @@ RSpec.describe "Tasks", type: :request do
       tomorrow_index = response.body.index(1.day.from_now.to_date.strftime("%A, %b %-d"))
       day3_index = response.body.index(3.days.from_now.to_date.strftime("%A, %b %-d"))
       expect(tomorrow_index).to be < day3_index
+    end
+  end
+
+  describe "GET /tasks/overdue" do
+    it "shows only tasks due before today" do
+      Task.create!(title: "overdue-task", due_at: 1.day.ago)
+      Task.create!(title: "today-task", due_at: Time.current)
+      Task.create!(title: "undated-task")
+      Task.create!(title: "tomorrow-task", due_at: 1.day.from_now)
+      Task.create!(title: "completed-task", due_at: 1.day.ago, completed_at: Time.current)
+
+      get overdue_tasks_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("overdue-task")
+      expect(response.body).not_to include("today-task")
+      expect(response.body).not_to include("undated-task")
+      expect(response.body).not_to include("tomorrow-task")
+      expect(response.body).not_to include("completed-task")
+    end
+
+    it "marks the overdue row with the danger background class" do
+      Task.create!(title: "overdue-task", due_at: 1.day.ago)
+      get overdue_tasks_path
+      expect(response.body).to include("has-background-danger-light")
     end
   end
 end

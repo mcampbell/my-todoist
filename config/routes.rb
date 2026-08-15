@@ -9,6 +9,7 @@ Rails.application.routes.draw do
       get :completed
       get :today
       get :upcoming
+      get :overdue
     end
   end
 

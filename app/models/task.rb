@@ -11,9 +11,14 @@ class Task < ApplicationRecord
   scope :ordered, -> { order(Arel.sql("due_at ASC NULLS LAST, created_at DESC")) }
   scope :due_today_or_undated, -> { where("due_at <= ? OR due_at IS NULL", Time.current.end_of_day) }
   scope :due_between, ->(range) { where(due_at: range) }
+  scope :overdue, -> { where("due_at < ?", Time.current.beginning_of_day) }
 
   def completed?
     completed_at.present?
+  end
+
+  def overdue?
+    !completed? && due_at.present? && due_at < Time.current.beginning_of_day
   end
 
   def complete!

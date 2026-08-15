@@ -136,6 +136,31 @@ RSpec.describe Task, type: :model do
       end
     end
 
+    describe ".overdue" do
+      it "matches only tasks due before today" do
+        overdue = Task.create!(title: "overdue", due_at: 1.day.ago)
+        due_today = Task.create!(title: "due today", due_at: Time.current)
+        undated = Task.create!(title: "undated")
+
+        expect(Task.overdue).to contain_exactly(overdue)
+        expect(Task.overdue).not_to include(due_today, undated)
+      end
+    end
+
+    describe "#overdue?" do
+      it "is true only for an active task due before today" do
+        overdue = Task.create!(title: "overdue", due_at: 1.day.ago)
+        due_today = Task.create!(title: "due today", due_at: Time.current)
+        undated = Task.create!(title: "undated")
+        completed_overdue = Task.create!(title: "done", due_at: 1.day.ago, completed_at: Time.current)
+
+        expect(overdue.overdue?).to eq(true)
+        expect(due_today.overdue?).to eq(false)
+        expect(undated.overdue?).to eq(false)
+        expect(completed_overdue.overdue?).to eq(false)
+      end
+    end
+
     describe ".due_between" do
       it "matches only tasks due within the given range" do
         range = 1.day.from_now.beginning_of_day..7.days.from_now.end_of_day

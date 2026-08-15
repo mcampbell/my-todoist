@@ -53,4 +53,61 @@ RSpec.describe "Task flow", type: :system do
     click_button "Save"
     expect(page).to have_content("with fields")
   end
+
+  it "lands a quick-add #project token task in that project" do
+    Project.create!(name: "Work")
+    visit new_task_path
+    fill_in "Title", with: "Call #Work dentist"
+    click_button "Save"
+
+    task = Task.last
+    expect(task.project.name).to eq("Work")
+    expect(task.title).to eq("Call dentist")
+    expect(page).to have_current_path(project_tasks_path(task.project), ignore_query: true)
+    expect(page).to have_content("Call dentist")
+  end
+
+  it "creates a task from the full quick-add syntax in one submission" do
+    Project.create!(name: "Health")
+    travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+      visit new_task_path
+      fill_in "Title", with: "Call dentist #Health p2 wed 3pm"
+      click_button "Save"
+    end
+
+    task = Task.last
+    expect(task.title).to eq("Call dentist")
+    expect(task.project.name).to eq("Health")
+    expect(task.priority).to eq(2)
+    expect(task.due_at).to eq(Time.zone.local(2026, 8, 19, 15, 0))
+    expect(task.all_day?).to eq(false)
+    expect(page).to have_current_path(project_tasks_path(task.project), ignore_query: true)
+    expect(page).to have_content("Call dentist")
+  end
+
+  it "creates an all-day task from a bare date token (no noon leak)" do
+    travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+      visit new_task_path
+      fill_in "Title", with: "Call dentist tomorrow"
+      click_button "Save"
+    end
+
+    task = Task.last
+    expect(task.title).to eq("Call dentist")
+    expect(task.due_at).to eq(Time.zone.local(2026, 8, 16).beginning_of_day)
+    expect(task.all_day?).to eq(true)
+  end
+
+  it "creates a timed task from a word-time token" do
+    travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+      visit new_task_path
+      fill_in "Title", with: "Call dentist noon"
+      click_button "Save"
+    end
+
+    task = Task.last
+    expect(task.title).to eq("Call dentist")
+    expect(task.due_at).to eq(Time.zone.local(2026, 8, 15, 12, 0))
+    expect(task.all_day?).to eq(false)
+  end
 end
