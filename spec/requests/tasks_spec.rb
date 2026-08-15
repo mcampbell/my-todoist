@@ -27,6 +27,11 @@ RSpec.describe "Tasks", type: :request do
       get new_task_path
       expect(response).to have_http_status(:ok)
     end
+
+    it "carries return_to through as a hidden field when present" do
+      get new_task_path(return_to: today_tasks_path)
+      expect(response.body).to include(%(value="#{today_tasks_path}"))
+    end
   end
 
   describe "GET /tasks/:id/edit" do
@@ -81,6 +86,21 @@ RSpec.describe "Tasks", type: :request do
       task = Task.last
       expect(task.all_day?).to eq(false)
       expect(task.due_at).to eq(Time.zone.local(2026, 2, 20, 14, 30))
+    end
+
+    it "redirects back to return_to when present, instead of task_list_path" do
+      post tasks_path, params: { task: { title: "t" }, return_to: today_tasks_path }
+      expect(response).to redirect_to(today_tasks_path)
+    end
+
+    it "ignores a protocol-relative return_to and falls back to task_list_path" do
+      post tasks_path, params: { task: { title: "t" }, return_to: "//evil.com" }
+      expect(response).to redirect_to(tasks_path)
+    end
+
+    it "falls back to task_list_path when return_to is absent" do
+      post tasks_path, params: { task: { title: "t" } }
+      expect(response).to redirect_to(tasks_path)
     end
   end
 

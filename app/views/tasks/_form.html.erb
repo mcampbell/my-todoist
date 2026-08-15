@@ -1,4 +1,7 @@
 <%= form_with model: task do |f| %>
+  <% if params[:return_to].present? %>
+    <%= hidden_field_tag :return_to, params[:return_to] %>
+  <% end %>
   <% if task.errors.any? %>
     <div class="notification is-danger">
       <ul>

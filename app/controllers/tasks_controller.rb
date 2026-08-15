@@ -30,7 +30,7 @@ class TasksController < ApplicationController
   def create
     @task = Task.new(task_params)
     if @task.save
-      redirect_to task_list_path(@task)
+      redirect_to safe_return_to || task_list_path(@task)
     else
       render :new, status: :unprocessable_content
     end
@@ -69,5 +69,11 @@ class TasksController < ApplicationController
 
   def task_params
     params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, label_ids: [])
+  end
+
+  # Only accept internal, non-protocol-relative paths (blocks "//evil.com" open redirects).
+  def safe_return_to
+    path = params[:return_to]
+    path if path.present? && path.start_with?("/") && !path.start_with?("//")
   end
 end
