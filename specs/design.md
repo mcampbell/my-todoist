@@ -32,7 +32,16 @@ notified_at (datetime, nullable).
 - Phrases: `every day`, `every 3 days`, `every! N minutes`, `every monday`,
   `weekdays`/`workday` (Mon–Fri, no holidays), `next monday`.
 - Missed fixed occurrences (app was off): mark most-recent overdue, don't skip.
-  On complete, jump to nearest future occurrence (not due_at+interval landing in past).
+- Invariant: next due_at is never in the past. On complete, march forward
+  from the original due_at in steps of X — repeatedly re-applying the same
+  interval, never jumping straight to today — until the result is >= today.
+  This preserves the original phase/grid (e.g. an every-3-days task keeps
+  landing on the same Mon/Thu/Sun-style cycle) rather than resetting it to
+  the completion date. Examples: an `every wednesday` task 10 days overdue,
+  completed on a Saturday, steps 0->7->14 days from the missed Wednesday and
+  lands on the coming Wednesday (4 days out). An `every 3 days` task overdue
+  by 8 days steps 0->3->6->9 days from the original due_at and lands 1 day
+  out, not on today.
 
 Recurrence lives in a `Recurrence` PORO: `parse(string) -> rule`,
 `rule.next_from(anchor)`. Pure, no DB. Unit-testable in isolation.
