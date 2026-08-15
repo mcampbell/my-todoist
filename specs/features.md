@@ -38,6 +38,9 @@ lives in `specs/design.md`; this doc is business-facing only.
 
 ## Not yet built
 
-- Quick-add single-field entry with natural-language date parsing.
+- Quick-add single-field entry with natural-language date, priority, and
+  `#project` parsing (planned: `specs/slice-4-plan.md`). `@label` parsing via
+  quick-add is explicitly deferred past this slice — labels stay on the
+  structured form control.
 - Recurring tasks (`every` / `every!`).
 - Notifications / reminders.
