@@ -30,6 +30,7 @@ class Recurrence
 
     count = match[:count] ? match[:count].to_i : 1
     unit = normalize_unit(match[:unit])
+    raise InvalidError, "invalid recurrence: #{string.inspect}" if count < 1
     raise InvalidError, "count invalid for #{unit}: #{string.inspect}" if
       (WEEKDAY_NAME_UNITS.include?(unit) || unit == :weekday) && count != 1
 

@@ -44,6 +44,16 @@ RSpec.describe Recurrence do
       expect(Recurrence.parse("every workday")).not_to be_nil
     end
 
+    it "normalizes the workday alias to the :weekday unit" do
+      expect(Recurrence.parse("every workday").unit).to eq(:weekday)
+    end
+
+    it "rejects a zero count" do
+      expect { Recurrence.parse("every 0 days") }.to raise_error(Recurrence::InvalidError)
+      expect { Recurrence.parse("every! 0 minutes") }.to raise_error(Recurrence::InvalidError)
+      expect { Recurrence.parse("every 0 months") }.to raise_error(Recurrence::InvalidError)
+    end
+
     it "accepts case-insensitive input" do
       expect(Recurrence.parse("EVERY 3 DAYS")).not_to be_nil
       expect(Recurrence.parse("Every! Monday")).not_to be_nil
@@ -82,6 +92,18 @@ RSpec.describe Recurrence do
         new_now = Time.zone.local(2026, 2, 7, 12, 0, 0)
         result = rule.next_from(due_at: Time.zone.local(2026, 1, 28, 12, 0, 0), now: new_now)
         expect(result).to eq(Time.zone.local(2026, 2, 11, 12, 0, 0)) # coming Wednesday
+      end
+
+      it "advances an N-hours recurrence in whole-hour steps" do
+        rule = Recurrence.parse("every 3 hours")
+        result = rule.next_from(due_at: Time.zone.local(2026, 2, 10, 8, 0), now: Time.current)
+        expect(result).to eq(Time.zone.local(2026, 2, 10, 14, 0))
+      end
+
+      it "advances an N-minutes recurrence in whole-minute steps" do
+        rule = Recurrence.parse("every 45 minutes")
+        result = rule.next_from(due_at: Time.zone.local(2026, 2, 10, 9, 0), now: Time.current)
+        expect(result).to eq(Time.zone.local(2026, 2, 10, 12, 0))
       end
 
       it "leaves an in-the-future due_at at the next interval, not itself" do
@@ -139,6 +161,24 @@ RSpec.describe Recurrence do
         rule = Recurrence.parse("every! 10 minutes")
         result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
         expect(result).to eq(10.minutes.since(Time.current))
+      end
+
+      it "schedules from now for a weekly recurrence" do
+        rule = Recurrence.parse("every! week")
+        result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
+        expect(result).to eq(1.week.since(Time.current))
+      end
+
+      it "schedules from now for an N-years recurrence" do
+        rule = Recurrence.parse("every! 2 years")
+        result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
+        expect(result).to eq(2.years.since(Time.current))
+      end
+
+      it "schedules N months from now on the 1st" do
+        rule = Recurrence.parse("every! 3 months")
+        result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
+        expect(result).to eq(3.months.since(Time.current).beginning_of_month)
       end
 
       it "schedules on the 1st of next month for a monthly recurrence" do
