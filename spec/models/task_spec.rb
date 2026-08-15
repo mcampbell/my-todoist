@@ -5,38 +5,33 @@ RSpec.describe Task, type: :model do
     expect(Task.new(title: nil)).not_to be_valid
   end
 
-  it "partitions rows into active and completed scopes" do
-    active = Task.create!(title: "active")
-    done = Task.create!(title: "done", completed_at: Time.current)
+  describe "#complete! (occurrence-log completion)" do
+    it "destroys the task and creates a matching CompletedOccurrence" do
+      project = Project.create!(name: "Work")
+      label_b = Label.create!(name: "b")
+      label_a = Label.create!(name: "a")
+      task = Task.create!(
+        title: "t", project: project, priority: 2, labels: [ label_b, label_a ],
+        due_at: Time.zone.local(2030, 3, 4, 9, 30)
+      )
 
-    expect(Task.active).to contain_exactly(active)
-    expect(Task.completed).to contain_exactly(done)
-  end
+      expect { task.complete! }.to change(Task, :count).by(-1)
+        .and change(CompletedOccurrence, :count).by(1)
 
-  it "sets completed_at and flips completed? on complete!" do
-    task = Task.create!(title: "t")
-    expect { task.complete! }.to change(task, :completed?).from(false).to(true)
-    expect(task.completed_at).to be_present
-  end
+      occurrence = CompletedOccurrence.last
+      expect(occurrence.task_title).to eq("t")
+      expect(occurrence.project_name).to eq("Work")
+      expect(occurrence.priority).to eq(2)
+      expect(occurrence.label_names).to eq("a, b")
+      expect(occurrence.due_at).to eq(Time.zone.local(2030, 3, 4, 9, 30))
+      expect(occurrence.completed_at).to be_present
+    end
 
-  it "keeps the original completed_at when complete! runs twice" do
-    task = Task.create!(title: "t")
-    task.complete!
-    first = task.completed_at
-    task.complete!
-    expect(task.reload.completed_at).to eq(first)
-  end
-
-  it "keeps the first completed_at when two stale copies both complete!" do
-    task = Task.create!(title: "t")
-    copy_a = Task.find(task.id)
-    copy_b = Task.find(task.id)
-
-    copy_a.complete!
-    first = copy_a.reload.completed_at
-    copy_b.complete! # stale: still sees completed_at nil in memory
-
-    expect(task.reload.completed_at).to eq(first)
+    it "raises RecordNotFound when the same id is completed a second time" do
+      task = Task.create!(title: "t")
+      task.complete!
+      expect { Task.find(task.id) }.to raise_error(ActiveRecord::RecordNotFound)
+    end
   end
 
   describe "organization (slice 2)" do
@@ -148,16 +143,14 @@ RSpec.describe Task, type: :model do
     end
 
     describe "#overdue?" do
-      it "is true only for an active task due before today" do
+      it "is true only for a task due before today" do
         overdue = Task.create!(title: "overdue", due_at: 1.day.ago)
         due_today = Task.create!(title: "due today", due_at: Time.current)
         undated = Task.create!(title: "undated")
-        completed_overdue = Task.create!(title: "done", due_at: 1.day.ago, completed_at: Time.current)
 
         expect(overdue.overdue?).to eq(true)
         expect(due_today.overdue?).to eq(false)
         expect(undated.overdue?).to eq(false)
-        expect(completed_overdue.overdue?).to eq(false)
       end
     end
 

@@ -1,0 +1,14 @@
+<%= render "tasks/page_header", title: "Completed task details" %>
+
+<table class="table is-fullwidth">
+  <tbody>
+    <tr><th>Title</th><td><%= @occurrence.task_title %></td></tr>
+    <tr><th>Project</th><td><%= @occurrence.project_name.presence || "Inbox" %></td></tr>
+    <tr><th>Priority</th><td>P<%= @occurrence.priority %></td></tr>
+    <tr><th>Labels</th><td><%= @occurrence.label_names.presence || "-" %></td></tr>
+    <tr><th>Due</th><td><%= format_time(@occurrence.due_at) %></td></tr>
+    <tr><th>Completed</th><td><%= format_time(@occurrence.completed_at) %></td></tr>
+  </tbody>
+</table>
+
+<%= link_to "Back to completed", completed_tasks_path %>

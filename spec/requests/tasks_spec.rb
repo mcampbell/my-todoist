@@ -251,11 +251,12 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "PATCH /tasks/:id/complete" do
-    it "completes the task and redirects to the index" do
+    it "completes the task and creates an occurrence" do
       task = Task.create!(title: "do it")
       patch complete_task_path(task)
       expect(response).to redirect_to(tasks_path)
-      expect(task.reload).to be_completed
+      expect(Task.exists?(task.id)).to be(false)
+      expect(CompletedOccurrence.last.task_title).to eq("do it")
     end
 
     it "drops the task from the active index" do
@@ -284,6 +285,13 @@ RSpec.describe "Tasks", type: :request do
       expect(response).to redirect_to(upcoming_tasks_path)
     end
 
+    it "redirects to the task's project list" do
+      project = Project.create!(name: "Work")
+      task = Task.create!(title: "do it", project: project)
+      patch complete_task_path(task)
+      expect(response).to redirect_to(project_tasks_path(project))
+    end
+
     it "falls back to task_list_path with no referer" do
       task = Task.create!(title: "do it")
       patch complete_task_path(task)
@@ -294,15 +302,15 @@ RSpec.describe "Tasks", type: :request do
   describe "GET /tasks/completed" do
     it "lists completed titles and hides active ones" do
       Task.create!(title: "active-one")
-      Task.create!(title: "done-one", completed_at: Time.current)
+      CompletedOccurrence.create!(task_title: "done-one", priority: 0, completed_at: Time.current)
       get completed_tasks_path
       expect(response.body).to include("done-one")
       expect(response.body).not_to include("active-one")
     end
 
     it "orders most-recently-completed first" do
-      Task.create!(title: "older", completed_at: 2.hours.ago)
-      Task.create!(title: "newer", completed_at: 1.minute.ago)
+      CompletedOccurrence.create!(task_title: "older", priority: 0, completed_at: 2.hours.ago)
+      CompletedOccurrence.create!(task_title: "newer", priority: 0, completed_at: 1.minute.ago)
       get completed_tasks_path
       expect(response.body.index("newer")).to be < response.body.index("older")
     end
@@ -467,7 +475,8 @@ RSpec.describe "Tasks", type: :request do
       due_today = Task.create!(title: "today-task", due_at: Time.current)
       undated   = Task.create!(title: "undated-task")
       tomorrow  = Task.create!(title: "tomorrow-task", due_at: 1.day.from_now)
-      done      = Task.create!(title: "completed-task", completed_at: Time.current)
+      completed = Task.create!(title: "completed-task")
+      completed.complete!
 
       get today_tasks_path
       expect(response).to have_http_status(:ok)
@@ -524,7 +533,8 @@ RSpec.describe "Tasks", type: :request do
       Task.create!(title: "today-task", due_at: Time.current)
       Task.create!(title: "undated-task")
       Task.create!(title: "tomorrow-task", due_at: 1.day.from_now)
-      Task.create!(title: "completed-task", due_at: 1.day.ago, completed_at: Time.current)
+      completed = Task.create!(title: "completed-task", due_at: 1.day.ago)
+      completed.complete!
 
       get overdue_tasks_path
       expect(response).to have_http_status(:ok)

@@ -10,7 +10,8 @@ RSpec.describe "Task flow", type: :system do
     visit tasks_path
     find("button[aria-label='Complete #{task.title}']").click
 
-    expect(task.reload).to be_completed
+    expect(Task.exists?(task.id)).to be(false)
+    expect(CompletedOccurrence.last.task_title).to eq("complete-me")
     expect(page).to have_no_content("complete-me")
   end
 

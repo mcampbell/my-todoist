@@ -8,24 +8,24 @@ class TasksController < ApplicationController
 
   def index
     @project = Project.find(params[:project_id]) if params[:project_id]
-    @tasks = Task.active.where(project: @project).ordered.includes(:labels)
+    @tasks = Task.where(project: @project).ordered.includes(:labels)
   end
 
   def completed
-    @tasks = Task.completed.order(completed_at: :desc)
+    @occurrences = CompletedOccurrence.order(completed_at: :desc)
   end
 
   def today
-    @tasks = Task.active.due_today_or_undated.ordered.includes(:labels)
+    @tasks = Task.due_today_or_undated.ordered.includes(:labels)
   end
 
   def overdue
-    @tasks = Task.active.overdue.ordered.includes(:labels)
+    @tasks = Task.overdue.ordered.includes(:labels)
   end
 
   def upcoming
     range = 1.day.from_now.beginning_of_day..UPCOMING_DAYS.days.from_now.end_of_day
-    @groups = Task.active.due_between(range).ordered.includes(:labels)
+    @groups = Task.due_between(range).ordered.includes(:labels)
                   .group_by { |t| t.due_at.to_date }
   end
 
@@ -84,8 +84,9 @@ class TasksController < ApplicationController
   end
 
   def complete
+    path = task_list_path(@task)
     @task.complete!
-    redirect_back_or_to task_list_path(@task), notice: "Task completed."
+    redirect_back_or_to path, notice: "Task completed."
   end
 
   private
