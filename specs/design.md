@@ -5,13 +5,10 @@ Source of decisions: `specs/todo-app-grill.md`.
 
 ## Stack
 
-- Rails 8, Ruby. SQLite3 (dev + "prod" are same local DB).
-- Views: builtin ERB. Assets: Propshaft + Importmap (no Node build).
-- CSS: **Bulma** (pure-CSS drop-in via importmap/vendored stylesheet).
-- Jobs: Solid Queue (SQLite-backed).
-- Tests: rspec-rails.
-- Date NLP: `chronic` gem (one-off dates). Recurrence: custom parser (PORO).
-- No auth. Single user. Local `bin/dev`.
+See `specs/tech.md` for the stack, library choices, and standing technical
+rules (server-render-first, dependency ladder, etc.) — kept there so
+cross-slice tech decisions have one home instead of drifting out of sync
+with this doc.
 
 ## Domain
 
@@ -29,10 +26,45 @@ notified_at (datetime, nullable).
 - `every! X` = rolling. next due_at = completion_time + X.
 - `every X` (no bang) = fixed. next due_at = original due_at + X.
 - Units down to minutes (`every! 10 minutes`). Floor granularity = 1 min.
-- Phrases: `every day`, `every 3 days`, `every! N minutes`, `every monday`,
-  `weekdays`/`workday` (Mon–Fri, no holidays), `next monday`.
+- **Frequency indicator** — the recurrence keyword that opens a recurrence
+  string; always starts with `every`. Two modifier forms:
+  - `every` (no bang) — fixed: next due_at = original due_at + interval.
+  - `every!` (bang) — rolling: next due_at = completion_time + interval.
+  The `!` rolling modifier applies to any frequency-indicator form below.
+  Known possibilities:
+  - `every day` / `every! day` — daily
+  - `every N days` / `every! N days` — every N days (e.g. `every 3 days`)
+  - `every week` / `every! week` — weekly
+  - `every N weeks` / `every! N weeks` — every N weeks
+  - `every month` / `every! month` — monthly
+  - `every N months` / `every! N months` — every N months
+  - `every year` / `every! year` — yearly
+  - `every N years` / `every! N years` — every N years
+  - `every monday` … `every sunday` — specific weekday (rolling `every!
+    monday` reschedules from completion date)
+  - `every weekday` / `every workday` — Mon–Fri (no holidays)
+  - `every! N hours` — rolling, sub-day hours
+  - `every N minutes` / `every! N minutes` — down to 1 min granularity
+  **Future feature (deferred):** `every <ordinal> <unit>` — the Nth
+  incident of that unit in the month. Ordinals: `first`/`1st` through
+  `fifth`/`5th` (`second`/`2nd`, `third`/`3rd`, `fourth`/`4th`), plus
+  `last`. e.g. `every first monday`, `every 2nd friday`, `every last
+  workday`, `every last day`. Combines with the `!` rolling modifier
+  (`every! last friday`). Not in v1; see Deferred.
+  Non-frequency-indicator recurrence phrases (do not start with `every`):
+  `weekdays`/`workday` (shorthand for `every weekday`). `next monday` is a
+  one-off date (chronic-parseable), not recurrence — not in this category.
 - Missed fixed occurrences (app was off): mark most-recent overdue, don't skip.
-  On complete, jump to nearest future occurrence (not due_at+interval landing in past).
+- Invariant: next due_at is never in the past. On complete, march forward
+  from the original due_at in steps of X — repeatedly re-applying the same
+  interval, never jumping straight to today — until the result is >= today.
+  This preserves the original phase/grid (e.g. an every-3-days task keeps
+  landing on the same Mon/Thu/Sun-style cycle) rather than resetting it to
+  the completion date. Examples: an `every wednesday` task 10 days overdue,
+  completed on a Saturday, steps 0->7->14 days from the missed Wednesday and
+  lands on the coming Wednesday (4 days out). An `every 3 days` task overdue
+  by 8 days steps 0->3->6->9 days from the original due_at and lands 1 day
+  out, not on today.
 
 Recurrence lives in a `Recurrence` PORO: `parse(string) -> rule`,
 `rule.next_from(anchor)`. Pure, no DB. Unit-testable in isolation.
@@ -80,25 +112,63 @@ param -> hidden form field -> controller redirect, since the browser's
 Referer on the create POST is the `/tasks/new` page itself, not the
 original view (unlike update/destroy/complete, which use
 `redirect_back_or_to` directly against the real referer). The New task
-form also defaults its date field to today.
+form also defaults its date field to today. **Superseded in slice 4** (user
+decision, 2026-08-15): once create moves to quick-add text, this default is
+dropped — a task with no date token and no time token stays undated
+(no due_date, not today). Quick-add is explicit-by-design;
+auto-defaulting was a workaround for an always-visible structured date
+field, which no longer exists on create.
+Carve-out: a bare time token (no date token) implies a date — today if the
+time is still strictly ahead, tomorrow if it is now or has passed (e.g.
+"buy milk 3pm" typed at 14:00 -> today 3pm; typed at 16:00 -> tomorrow 3pm;
+typed at exactly 15:00 -> tomorrow 3pm). An explicit date token with a
+time obeys the typed date; no date and no time token -> undated.
 
 ### Slice 4 — Quick-add NLP (one-off)  *(Todoist single-field entry)*
 
+Implementation plan: `specs/slice-4-plan.md` (sliced by input type: priority
+token, then date/time token, then `#project` token, then structured-field
+removal — see that doc's grill session for the resolved decision branches).
+
 Replace create form with single text field. Parse: chronic date/time,
-`p1..p4` priority, `#project`, `@label`. No recurrence yet. Rework: replaces
-slice-1 plain form + slice-1 create controller path.
+`p1..p4` priority (translated to internal `0..3`, `p1`->3 ... `p4`->0 — see
+priority mapping below), `#project`. **`@label` parsing is out of scope for
+this slice** (user decision, 2026-08-15) — label assignment stays on the
+existing structured control until a later slice. **No recurrence yet** — if
+the parser recognizes `every`/`every!` syntax, OR the bare recurrence
+shorthand `weekdays`/`workday` (design: shorthand for `every weekday`, not a
+`every`-prefixed form), it rejects submission with "Recurrence not supported
+yet" (user decision, 2026-08-15) rather than silently folding the phrase into
+the title (chronic parses `weekdays` as a one-off date, so rejecting avoids a
+silent recurrence->one-off misparse; `workday` isn't chronic-parseable but is
+still recurrence shorthand); `next monday` is a one-off date (chronic-parseable),
+not recurrence, and is NOT rejected. Slice 5 removes the rejection once it
+lands. Rework: replaces slice-1 plain form + slice-1
+create controller path.
+
+**Priority mapping.** Quick-add tokens follow Todoist convention (`p1`=most
+urgent .. `p4`=none), inverted from the internal `0..3` scale (`0`=baseline/no
+badge .. `3`=highest/danger tag). Parser translates: `p1`->3, `p2`->2, `p3`->1,
+`p4`->0.
 
 **Inline project creation + drop the structured fields (user intent).** A
 `#ProjectName` token that matches no existing project **creates** it (find-or-
-create by normalized name — reuses slice-2 NOCASE + trim identity). Once the
-text field owns project *and* due-date parsing, **remove** the slice-2 Project
-dropdown and the Due-date `datetime_field` from the task form — the quick-add
-string is the single source. Keep priority + label controls only if the parser
-does not yet cover `p1..p4` / `@label` (goal: text covers all four, form shrinks
-to one input). Open Qs for that slice: typo/no-match on `#project` — auto-create
-vs confirm; whether `@label` also auto-creates (labels are cheap, lean create);
-edit UX once the structured fields are gone (edit still needs a way to reassign
-project/due without retyping).
+create by normalized name — reuses slice-2 NOCASE + trim identity), *unless*
+it's a likely typo of an existing project name (fuzzy match), in which case
+the parser flags it and asks for confirmation before creating a near-duplicate
+project. **Confirm UX (user decision, 2026-08-15, no-JS):** re-render the
+quick-add form like a validation failure — banner "Did you mean #Work? [Use
+existing] [Create #Wrok anyway]" — same request/response cycle as any other
+validation error; no new persisted state, no JS, no new endpoint. Once the
+text field owns project, due-date, *and* priority parsing, **remove**
+the slice-2 Project dropdown, the Due-date `datetime_field`, and the priority
+`<select>` from the task form — the quick-add string is the single source for
+those three. Notes textarea is dropped from create (quick-add is a fast
+capture tool; extended detail deferred to edit). Label control stays (see
+above — `@label` out of scope). **Edit form is unchanged** (user decision,
+2026-08-15): keeps its existing structured date picker + project dropdown +
+priority select. Only *create* moves to quick-add text; editing an existing
+task keeps precise widgets rather than round-tripping through NLP text.
 
 ### Slice 5 — Recurrence engine  *(every / every!)*
 
@@ -141,7 +211,12 @@ once. Depends only on Task.due_at (slice 1) — can parallel slices 2–5.
 
 Sections within projects. Subtasks. Todoist import. Holiday-aware weekdays.
 Email/in-app notifications (macOS-only). launchd autostart. Multi-timezone.
-Second-level recurrence granularity.
+Second-level recurrence granularity. `every <ordinal> <unit>` month-boundary
+recurrence — Nth incident of a unit in the month, ordinals `first`/`1st`
+through `fifth`/`5th` plus `last` (e.g. `every first monday`,
+`every 3rd friday`, `every last workday`).
+`@label` quick-add parsing (slice 4, 2026-08-15 — label assignment stays on
+the structured form control).
 
 ## Open questions
 
