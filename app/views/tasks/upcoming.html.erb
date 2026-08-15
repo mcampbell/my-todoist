@@ -1,4 +1,4 @@
-<h1 class="title">Upcoming</h1>
+<%= render "page_header", title: "Upcoming" %>
 <% if @groups.empty? %>
   <p class="has-text-grey">Nothing due in the next <%= TasksController::UPCOMING_DAYS %> days.</p>
 <% else %>

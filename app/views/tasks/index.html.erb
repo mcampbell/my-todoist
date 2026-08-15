@@ -1,7 +1,4 @@
-<div class="level">
-  <h1 class="title level-left"><%= @project&.name || "Inbox" %></h1>
-  <%= link_to "New task", new_task_path, class: "button is-primary level-right" %>
-</div>
+<%= render "page_header", title: @project&.name || "Inbox" %>
 
 <% if @tasks.empty? %>
   <p class="has-text-grey">Nothing to do. Add a task.</p>

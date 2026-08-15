@@ -1,4 +1,4 @@
-<h1 class="title">Today</h1>
+<%= render "page_header", title: "Today" %>
 <% if @tasks.empty? %>
   <p class="has-text-grey">Nothing due today.</p>
 <% else %>
