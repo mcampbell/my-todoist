@@ -6,6 +6,7 @@ module TasksHelper
   end
 
   def due_tag(task)
+    return unless task.due_at
     task.all_day? ? task.due_at.strftime("%b %-d") : format_time(task.due_at)
   end
 

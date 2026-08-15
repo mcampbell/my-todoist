@@ -2,7 +2,7 @@ class TasksController < ApplicationController
   UPCOMING_DAYS = 7
 
   before_action :set_task, only: %i[edit update destroy complete]
-  helper_method :task_list_path
+  helper_method :task_list_path, :safe_return_to
 
   def index
     @project = Project.find(params[:project_id]) if params[:project_id]
@@ -40,7 +40,7 @@ class TasksController < ApplicationController
 
   def update
     if @task.update(task_params)
-      redirect_back_or_to task_list_path(@task)
+      redirect_to safe_return_to || task_list_path(@task)
     else
       render :edit, status: :unprocessable_content
     end

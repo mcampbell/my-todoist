@@ -53,6 +53,38 @@ RSpec.describe "Tasks", type: :request do
     end
   end
 
+  describe "edit link carries return_to back to the originating view" do
+    it "Today's edit link points at /tasks/:id/edit?return_to=/tasks/today" do
+      Task.create!(title: "edit me")
+      get today_tasks_path
+      expect(response.body).to match(%r{/tasks/\d+/edit\?return_to=%2Ftasks%2Ftoday})
+    end
+  end
+
+  describe "Cancel link on the edit form" do
+    def cancel_href(body)
+      Nokogiri::HTML(body).at_xpath("//a[text()='Cancel']")["href"]
+    end
+
+    it "points back to return_to when present" do
+      task = Task.create!(title: "t")
+      get edit_task_path(task, return_to: today_tasks_path)
+      expect(cancel_href(response.body)).to eq(today_tasks_path)
+    end
+
+    it "ignores a protocol-relative return_to and falls back to task_list_path" do
+      task = Task.create!(title: "t")
+      get edit_task_path(task, return_to: "//evil.com")
+      expect(cancel_href(response.body)).to eq(tasks_path)
+    end
+
+    it "falls back to task_list_path when return_to is absent" do
+      task = Task.create!(title: "t")
+      get edit_task_path(task)
+      expect(cancel_href(response.body)).to eq(tasks_path)
+    end
+  end
+
   describe "a request for a missing task" do
     it "returns 404 on edit" do
       get edit_task_path(id: 0)
@@ -125,16 +157,22 @@ RSpec.describe "Tasks", type: :request do
       expect(task.reload.title).to eq("old")
     end
 
-    it "redirects back to Today when referred from Today" do
+    it "redirects back to Today when return_to param present" do
       task = Task.create!(title: "old")
-      patch task_path(task), params: { task: { title: "new" } }, headers: { "HTTP_REFERER" => today_tasks_path }
+      patch task_path(task), params: { task: { title: "new" }, return_to: today_tasks_path }
       expect(response).to redirect_to(today_tasks_path)
     end
 
-    it "redirects back to Upcoming when referred from Upcoming" do
+    it "redirects back to Upcoming when return_to param present" do
       task = Task.create!(title: "old")
-      patch task_path(task), params: { task: { title: "new" } }, headers: { "HTTP_REFERER" => upcoming_tasks_path }
+      patch task_path(task), params: { task: { title: "new" }, return_to: upcoming_tasks_path }
       expect(response).to redirect_to(upcoming_tasks_path)
+    end
+
+    it "ignores a protocol-relative return_to and falls back to task_list_path" do
+      task = Task.create!(title: "old")
+      patch task_path(task), params: { task: { title: "new" }, return_to: "//evil.com" }
+      expect(response).to redirect_to(tasks_path)
     end
 
     it "falls back to task_list_path with no referer" do

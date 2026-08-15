@@ -19,7 +19,7 @@
     <% end %>
   </td>
   <td class="is-narrow">
-    <%= link_to edit_task_path(task), class: "button is-small is-white", "aria-label": "Edit #{task.title}" do %>
+    <%= link_to edit_task_path(task, return_to: request.path), class: "button is-small is-white", "aria-label": "Edit #{task.title}" do %>
       <span class="icon">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M16.86 4.49l2.65 2.65M3 21l4.5-1.13a4.5 4.5 0 001.9-1.13l9.36-9.36a1.87 1.87 0 000-2.65l-.94-.94a1.87 1.87 0 00-2.65 0L5.26 15.6a4.5 4.5 0 00-1.13 1.9L3 21z"/>
