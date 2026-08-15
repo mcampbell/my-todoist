@@ -82,12 +82,48 @@ RSpec.describe "Tasks", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
       expect(task.reload.title).to eq("old")
     end
+
+    it "redirects back to Today when referred from Today" do
+      task = Task.create!(title: "old")
+      patch task_path(task), params: { task: { title: "new" } }, headers: { "HTTP_REFERER" => today_tasks_path }
+      expect(response).to redirect_to(today_tasks_path)
+    end
+
+    it "redirects back to Upcoming when referred from Upcoming" do
+      task = Task.create!(title: "old")
+      patch task_path(task), params: { task: { title: "new" } }, headers: { "HTTP_REFERER" => upcoming_tasks_path }
+      expect(response).to redirect_to(upcoming_tasks_path)
+    end
+
+    it "falls back to task_list_path with no referer" do
+      task = Task.create!(title: "old")
+      patch task_path(task), params: { task: { title: "new" } }
+      expect(response).to redirect_to(tasks_path)
+    end
   end
 
   describe "DELETE /tasks/:id" do
     it "removes the task" do
       task = Task.create!(title: "gone")
       expect { delete task_path(task) }.to change(Task, :count).by(-1)
+    end
+
+    it "redirects back to Today when referred from Today" do
+      task = Task.create!(title: "gone")
+      delete task_path(task), headers: { "HTTP_REFERER" => today_tasks_path }
+      expect(response).to redirect_to(today_tasks_path)
+    end
+
+    it "redirects back to Upcoming when referred from Upcoming" do
+      task = Task.create!(title: "gone")
+      delete task_path(task), headers: { "HTTP_REFERER" => upcoming_tasks_path }
+      expect(response).to redirect_to(upcoming_tasks_path)
+    end
+
+    it "falls back to task_list_path with no referer" do
+      task = Task.create!(title: "gone")
+      delete task_path(task)
+      expect(response).to redirect_to(tasks_path)
     end
   end
 
@@ -111,6 +147,24 @@ RSpec.describe "Tasks", type: :request do
       patch complete_task_path(task)
       follow_redirect!
       expect(response.body).to include("Task completed")
+    end
+
+    it "redirects back to Today when referred from Today" do
+      task = Task.create!(title: "do it")
+      patch complete_task_path(task), headers: { "HTTP_REFERER" => today_tasks_path }
+      expect(response).to redirect_to(today_tasks_path)
+    end
+
+    it "redirects back to Upcoming when referred from Upcoming" do
+      task = Task.create!(title: "do it")
+      patch complete_task_path(task), headers: { "HTTP_REFERER" => upcoming_tasks_path }
+      expect(response).to redirect_to(upcoming_tasks_path)
+    end
+
+    it "falls back to task_list_path with no referer" do
+      task = Task.create!(title: "do it")
+      patch complete_task_path(task)
+      expect(response).to redirect_to(tasks_path)
     end
   end
 
@@ -242,6 +296,63 @@ RSpec.describe "Tasks", type: :request do
     it "returns 404 for a missing project view" do
       get project_tasks_path(project_id: 0)
       expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /tasks/today" do
+    it "shows overdue, due-today, and undated tasks; hides due-tomorrow and completed" do
+      overdue   = Task.create!(title: "overdue-task", due_at: 1.day.ago)
+      due_today = Task.create!(title: "today-task", due_at: Time.current)
+      undated   = Task.create!(title: "undated-task")
+      tomorrow  = Task.create!(title: "tomorrow-task", due_at: 1.day.from_now)
+      done      = Task.create!(title: "completed-task", completed_at: Time.current)
+
+      get today_tasks_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("overdue-task")
+      expect(response.body).to include("today-task")
+      expect(response.body).to include("undated-task")
+      expect(response.body).not_to include("tomorrow-task")
+      expect(response.body).not_to include("completed-task")
+    end
+
+    it "shows tasks from any project (no project_id scoping)" do
+      project = Project.create!(name: "Work")
+      Task.create!(title: "project-today-task", due_at: Time.current, project: project)
+      get today_tasks_path
+      expect(response.body).to include("project-today-task")
+    end
+  end
+
+  describe "GET /tasks/upcoming" do
+    it "shows a due-tomorrow task; hides undated, due-today, day-8, and overdue tasks" do
+      Task.create!(title: "tomorrow-task", due_at: 1.day.from_now)
+      Task.create!(title: "undated-task")
+      Task.create!(title: "today-task", due_at: Time.current)
+      Task.create!(title: "day8-task", due_at: 8.days.from_now)
+      Task.create!(title: "overdue-task", due_at: 1.day.ago)
+
+      get upcoming_tasks_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("tomorrow-task")
+      expect(response.body).not_to include("undated-task")
+      expect(response.body).not_to include("today-task")
+      expect(response.body).not_to include("day8-task")
+      expect(response.body).not_to include("overdue-task")
+    end
+
+    it "groups same-date tasks under one heading, ascending by date" do
+      Task.create!(title: "tomorrow-a", due_at: 1.day.from_now)
+      Task.create!(title: "tomorrow-b", due_at: 1.day.from_now)
+      Task.create!(title: "day3-task", due_at: 3.days.from_now)
+
+      get upcoming_tasks_path
+      expect(response.body).to include("tomorrow-a")
+      expect(response.body).to include("tomorrow-b")
+
+      tomorrow_index = response.body.index(1.day.from_now.to_date.strftime("%A, %b %-d"))
+      day3_index = response.body.index(3.days.from_now.to_date.strftime("%A, %b %-d"))
+      expect(tomorrow_index).to be < day3_index
     end
   end
 end

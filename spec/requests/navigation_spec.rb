@@ -26,4 +26,10 @@ RSpec.describe "Navigation", type: :request do
     get root_path
     expect(response.body).to match(/bulma\.min[-.]/)
   end
+
+  it "has Today and Upcoming links" do
+    get root_path
+    expect(response.body).to include(today_tasks_path)
+    expect(response.body).to include(upcoming_tasks_path)
+  end
 end

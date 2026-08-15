@@ -75,4 +75,37 @@ RSpec.describe Task, type: :model do
       expect(Task.ordered.to_a).to eq([ today, tomorrow, no_due ])
     end
   end
+
+  describe "date views (slice 3)" do
+    around do |example|
+      travel_to(Time.zone.local(2026, 1, 15, 12, 0, 0)) { example.run }
+    end
+
+    describe ".due_today_or_undated" do
+      it "matches overdue, due-today, and undated tasks; excludes due-tomorrow" do
+        overdue = Task.create!(title: "overdue", due_at: 1.day.ago)
+        due_today = Task.create!(title: "due today", due_at: Time.current)
+        undated = Task.create!(title: "undated")
+        due_tomorrow = Task.create!(title: "due tomorrow", due_at: 1.day.from_now)
+
+        expect(Task.due_today_or_undated).to contain_exactly(overdue, due_today, undated)
+        expect(Task.due_today_or_undated).not_to include(due_tomorrow)
+      end
+    end
+
+    describe ".due_between" do
+      it "matches only tasks due within the given range" do
+        range = 1.day.from_now.beginning_of_day..7.days.from_now.end_of_day
+
+        due_tomorrow = Task.create!(title: "tomorrow", due_at: 1.day.from_now)
+        due_today = Task.create!(title: "today", due_at: Time.current)
+        due_day_8 = Task.create!(title: "day 8", due_at: 8.days.from_now)
+        undated = Task.create!(title: "undated")
+
+        result = Task.due_between(range)
+        expect(result).to include(due_tomorrow)
+        expect(result).not_to include(due_today, due_day_8, undated)
+      end
+    end
+  end
 end

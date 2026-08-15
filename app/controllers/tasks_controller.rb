@@ -1,4 +1,6 @@
 class TasksController < ApplicationController
+  UPCOMING_DAYS = 7
+
   before_action :set_task, only: %i[edit update destroy complete]
   helper_method :task_list_path
 
@@ -9,6 +11,16 @@ class TasksController < ApplicationController
 
   def completed
     @tasks = Task.completed.order(completed_at: :desc)
+  end
+
+  def today
+    @tasks = Task.active.due_today_or_undated.ordered.includes(:labels)
+  end
+
+  def upcoming
+    range = 1.day.from_now.beginning_of_day..UPCOMING_DAYS.days.from_now.end_of_day
+    @groups = Task.active.due_between(range).ordered.includes(:labels)
+                  .group_by { |t| t.due_at.to_date }
   end
 
   def new
@@ -28,7 +40,7 @@ class TasksController < ApplicationController
 
   def update
     if @task.update(task_params)
-      redirect_to task_list_path(@task)
+      redirect_back_or_to task_list_path(@task)
     else
       render :edit, status: :unprocessable_content
     end
@@ -36,12 +48,12 @@ class TasksController < ApplicationController
 
   def destroy
     @task.destroy
-    redirect_to task_list_path(@task)
+    redirect_back_or_to task_list_path(@task)
   end
 
   def complete
     @task.complete!
-    redirect_to task_list_path(@task), notice: "Task completed."
+    redirect_back_or_to task_list_path(@task), notice: "Task completed."
   end
 
   private
