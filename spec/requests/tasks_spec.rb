@@ -32,6 +32,13 @@ RSpec.describe "Tasks", type: :request do
       get new_task_path(return_to: today_tasks_path)
       expect(response.body).to include(%(value="#{today_tasks_path}"))
     end
+
+    it "defaults the date field to today" do
+      travel_to(Time.zone.local(2026, 2, 20, 12, 0, 0)) do
+        get new_task_path
+        expect(response.body).to include(%(value="2026-02-20"))
+      end
+    end
   end
 
   describe "GET /tasks/:id/edit" do
