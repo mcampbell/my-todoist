@@ -24,20 +24,32 @@ class TasksController < ApplicationController
   end
 
   def new
-    @task = Task.new(due_date: Date.current.iso8601)
+    @task = Task.new
   end
 
   def create
     parsed = QuickAdd.parse(task_params[:title].to_s)
-    # Throwaway wiring (slice 4a): text token applies only when the structured
-    # select is left at its default (P0). Replaced by the full pipeline in 4d.
+    # Throwaway wiring (slice 4a/4b): text tokens apply only when the
+    # structured fields are left at their defaults. Replaced by the full
+    # pipeline in 4d.
     priority = task_params[:priority].to_i.zero? ? (parsed[:priority] || 0) : task_params[:priority].to_i
-    @task = Task.new(task_params.merge(title: parsed[:title], priority: priority))
+    attrs = task_params.merge(title: parsed[:title], priority: priority)
+    if task_params[:due_date].blank?
+      attrs = attrs.merge(
+        due_date: parsed[:due_date],
+        due_time: parsed[:due_time] || task_params[:due_time].presence
+      )
+    end
+    @task = Task.new(attrs)
     if @task.save
       redirect_to safe_return_to || task_list_path(@task)
     else
       render :new, status: :unprocessable_content
     end
+  rescue QuickAdd::RecurrenceNotSupportedError => e
+    @task = Task.new(task_params)
+    @task.errors.add(:title, e.message)
+    render :new, status: :unprocessable_content
   end
 
   def edit; end

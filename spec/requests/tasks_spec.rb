@@ -33,10 +33,10 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include(%(value="#{today_tasks_path}"))
     end
 
-    it "defaults the date field to today" do
+    it "does not prefill the date field (quick-add owns the date)" do
       travel_to(Time.zone.local(2026, 2, 20, 12, 0, 0)) do
         get new_task_path
-        expect(response.body).to include(%(value="2026-02-20"))
+        expect(response.body).not_to include(%(value="2026-02-20"))
       end
     end
   end
@@ -115,6 +115,29 @@ RSpec.describe "Tasks", type: :request do
     it "lets the structured priority select win over the text token" do
       post tasks_path, params: { task: { title: "call p2 dentist", priority: 3 } }
       expect(Task.last.priority).to eq(3)
+    end
+
+    it "sets due_at from a quick-add date token when the structured date is blank" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        post tasks_path, params: { task: { title: "Call dentist tomorrow" } }
+        task = Task.last
+        expect(task.title).to eq("Call dentist")
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 16).beginning_of_day)
+        expect(task.all_day?).to eq(true)
+      end
+    end
+
+    it "lets a structured date win over the quick-add text token" do
+      post tasks_path, params: { task: { title: "Call dentist tomorrow", due_date: "2026-09-01" } }
+      expect(Task.last.due_at).to eq(Time.zone.local(2026, 9, 1).beginning_of_day)
+    end
+
+    it "rejects recurrence phrases with an error and creates nothing" do
+      expect {
+        post tasks_path, params: { task: { title: "water plants every! 10 minutes" } }
+      }.not_to change(Task, :count)
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("Recurrence not supported yet")
     end
 
     it "re-renders 422 on blank title, creating nothing" do
