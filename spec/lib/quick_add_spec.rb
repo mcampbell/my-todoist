@@ -128,6 +128,40 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
+    it "parses next weekday as an all-day one-off (not recurrence)" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist next weekday")).to include(
+        title: "Call dentist", due_date: "2026-08-17", due_time: nil
+      )
+    end
+
+    it "parses next workday as an all-day one-off, translating to Chronic's 'weekday'" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist next workday")).to include(
+        title: "Call dentist", due_date: "2026-08-17", due_time: nil
+      )
+    end
+
+    it "parses last workday as an all-day one-off, not recurrence" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist last workday")).to include(
+        title: "Call dentist", due_date: "2026-08-14", due_time: nil
+      )
+    end
+
+    it "parses last weekday as an all-day one-off, not recurrence" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist last weekday")).to include(
+        title: "Call dentist", due_date: "2026-08-14", due_time: nil
+      )
+    end
+
+    it "rejects bare 'workday' as recurrence shorthand (not preceded by next)" do
+      expect { described_class.parse("Take out trash workday") }
+        .to raise_error(QuickAdd::RecurrenceNotSupportedError)
+    end
+
+    it "rejects bare 'weekdays' as recurrence shorthand (not preceded by next)" do
+      expect { described_class.parse("Take out trash weekdays") }
+        .to raise_error(QuickAdd::RecurrenceNotSupportedError)
+    end
+
     it "parses a month-day phrase as all-day" do
       expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist aug 20")).to include(
         title: "Call dentist", due_date: "2026-08-20", due_time: nil

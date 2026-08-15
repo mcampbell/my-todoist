@@ -13,12 +13,18 @@ class QuickAdd
   # weekday, or N-unit count; or the bare shorthand weekdays/workday. Runs
   # before chronic, which would otherwise parse "every weekday" as a one-off.
   RECURRENCE_RE = /\bevery!?\s+(?:\d+\s+)?(?:days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday)\b/i
-  WEEKDAYS_SHORTHAND_RE = /\b(?:weekdays|workday)\b/i
+  # Bare "weekdays"/"workday" (no "every" prefix) is recurrence shorthand for
+  # "every weekday" -- UNLESS it is "next"/"last" + weekday/workday, which is
+  # a one-off date (like "next monday" / "last monday"), not recurrence.
+  WEEKDAYS_SHORTHAND_RE = /(?<!\bnext\s)(?<!\blast\s)\b(?:weekdays|workday)\b/i
+  # "workday" isn't Chronic vocabulary (Chronic understands "weekday"); this
+  # maps the one word we accept as input to the word we hand Chronic.
+  CHRONIC_SYNONYMS = { "workday" => "weekday" }.freeze
 
   WORD_RE = /[^\s]+/
   NUMBER_RE = /\A\d+(?:st|nd|rd|th)?\z/i
   # Words chronic recognizes as date material (used to find candidate spans).
-  DATE_WORD_RE = /\A(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|tomorrow|today|yesterday|next|last|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|weeks?|months?|years?)\z/i
+  DATE_WORD_RE = /\A(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|tomorrow|today|yesterday|next|last|weekday|workday|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|weeks?|months?|years?)\z/i
   # Explicit time forms (digit and word) plus their standalone am/pm markers.
   TIME_ANCHOR_RE = /\A(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2}|noon|midnight|o'clock|am|pm)\z/i
   TRAILING_PUNCTUATION_RE = /[.,;!?]+\z/
@@ -101,7 +107,7 @@ class QuickAdd
       parsed = nil
       attempt = span_words
       loop do
-        parsed = Chronic.parse(attempt.map { |w| classify(w[0]) }.join(" "))
+        parsed = Chronic.parse(attempt.map { |w| chronic_word(classify(w[0])) }.join(" "))
         break if parsed || attempt.length == 1 || attempt.first.equal?(words[i])
         attempt = attempt[1..]
       end
@@ -130,6 +136,12 @@ class QuickAdd
     word.sub(TRAILING_PUNCTUATION_RE, "")
   end
   private_class_method :classify
+
+  # Normalizes a classified word to whatever Chronic itself understands.
+  def self.chronic_word(word)
+    CHRONIC_SYNONYMS[word.downcase] || word
+  end
+  private_class_method :chronic_word
 
   def self.date_word?(word)
     DATE_WORD_RE.match?(word)
