@@ -57,8 +57,11 @@ label tags on task rows.
 
 ### Slice 3 — Date views  *(Today / Upcoming)*
 
-Today view (due_at <= end-of-today OR overdue). Upcoming view (grouped by date,
-next N days). Dates still set via form (no NLP yet). Adds nav links.
+Today view (due_at <= end-of-today OR overdue OR undated — an undated task
+carries no due date to exclude it, so it counts as "today" until it's dated
+or completed). Upcoming view (grouped by date, next N days; excludes today
+and undated, since Today already owns both). Dates still set via form (no
+NLP yet). Adds nav links.
 
 ### Slice 4 — Quick-add NLP (one-off)  *(Todoist single-field entry)*
 
