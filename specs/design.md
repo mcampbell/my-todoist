@@ -66,6 +66,18 @@ Replace create form with single text field. Parse: chronic date/time,
 `p1..p4` priority, `#project`, `@label`. No recurrence yet. Rework: replaces
 slice-1 plain form + slice-1 create controller path.
 
+**Inline project creation + drop the structured fields (user intent).** A
+`#ProjectName` token that matches no existing project **creates** it (find-or-
+create by normalized name — reuses slice-2 NOCASE + trim identity). Once the
+text field owns project *and* due-date parsing, **remove** the slice-2 Project
+dropdown and the Due-date `datetime_field` from the task form — the quick-add
+string is the single source. Keep priority + label controls only if the parser
+does not yet cover `p1..p4` / `@label` (goal: text covers all four, form shrinks
+to one input). Open Qs for that slice: typo/no-match on `#project` — auto-create
+vs confirm; whether `@label` also auto-creates (labels are cheap, lean create);
+edit UX once the structured fields are gone (edit still needs a way to reassign
+project/due without retyping).
+
 ### Slice 5 — Recurrence engine  *(every / every!)*
 
 `Recurrence` PORO + parser. Quick-add recognizes `every`/`every!` phrases and

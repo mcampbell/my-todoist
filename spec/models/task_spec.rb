@@ -38,4 +38,41 @@ RSpec.describe Task, type: :model do
 
     expect(task.reload.completed_at).to eq(first)
   end
+
+  describe "organization (slice 2)" do
+    it "is valid with no project (Inbox) — proves belongs_to optional" do
+      expect(Task.new(title: "inbox")).to be_valid
+    end
+
+    it "belongs to a project and appears in project.tasks" do
+      project = Project.create!(name: "Work")
+      task = Task.create!(title: "t", project: project)
+      expect(task.project).to eq(project)
+      expect(project.tasks).to include(task)
+    end
+
+    it "associates labels via label_ids" do
+      a = Label.create!(name: "a")
+      b = Label.create!(name: "b")
+      task = Task.create!(title: "t", label_ids: [ a.id, b.id ])
+      expect(task.labels).to contain_exactly(a, b)
+    end
+
+    it "defaults priority to 0" do
+      expect(Task.create!(title: "t").priority).to eq(0)
+    end
+
+    it "accepts priority 0..3 and rejects outside that range" do
+      expect(Task.new(title: "t", priority: 3)).to be_valid
+      expect(Task.new(title: "t", priority: 5)).not_to be_valid
+      expect(Task.new(title: "t", priority: -1)).not_to be_valid
+    end
+
+    it "keeps NULLS LAST + created_at DESC in the ordered scope" do
+      no_due = Task.create!(title: "no-due")
+      tomorrow = Task.create!(title: "tomorrow", due_at: 1.day.from_now)
+      today = Task.create!(title: "today", due_at: Time.current)
+      expect(Task.ordered.to_a).to eq([ today, tomorrow, no_due ])
+    end
+  end
 end

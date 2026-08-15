@@ -21,15 +21,19 @@
   </head>
 
   <body>
-    <%= render "layouts/navbar" %>
     <main class="section">
-      <div class="container">
-        <% flash.each do |type, message| %>
-          <div class="notification is-<%= type == "alert" ? "danger" : "success" %>">
-            <%= message %>
-          </div>
-        <% end %>
-        <%= yield %>
+      <div class="columns">
+        <div class="column is-narrow">
+          <%= render "layouts/navbar" %>
+        </div>
+        <div class="column">
+          <% flash.each do |type, message| %>
+            <div class="notification is-<%= type == "alert" ? "danger" : "success" %>">
+              <%= message %>
+            </div>
+          <% end %>
+          <%= yield %>
+        </div>
       </div>
     </main>
   </body>

@@ -30,8 +30,37 @@
     </div>
   </div>
 
+  <div class="field">
+    <%= f.label :project_id, "Project", class: "label" %>
+    <div class="control">
+      <div class="select">
+        <%= f.collection_select :project_id, Project.order(:name), :id, :name, include_blank: "Inbox" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <%= f.label :priority, class: "label" %>
+    <div class="control">
+      <div class="select">
+        <%= f.select :priority, (0..3).map { |n| ["P#{n}", n] } %>
+      </div>
+    </div>
+  </div>
+
+  <% if Label.exists? %>
+    <div class="field">
+      <label class="label">Labels</label>
+      <div class="control">
+        <%= f.collection_check_boxes :label_ids, Label.order(:name), :id, :name do |b| %>
+          <label class="checkbox mr-3"><%= b.check_box %> <%= b.text %></label>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
   <div class="control">
     <%= f.submit "Save", class: "button is-primary" %>
-    <%= link_to "Cancel", tasks_path, class: "button is-light" %>
+    <%= link_to "Cancel", task_list_path(task), class: "button is-light" %>
   </div>
 <% end %>
