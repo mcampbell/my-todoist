@@ -35,7 +35,7 @@ class CreateCompletedOccurrences < ActiveRecord::Migration[8.0]
 
     now = Time.current
     rows.each do |row|
-      execute(sanitize_sql_array([
+      execute(ActiveRecord::Base.sanitize_sql_array([
         "INSERT INTO completed_occurrences (task_title, project_name, priority, label_names, due_at, completed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         row["task_title"], row["project_name"], row["priority"], row["label_names"],
         row["due_at"], row["completed_at"], now, now
