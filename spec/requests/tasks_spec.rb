@@ -20,6 +20,19 @@ RSpec.describe "Tasks", type: :request do
       order = %w[today tomorrow tie-new tie-old no-due].map { |t| response.body.index(t) }
       expect(order).to eq(order.sort)
     end
+
+    it "hides the time on an all-day task's due tag" do
+      Task.create!(title: "t", all_day: true, due_at: Time.zone.local(2030, 6, 5).beginning_of_day)
+      get tasks_path
+      expect(response.body).to include(%(>Jun 5<))
+      expect(response.body).not_to match(/Jun 5, \d/)
+    end
+
+    it "shows the time on a timed task's due tag" do
+      Task.create!(title: "t", all_day: false, due_at: Time.zone.local(2030, 6, 5, 14, 30))
+      get tasks_path
+      expect(response.body).to include("Jun 5, 2:30 PM")
+    end
   end
 
   describe "GET /tasks/new" do
