@@ -45,7 +45,56 @@ RSpec.describe QuickAdd, type: :model do
 
     it "returns nil due fields when no date or time token is present" do
       expect(described_class.parse("buy milk")).to eq(
-        title: "buy milk", priority: nil, due_date: nil, due_time: nil
+        title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil
+      )
+    end
+  end
+
+  describe "project tokens" do
+    it "extracts a #project token and strips it from the title" do
+      expect(described_class.parse("Call #Work dentist")).to include(
+        title: "Call dentist", project_name: "Work"
+      )
+    end
+
+    it "extracts a token at the start of the text" do
+      expect(described_class.parse("#Work call")).to include(title: "call", project_name: "Work")
+    end
+
+    it "keeps the raw token casing (matching is case-insensitive at the DB)" do
+      expect(described_class.parse("Call #work dentist")).to include(
+        title: "Call dentist", project_name: "work"
+      )
+    end
+
+    it "does not treat # inside a word as a token" do
+      expect(described_class.parse("check hash#tag")).to include(
+        title: "check hash#tag", project_name: nil
+      )
+    end
+
+    it "keeps a bare # in the title" do
+      expect(described_class.parse("Call # dentist")).to include(
+        title: "Call # dentist", project_name: nil
+      )
+    end
+
+    it "strips trailing punctuation from the token" do
+      expect(described_class.parse("Call #Work. dentist")).to include(
+        title: "Call dentist", project_name: "Work"
+      )
+    end
+
+    it "takes only the first project token" do
+      expect(described_class.parse("Call #Work then #Home")).to include(
+        title: "Call then #Home", project_name: "Work"
+      )
+    end
+
+    it "combines project with priority and date tokens in one submission" do
+      expect(described_class.parse("Call #Health dentist p2 wed 3pm")).to include(
+        title: "Call dentist", project_name: "Health", priority: 2,
+        due_date: "2026-08-19", due_time: "15:00"
       )
     end
   end

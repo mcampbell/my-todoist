@@ -1,3 +1,5 @@
+require "did_you_mean"
+
 class TasksController < ApplicationController
   UPCOMING_DAYS = 7
 
@@ -29,7 +31,7 @@ class TasksController < ApplicationController
 
   def create
     parsed = QuickAdd.parse(task_params[:title].to_s)
-    # Throwaway wiring (slice 4a/4b): text tokens apply only when the
+    # Throwaway wiring (slice 4a/4b/4c): text tokens apply only when the
     # structured fields are left at their defaults. Replaced by the full
     # pipeline in 4d.
     priority = task_params[:priority].to_i.zero? ? (parsed[:priority] || 0) : task_params[:priority].to_i
@@ -39,6 +41,19 @@ class TasksController < ApplicationController
         due_date: parsed[:due_date],
         due_time: parsed[:due_time] || task_params[:due_time].presence
       )
+    end
+    project_name = params[:project_name].presence || parsed[:project_name]
+    if project_name.present? && task_params[:project_id].blank?
+      project = Project.find_by(name: project_name)
+      if project.nil? && !params[:force_create_project].present? && (suggestion = project_suggestion(project_name))
+        @project_candidate = project_name
+        @project_suggestion = suggestion
+        @task = Task.new(task_params)
+        render :new, status: :unprocessable_content
+        return
+      end
+      project ||= Project.create!(name: project_name)
+      attrs = attrs.merge(project_id: project.id)
     end
     @task = Task.new(attrs)
     if @task.save
@@ -81,6 +96,12 @@ class TasksController < ApplicationController
   # Return to the task's own list: its project, or Inbox.
   def task_list_path(task)
     task.project ? project_tasks_path(task.project) : tasks_path
+  end
+
+  # First near-miss project name, or nil. Case-insensitive exact matches are
+  # handled by Project.find_by (NOCASE column); this only catches typos.
+  def project_suggestion(name)
+    DidYouMean::SpellChecker.new(dictionary: Project.pluck(:name)).correct(name).first
   end
 
   def task_params

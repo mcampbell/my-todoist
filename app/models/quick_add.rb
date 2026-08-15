@@ -7,6 +7,7 @@ class QuickAdd
 
   PRIORITY_TOKENS = { 1 => 3, 2 => 2, 3 => 1, 4 => 0 }.freeze
   PRIORITY_RE = /\bp([1-4])\b/
+  PROJECT_RE = /(?<!\w)#([^\s#]+)/
 
   # Recurrence grammar (specs/design.md): "every"/"every!" plus a day, unit,
   # weekday, or N-unit count; or the bare shorthand weekdays/workday. Runs
@@ -22,10 +23,12 @@ class QuickAdd
   TIME_ANCHOR_RE = /\A(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2}|noon|midnight|o'clock|am|pm)\z/i
   TRAILING_PUNCTUATION_RE = /[.,;!?]+\z/
 
-  # Returns { title:, priority:, due_date:, due_time: }. due_date is
-  # "YYYY-MM-DD", due_time is "HH:MM"; both nil when absent. due_time is set
-  # only for phrases with an explicit time token — chronic's 12:00 default for
-  # bare dates never leaks (the Task model derives all_day from due_time).
+  # Returns { title:, priority:, due_date:, due_time:, project_name: }.
+  # due_date is "YYYY-MM-DD", due_time is "HH:MM"; due_time and project_name
+  # are nil when absent. due_time is set only for phrases with an explicit
+  # time token — chronic's 12:00 default for bare dates never leaks (the Task
+  # model derives all_day from due_time). project_name is the trimmed
+  # #token text; matching is case-insensitive at the DB (NOCASE).
   # Raises RecurrenceNotSupportedError for recurrence-shaped phrases.
   def self.parse(text)
     raw = text.to_s
@@ -48,7 +51,22 @@ class QuickAdd
       title[span[:start]...span[:end]] = ""
     end
 
-    { title: title.strip.squeeze(" "), priority: priority, due_date: due_date, due_time: due_time }
+    project_name = nil
+    if (match = title.match(PROJECT_RE))
+      name = classify(match[1])
+      if name.present?
+        project_name = name
+        title[match.begin(1) - 1...match.end(1)] = ""
+      end
+    end
+
+    {
+      title: title.strip.squeeze(" "),
+      priority: priority,
+      due_date: due_date,
+      due_time: due_time,
+      project_name: project_name
+    }
   end
 
   def self.recurrence?(text)

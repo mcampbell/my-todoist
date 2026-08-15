@@ -12,6 +12,16 @@
     </div>
   <% end %>
 
+  <% if @project_suggestion.present? && @project_candidate.present? %>
+    <div class="notification is-warning">
+      <p>Did you mean #<%= @project_suggestion %>?</p>
+      <div class="buttons mt-2">
+        <%= f.submit "Use existing", name: "project_name", value: @project_suggestion, class: "button is-small is-primary" %>
+        <%= f.submit "Create ##{@project_candidate} anyway", name: "force_create_project", value: "true", class: "button is-small is-light" %>
+      </div>
+    </div>
+  <% end %>
+
   <div class="field">
     <%= f.label :title, class: "label" %>
     <div class="control">

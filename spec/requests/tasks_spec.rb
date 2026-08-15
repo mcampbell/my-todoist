@@ -413,6 +413,56 @@ RSpec.describe "Tasks", type: :request do
     end
   end
 
+  describe "quick-add project tokens (slice 4c)" do
+    it "reuses an existing project on exact match" do
+      project = Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #Work dentist" } }
+      task = Task.last
+      expect(task.project).to eq(project)
+      expect(task.title).to eq("Call dentist")
+    end
+
+    it "reuses an existing project case-insensitively" do
+      Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #work dentist" } }
+      expect(Task.last.project.name).to eq("Work")
+    end
+
+    it "creates the project directly when no near-miss exists" do
+      post tasks_path, params: { task: { title: "Call #Errand dentist" } }
+      task = Task.last
+      expect(task.project.name).to eq("Errand")
+      expect(task.title).to eq("Call dentist")
+    end
+
+    it "re-renders with a confirm banner on a near-miss, creating nothing" do
+      Project.create!(name: "Work")
+      expect {
+        post tasks_path, params: { task: { title: "Call #Wrok dentist" } }
+      }.not_to change(Task, :count)
+      expect(Project.find_by(name: "Wrok")).to be_nil
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("Did you mean")
+      expect(response.body).to include("#Work")
+    end
+
+    it "creates the task in the suggested project when Use existing is submitted" do
+      project = Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #Wrok dentist" }, project_name: "Work" }
+      task = Task.last
+      expect(task.project).to eq(project)
+      expect(task.title).to eq("Call dentist")
+    end
+
+    it "creates the misspelled project when Create anyway is submitted" do
+      Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #Wrok dentist" }, force_create_project: "true" }
+      task = Task.last
+      expect(task.project.name).to eq("Wrok")
+      expect(task.title).to eq("Call dentist")
+    end
+  end
+
   describe "GET /tasks/today" do
     it "shows overdue, due-today, and undated tasks; hides due-tomorrow and completed" do
       overdue   = Task.create!(title: "overdue-task", due_at: 1.day.ago)

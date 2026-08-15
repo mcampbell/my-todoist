@@ -53,4 +53,17 @@ RSpec.describe "Task flow", type: :system do
     click_button "Save"
     expect(page).to have_content("with fields")
   end
+
+  it "lands a quick-add #project token task in that project" do
+    Project.create!(name: "Work")
+    visit new_task_path
+    fill_in "Title", with: "Call #Work dentist"
+    click_button "Save"
+
+    task = Task.last
+    expect(task.project.name).to eq("Work")
+    expect(task.title).to eq("Call dentist")
+    expect(page).to have_current_path(project_tasks_path(task.project), ignore_query: true)
+    expect(page).to have_content("Call dentist")
+  end
 end
