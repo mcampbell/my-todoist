@@ -76,6 +76,49 @@ RSpec.describe Task, type: :model do
     end
   end
 
+  describe "optional due time" do
+    around do |example|
+      travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) { example.run }
+    end
+
+    it "composes due_at from date + time and is not all_day" do
+      task = Task.new(title: "t", due_date: "2026-02-20", due_time: "14:30")
+      task.valid?
+      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20, 14, 30))
+      expect(task.all_day?).to eq(false)
+    end
+
+    it "composes due_at as beginning of day and is all_day when time omitted" do
+      task = Task.new(title: "t", due_date: "2026-02-20")
+      task.valid?
+      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20).beginning_of_day)
+      expect(task.all_day?).to eq(true)
+    end
+
+    it "reflects due_at in due_date and due_time readers when not explicitly assigned" do
+      task = Task.create!(title: "t", due_at: Time.zone.local(2026, 2, 20, 9, 15))
+      expect(task.due_date).to eq("2026-02-20")
+      expect(task.due_time).to eq("09:15")
+
+      all_day_task = Task.create!(title: "t", due_at: Time.zone.local(2026, 2, 20).beginning_of_day, all_day: true)
+      expect(all_day_task.due_time).to be_nil
+    end
+
+    it "clears due_at and all_day when due_date is set blank" do
+      task = Task.create!(title: "t", due_at: Time.zone.local(2026, 2, 20, 9, 15))
+      task.due_date = ""
+      task.valid?
+      expect(task.due_at).to be_nil
+      expect(task.all_day?).to eq(false)
+    end
+
+    it "leaves compose logic untouched when due_at is set directly" do
+      task = Task.create!(title: "t", due_at: Time.zone.local(2026, 2, 20, 9, 15))
+      expect(task.all_day?).to eq(false)
+      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20, 9, 15))
+    end
+  end
+
   describe "date views (slice 3)" do
     around do |example|
       travel_to(Time.zone.local(2026, 1, 15, 12, 0, 0)) { example.run }

@@ -24,9 +24,16 @@
   </div>
 
   <div class="field">
-    <%= f.label :due_at, "Due", class: "label" %>
+    <%= f.label :due_date, "Due date", class: "label" %>
     <div class="control">
-      <%= f.datetime_field :due_at, class: "input" %>
+      <%= f.date_field :due_date, class: "input" %>
+    </div>
+  </div>
+
+  <div class="field">
+    <%= f.label :due_time, "Due time (optional)", class: "label" %>
+    <div class="control">
+      <%= f.time_field :due_time, class: "input" %>
     </div>
   </div>
 

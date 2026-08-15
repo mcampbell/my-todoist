@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_14_013913) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_15_124749) do
   create_table "labels", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false, collation: "NOCASE"
@@ -36,6 +36,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_013913) do
   end
 
   create_table "tasks", force: :cascade do |t|
+    t.boolean "all_day", default: false, null: false
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.datetime "due_at"

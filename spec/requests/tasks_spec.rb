@@ -30,13 +30,14 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "GET /tasks/:id/edit" do
-    it "pre-fills title, notes, due_at" do
+    it "pre-fills title, notes, due_date, due_time" do
       due = Time.zone.local(2030, 3, 4, 9, 30)
       task = Task.create!(title: "edit me", notes: "some notes", due_at: due)
       get edit_task_path(task)
       expect(response.body).to include("edit me")
       expect(response.body).to include("some notes")
-      expect(response.body).to include(due.strftime("%Y-%m-%dT%H:%M"))
+      expect(response.body).to include(due.strftime("%Y-%m-%d"))
+      expect(response.body).to include(due.strftime("%H:%M"))
     end
   end
 
@@ -66,6 +67,20 @@ RSpec.describe "Tasks", type: :request do
         post tasks_path, params: { task: { title: "" } }
       }.not_to change(Task, :count)
       expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "creates an all-day task when only due_date is submitted" do
+      post tasks_path, params: { task: { title: "t", due_date: "2026-02-20" } }
+      task = Task.last
+      expect(task.all_day?).to eq(true)
+      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20).beginning_of_day)
+    end
+
+    it "creates a timed task when due_date and due_time are both submitted" do
+      post tasks_path, params: { task: { title: "t", due_date: "2026-02-20", due_time: "14:30" } }
+      task = Task.last
+      expect(task.all_day?).to eq(false)
+      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20, 14, 30))
     end
   end
 

@@ -12,7 +12,7 @@
     <%= priority_badge(task) %>
     <strong><%= task.title %></strong>
     <% if task.due_at %>
-      <span class="tag is-info is-light"><%= format_time(task.due_at) %></span>
+      <span class="tag is-info is-light"><%= due_tag(task) %></span>
     <% end %>
     <% task.labels.sort_by(&:name).each do |label| %>
       <span class="tag is-light"><%= label.name %></span>
