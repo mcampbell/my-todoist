@@ -27,6 +27,16 @@ RSpec.describe Task, type: :model do
       expect(occurrence.completed_at).to be_present
     end
 
+    it "snapshots the all_day flag when completing" do
+      all_day = Task.create!(title: "all-day", due_at: Time.zone.local(2030, 3, 4).beginning_of_day, all_day: true)
+      all_day.complete!
+      expect(CompletedOccurrence.last.all_day?).to eq(true)
+
+      timed = Task.create!(title: "timed", due_at: Time.zone.local(2030, 3, 4, 9, 30), all_day: false)
+      timed.complete!
+      expect(CompletedOccurrence.order(:id).last.all_day?).to eq(false)
+    end
+
     it "raises RecordNotFound when the same id is completed a second time" do
       task = Task.create!(title: "t")
       task.complete!
@@ -58,7 +68,28 @@ RSpec.describe Task, type: :model do
       end
     end
 
-    it "advances a rolling recurring task from the completion time" do
+    it "turns a rolling all-day task timed when due_at moves to the completion time" do
+      travel_to(Time.zone.local(2026, 2, 10, 10, 0, 0)) do
+        task = Task.create!(title: "pill", recurrence: "every! day",
+                            due_at: Time.zone.local(2026, 2, 10).beginning_of_day, all_day: true)
+        task.complete!
+        task.reload
+        expect(task.all_day?).to eq(false)
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11, 10, 0, 0))
+      end
+    end
+
+    it "keeps a fixed all-day recurrence all-day when due stays at midnight" do
+      travel_to(Time.zone.local(2026, 2, 10, 10, 0, 0)) do
+        task = Task.create!(title: "pill", recurrence: "every day",
+                            due_at: Time.zone.local(2026, 2, 10).beginning_of_day, all_day: true)
+        task.complete!
+        task.reload
+        expect(task.all_day?).to eq(true)
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11).beginning_of_day)
+      end
+    end
+      it "advances a rolling recurring task from the completion time" do
       travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) do
         task = Task.create!(title: "pills", recurrence: "every! 6 hours",
                             due_at: Time.zone.local(2026, 2, 10, 8, 0))

@@ -29,12 +29,18 @@ class Task < ApplicationRecord
         priority: priority,
         label_names: labels.pluck(:name).sort_by { |n| n.downcase }.join(", "),
         due_at: due_at,
+        all_day: all_day,
         completed_at: Time.current
       )
       if recurrence.blank?
         destroy!
       else
-        update!(due_at: Recurrence.parse(recurrence).next_from(due_at: due_at || Time.current, now: Time.current))
+        next_due = Recurrence.parse(recurrence).next_from(due_at: due_at || Time.current, now: Time.current)
+        # A rolling all-day recurrence reschedules to the completion time, so
+        # due_at moves off midnight; clear all_day so the due tag shows the
+        # new time. Fixed recurrences that stay at midnight keep all_day.
+        timed = !next_due.to_time.strftime("%H:%M").in?(%w[00:00])
+        update!(due_at: next_due, all_day: all_day && !timed)
       end
       snapshot
     end
