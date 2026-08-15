@@ -28,7 +28,11 @@ class TasksController < ApplicationController
   end
 
   def create
-    @task = Task.new(task_params)
+    parsed = QuickAdd.parse(task_params[:title].to_s)
+    # Throwaway wiring (slice 4a): text token applies only when the structured
+    # select is left at its default (P0). Replaced by the full pipeline in 4d.
+    priority = task_params[:priority].to_i.zero? ? (parsed[:priority] || 0) : task_params[:priority].to_i
+    @task = Task.new(task_params.merge(title: parsed[:title], priority: priority))
     if @task.save
       redirect_to safe_return_to || task_list_path(@task)
     else

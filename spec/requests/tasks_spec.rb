@@ -106,6 +106,17 @@ RSpec.describe "Tasks", type: :request do
       expect(Task.last.notes).to eq("keep me")
     end
 
+    it "parses priority from quick-add text when the structured select is at default" do
+      post tasks_path, params: { task: { title: "call p2 dentist" } }
+      expect(Task.last.priority).to eq(2)
+      expect(Task.last.title).to eq("call dentist")
+    end
+
+    it "lets the structured priority select win over the text token" do
+      post tasks_path, params: { task: { title: "call p2 dentist", priority: 3 } }
+      expect(Task.last.priority).to eq(3)
+    end
+
     it "re-renders 422 on blank title, creating nothing" do
       expect {
         post tasks_path, params: { task: { title: "" } }
