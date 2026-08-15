@@ -517,4 +517,28 @@ RSpec.describe "Tasks", type: :request do
       expect(tomorrow_index).to be < day3_index
     end
   end
+
+  describe "GET /tasks/overdue" do
+    it "shows only tasks due before today" do
+      Task.create!(title: "overdue-task", due_at: 1.day.ago)
+      Task.create!(title: "today-task", due_at: Time.current)
+      Task.create!(title: "undated-task")
+      Task.create!(title: "tomorrow-task", due_at: 1.day.from_now)
+      Task.create!(title: "completed-task", due_at: 1.day.ago, completed_at: Time.current)
+
+      get overdue_tasks_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("overdue-task")
+      expect(response.body).not_to include("today-task")
+      expect(response.body).not_to include("undated-task")
+      expect(response.body).not_to include("tomorrow-task")
+      expect(response.body).not_to include("completed-task")
+    end
+
+    it "marks the overdue row with the danger background class" do
+      Task.create!(title: "overdue-task", due_at: 1.day.ago)
+      get overdue_tasks_path
+      expect(response.body).to include("has-background-danger-light")
+    end
+  end
 end

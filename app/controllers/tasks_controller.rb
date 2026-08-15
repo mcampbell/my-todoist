@@ -19,6 +19,10 @@ class TasksController < ApplicationController
     @tasks = Task.active.due_today_or_undated.ordered.includes(:labels)
   end
 
+  def overdue
+    @tasks = Task.active.overdue.ordered.includes(:labels)
+  end
+
   def upcoming
     range = 1.day.from_now.beginning_of_day..UPCOMING_DAYS.days.from_now.end_of_day
     @groups = Task.active.due_between(range).ordered.includes(:labels)

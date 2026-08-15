@@ -1,4 +1,4 @@
-<tr>
+<tr class="<%= "has-background-danger-light" if task.overdue? %>">
   <td class="is-narrow">
     <%= button_to complete_task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Complete #{task.title}" do %>
       <span class="icon">
