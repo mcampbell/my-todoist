@@ -30,30 +30,27 @@ class TasksController < ApplicationController
   end
 
   def create
-    parsed = QuickAdd.parse(task_params[:title].to_s)
-    # Throwaway wiring (slice 4a/4b/4c): text tokens apply only when the
-    # structured fields are left at their defaults. Replaced by the full
-    # pipeline in 4d.
-    priority = task_params[:priority].to_i.zero? ? (parsed[:priority] || 0) : task_params[:priority].to_i
-    attrs = task_params.merge(title: parsed[:title], priority: priority)
-    if task_params[:due_date].blank?
-      attrs = attrs.merge(
-        due_date: parsed[:due_date],
-        due_time: parsed[:due_time] || task_params[:due_time].presence
-      )
-    end
+    qp = quick_add_params
+    parsed = QuickAdd.parse(qp[:title].to_s)
+    attrs = {
+      title: parsed[:title],
+      priority: parsed[:priority] || 0,
+      due_date: parsed[:due_date],
+      due_time: parsed[:due_time],
+      label_ids: qp[:label_ids] || []
+    }
     project_name = params[:project_name].presence || parsed[:project_name]
-    if project_name.present? && task_params[:project_id].blank?
+    if project_name.present?
       project = Project.find_by(name: project_name)
       if project.nil? && !params[:force_create_project].present? && (suggestion = project_suggestion(project_name))
         @project_candidate = project_name
         @project_suggestion = suggestion
-        @task = Task.new(task_params)
+        @task = Task.new(quick_add_params)
         render :new, status: :unprocessable_content
         return
       end
       project ||= Project.create!(name: project_name)
-      attrs = attrs.merge(project_id: project.id)
+      attrs[:project_id] = project.id
     end
     @task = Task.new(attrs)
     if @task.save
@@ -62,7 +59,7 @@ class TasksController < ApplicationController
       render :new, status: :unprocessable_content
     end
   rescue QuickAdd::RecurrenceNotSupportedError => e
-    @task = Task.new(task_params)
+    @task = Task.new(quick_add_params)
     @task.errors.add(:title, e.message)
     render :new, status: :unprocessable_content
   end
@@ -106,6 +103,12 @@ class TasksController < ApplicationController
 
   def task_params
     params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, label_ids: [])
+  end
+
+  # Create accepts only the quick-add field and labels; priority, due date,
+  # and project come from the parsed text (slice 4d).
+  def quick_add_params
+    params.require(:task).permit(:title, label_ids: [])
   end
 
   # Only accept internal, non-protocol-relative paths (blocks "//evil.com" open redirects).

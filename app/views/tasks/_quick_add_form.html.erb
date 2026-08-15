@@ -1,0 +1,48 @@
+<%= form_with model: task do |f| %>
+  <% if params[:return_to].present? %>
+    <%= hidden_field_tag :return_to, params[:return_to] %>
+  <% end %>
+  <% if task.errors.any? %>
+    <div class="notification is-danger">
+      <ul>
+        <% task.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <% if @project_suggestion.present? && @project_candidate.present? %>
+    <div class="notification is-warning">
+      <p>Did you mean #<%= @project_suggestion %>?</p>
+      <div class="buttons mt-2">
+        <%= f.submit "Use existing", name: "project_name", value: @project_suggestion, class: "button is-small is-primary" %>
+        <%= f.submit "Create ##{@project_candidate} anyway", name: "force_create_project", value: "true", class: "button is-small is-light" %>
+      </div>
+    </div>
+  <% end %>
+
+  <div class="field">
+    <%= f.label :title, class: "label" %>
+    <div class="control">
+      <%= f.text_field :title, class: "input", placeholder: "e.g. Call dentist #Health p2 wed 3pm" %>
+    </div>
+    <p class="help">Priority <code>p1</code>–<code>p4</code>, dates and times, and <code>#project</code> parse from this line.</p>
+  </div>
+
+  <% if Label.exists? %>
+    <div class="field">
+      <label class="label">Labels</label>
+      <div class="control">
+        <%= f.collection_check_boxes :label_ids, Label.order(:name), :id, :name do |b| %>
+          <label class="checkbox mr-3"><%= b.check_box %> <%= b.text %></label>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <div class="control">
+    <%= f.submit "Save", class: "button is-primary" %>
+    <%= link_to "Cancel", safe_return_to || task_list_path(task), class: "button is-light" %>
+  </div>
+<% end %>

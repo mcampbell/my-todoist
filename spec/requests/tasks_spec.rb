@@ -39,6 +39,15 @@ RSpec.describe "Tasks", type: :request do
         expect(response.body).not_to include(%(value="2026-02-20"))
       end
     end
+
+    it "renders only the quick-add title field on create (no structured controls)" do
+      get new_task_path
+      expect(response.body).not_to include('name="task[notes]"')
+      expect(response.body).not_to include('name="task[due_date]"')
+      expect(response.body).not_to include('name="task[due_time]"')
+      expect(response.body).not_to include('name="task[project_id]"')
+      expect(response.body).not_to include('name="task[priority]"')
+    end
   end
 
   describe "GET /tasks/:id/edit" do
@@ -98,26 +107,21 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "POST /tasks" do
-    it "creates a task, persists notes, and redirects" do
+    it "creates a task from the quick-add field, ignoring structured notes" do
       expect {
         post tasks_path, params: { task: { title: "new", notes: "keep me" } }
       }.to change(Task, :count).by(1)
       expect(response).to redirect_to(tasks_path)
-      expect(Task.last.notes).to eq("keep me")
+      expect(Task.last.notes).to be_nil
     end
 
-    it "parses priority from quick-add text when the structured select is at default" do
+    it "parses priority from quick-add text" do
       post tasks_path, params: { task: { title: "call p2 dentist" } }
       expect(Task.last.priority).to eq(2)
       expect(Task.last.title).to eq("call dentist")
     end
 
-    it "lets the structured priority select win over the text token" do
-      post tasks_path, params: { task: { title: "call p2 dentist", priority: 3 } }
-      expect(Task.last.priority).to eq(3)
-    end
-
-    it "sets due_at from a quick-add date token when the structured date is blank" do
+    it "sets due_at from a quick-add date token" do
       travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
         post tasks_path, params: { task: { title: "Call dentist tomorrow" } }
         task = Task.last
@@ -125,11 +129,6 @@ RSpec.describe "Tasks", type: :request do
         expect(task.due_at).to eq(Time.zone.local(2026, 8, 16).beginning_of_day)
         expect(task.all_day?).to eq(true)
       end
-    end
-
-    it "lets a structured date win over the quick-add text token" do
-      post tasks_path, params: { task: { title: "Call dentist tomorrow", due_date: "2026-09-01" } }
-      expect(Task.last.due_at).to eq(Time.zone.local(2026, 9, 1).beginning_of_day)
     end
 
     it "rejects recurrence phrases with an error and creates nothing" do
@@ -147,18 +146,15 @@ RSpec.describe "Tasks", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
     end
 
-    it "creates an all-day task when only due_date is submitted" do
-      post tasks_path, params: { task: { title: "t", due_date: "2026-02-20" } }
+    it "ignores posted structured fields on create (quick-add owns them)" do
+      project = Project.create!(name: "Work")
+      post tasks_path, params: {
+        task: { title: "t", due_date: "2026-02-20", due_time: "14:30", project_id: project.id, priority: 3 }
+      }
       task = Task.last
-      expect(task.all_day?).to eq(true)
-      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20).beginning_of_day)
-    end
-
-    it "creates a timed task when due_date and due_time are both submitted" do
-      post tasks_path, params: { task: { title: "t", due_date: "2026-02-20", due_time: "14:30" } }
-      task = Task.last
-      expect(task.all_day?).to eq(false)
-      expect(task.due_at).to eq(Time.zone.local(2026, 2, 20, 14, 30))
+      expect(task.due_at).to be_nil
+      expect(task.project_id).to be_nil
+      expect(task.priority).to eq(0)
     end
 
     it "redirects back to return_to when present, instead of task_list_path" do
@@ -300,20 +296,9 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "organization: form fields (slice 2)" do
-    it "assigns a project on create" do
-      project = Project.create!(name: "Work")
-      post tasks_path, params: { task: { title: "t", project_id: project.id } }
-      expect(Task.last.project).to eq(project)
-    end
-
-    it "leaves project nil (Inbox) when blank" do
-      post tasks_path, params: { task: { title: "t", project_id: "" } }
+    it "creates an Inbox task when no #project token is present" do
+      post tasks_path, params: { task: { title: "t" } }
       expect(Task.last.project_id).to be_nil
-    end
-
-    it "persists priority" do
-      post tasks_path, params: { task: { title: "t", priority: 3 } }
-      expect(Task.last.priority).to eq(3)
     end
 
     it "associates labels on create" do
