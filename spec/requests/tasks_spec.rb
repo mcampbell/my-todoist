@@ -172,6 +172,17 @@ RSpec.describe "Tasks", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
     end
 
+    it "preserves the raw quick-add phrase and only the recurrence error on failure" do
+      # "every 0 days" parses as a recurrence string but fails Recurrence
+      # validation; the title field must keep the user's exact phrase and the
+      # restored input must not show a stale blank-title error.
+      post tasks_path, params: { task: { title: "water plants every 0 days" } }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include('value="water plants every 0 days"')
+      expect(response.body).to include("Recurrence is invalid")
+      expect(response.body).not_to include("Title can't be blank")
+    end
+
     it "ignores posted structured fields on create (quick-add owns them)" do
       project = Project.create!(name: "Work")
       post tasks_path, params: {
@@ -181,6 +192,13 @@ RSpec.describe "Tasks", type: :request do
       expect(task.due_at).to be_nil
       expect(task.project_id).to be_nil
       expect(task.priority).to eq(0)
+    end
+
+    it "shows a visible title error when a recurrence-only quick-add has no task text" do
+      post tasks_path, params: { task: { title: "Every Wednesday." } }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include('value="Every Wednesday."')
+      expect(response.body).to include("Title can&#39;t be blank")
     end
 
     it "redirects back to return_to when present, instead of task_list_path" do
@@ -245,6 +263,78 @@ RSpec.describe "Tasks", type: :request do
       patch task_path(task), params: { task: { recurrence: "every potatoes" } }
       expect(response).to have_http_status(:unprocessable_content)
       expect(task.reload.recurrence).to be_nil
+    end
+
+    it "anchors a sub-day recurrence set via edit on a dateless task" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "pills")
+        patch task_path(task), params: { task: { recurrence: "every 10 minutes" } }
+        task.reload
+        expect(task.recurrence).to eq("every 10 minutes")
+        expect(task.all_day?).to eq(false)
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 15, 10, 0, 0))
+      end
+    end
+
+    it "anchors a sub-day recurrence when the form posts blank due date and time" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "pills")
+        patch task_path(task), params: { task: { recurrence: "every 10 minutes", due_date: "", due_time: "" } }
+        task.reload
+        expect(task.recurrence).to eq("every 10 minutes")
+        expect(task.all_day?).to eq(false)
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 15, 10, 0, 0))
+      end
+    end
+
+    it "re-anchors a sub-day recurrence set via edit on an all-day task" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "pills", due_date: "2026-08-20")
+        patch task_path(task), params: {
+          task: { recurrence: "every 10 minutes", due_date: "2026-08-20", due_time: "" }
+        }
+        task.reload
+        expect(task.all_day?).to eq(false)
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 20, 10, 0, 0))
+      end
+    end
+
+    it "honors an explicit blank due_date to clear a dated recurring task's anchor" do
+      task = Task.create!(title: "pills", recurrence: "every 3 days", due_date: "2026-08-20")
+      patch task_path(task), params: { task: { recurrence: "every 3 days", due_date: "", due_time: "" } }
+      task.reload
+      expect(task.due_at).to be_nil
+      expect(task.all_day?).to eq(false)
+      expect(task.recurrence).to eq("every 3 days")
+    end
+
+    it "does not seed a timed anchor from invalid sub-day recurrence on update" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "pills")
+        patch task_path(task), params: {
+          task: { recurrence: "every 0 minutes", due_date: "", due_time: "" }
+        }
+        expect(response).to have_http_status(:unprocessable_content)
+
+        # Fixing the recurrence without touching the date/time fields must not
+        # leave behind a seeded anchor from the failed request.
+        patch task_path(task), params: { task: { recurrence: "every 10 minutes", due_date: "", due_time: "" } }
+        task.reload
+        expect(task.recurrence).to eq("every 10 minutes")
+        expect(task.all_day?).to eq(false)
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 15, 10, 0, 0))
+      end
+    end
+
+    it "does not re-add today when a cleared recurring task is edited again" do
+      task = Task.create!(title: "pills", recurrence: "every 3 days", due_date: "2026-08-20")
+      travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) do
+        patch task_path(task), params: { task: { recurrence: "every 3 days", due_date: "", due_time: "" } }
+        patch task_path(task), params: { task: { title: "pills", recurrence: "every 3 days", due_date: "", due_time: "" } }
+      end
+
+      task.reload
+      expect(task.due_at).to be_nil
     end
 
     it "falls back to task_list_path with no referer" do

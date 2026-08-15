@@ -291,5 +291,17 @@ RSpec.describe QuickAdd, type: :model do
         title: "clean every room", priority: nil, due_date: nil, due_time: nil, recurrence: nil
       )
     end
+
+    it "consumes trailing punctuation attached to the recurrence phrase" do
+      expect(described_class.parse("water plants every 3 days.")).to include(
+        title: "water plants", recurrence: "every 3 days"
+      )
+      expect(described_class.parse("Take out trash workday!")).to include(
+        title: "Take out trash", recurrence: "every weekday"
+      )
+      expect(described_class.parse("Every Wednesday.")).to include(
+        title: "", recurrence: "every wednesday"
+      )
+    end
   end
 end

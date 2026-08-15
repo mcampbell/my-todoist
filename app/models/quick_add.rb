@@ -79,20 +79,30 @@ class QuickAdd
   # Returns the canonical recurrence string, or nil when none is present.
   def self.extract_recurrence!(title)
     if (match = title.match(RECURRENCE_RE))
-      title[match.begin(0)...match.end(0)] = ""
+      finish = recurrence_span_end(title, match.end(0))
+      title[match.begin(0)...finish] = ""
       bang = match[:bang].empty? ? "" : "!"
       count = match[:count] ? "#{match[:count]} " : ""
       return "every#{bang} #{count}#{match[:unit].downcase}"
     end
 
     if (match = title.match(WEEKDAYS_SHORTHAND_RE))
-      title[match.begin(0)...match.end(0)] = ""
+      finish = recurrence_span_end(title, match.end(0))
+      title[match.begin(0)...finish] = ""
       return "every weekday"
     end
 
     nil
   end
   private_class_method :extract_recurrence!
+
+  # The phrase sits mid-title or at its end; absorb attached sentence
+  # punctuation (".", "!", "?") so it does not leak into the saved title.
+  def self.recurrence_span_end(title, finish)
+    finish += 1 while title[finish]&.match?("\\A[.,!?]\\z")
+    finish
+  end
+  private_class_method :recurrence_span_end
 
   def self.extract_priority!(title)
     if (match = title.match(PRIORITY_RE))
