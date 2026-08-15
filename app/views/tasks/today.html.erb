@@ -1,0 +1,8 @@
+<%= render "page_header", title: "Today" %>
+<% if @tasks.empty? %>
+  <p class="has-text-grey">Nothing due today.</p>
+<% else %>
+  <table class="table is-fullwidth is-hoverable is-vcentered">
+    <tbody><%= render @tasks %></tbody>
+  </table>
+<% end %>

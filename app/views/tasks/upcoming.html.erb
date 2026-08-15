@@ -1,0 +1,11 @@
+<%= render "page_header", title: "Upcoming" %>
+<% if @groups.empty? %>
+  <p class="has-text-grey">Nothing due in the next <%= TasksController::UPCOMING_DAYS %> days.</p>
+<% else %>
+  <% @groups.each do |date, tasks| %>
+    <h2 class="subtitle"><%= date.strftime("%A, %b %-d") %></h2>
+    <table class="table is-fullwidth is-hoverable is-vcentered">
+      <tbody><%= render tasks %></tbody>
+    </table>
+  <% end %>
+<% end %>

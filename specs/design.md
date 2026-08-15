@@ -57,8 +57,30 @@ label tags on task rows.
 
 ### Slice 3 — Date views  *(Today / Upcoming)*
 
-Today view (due_at <= end-of-today OR overdue). Upcoming view (grouped by date,
-next N days). Dates still set via form (no NLP yet). Adds nav links.
+Today view (due_at <= end-of-today OR overdue OR undated — an undated task
+carries no due date to exclude it, so it counts as "today" until it's dated
+or completed). Upcoming view (grouped by date, next N days; excludes today
+and undated, since Today already owns both). Dates still set via form (no
+NLP yet). Adds nav links.
+
+**Due date/time entry (added post-slice-3):** the due-date form field splits
+into a date field plus an optional time field, backed by an `all_day`
+boolean column — a task with no time entered is `all_day: true` (`due_at`
+stored at beginning-of-day), distinct from a task genuinely set to midnight.
+`due_today_or_undated`/`due_between` key off `due_at` only, unaffected.
+Slice 6's notifier should skip `all_day` tasks (no time to fire a
+notification at).
+
+**New task entry point on every filter view (added post-slice-3):** the
+New task button (previously only on Inbox/per-project index) now also
+appears on Today/Upcoming/Completed via a shared `_page_header` partial,
+and on the sidebar nav link. Creating a task from any of these returns to
+that same view afterward (not Inbox) — threaded via a `return_to` query
+param -> hidden form field -> controller redirect, since the browser's
+Referer on the create POST is the `/tasks/new` page itself, not the
+original view (unlike update/destroy/complete, which use
+`redirect_back_or_to` directly against the real referer). The New task
+form also defaults its date field to today.
 
 ### Slice 4 — Quick-add NLP (one-off)  *(Todoist single-field entry)*
 

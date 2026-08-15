@@ -7,6 +7,8 @@ Rails.application.routes.draw do
     end
     collection do
       get :completed
+      get :today
+      get :upcoming
     end
   end
 

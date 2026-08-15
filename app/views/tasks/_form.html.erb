@@ -1,4 +1,7 @@
 <%= form_with model: task do |f| %>
+  <% if params[:return_to].present? %>
+    <%= hidden_field_tag :return_to, params[:return_to] %>
+  <% end %>
   <% if task.errors.any? %>
     <div class="notification is-danger">
       <ul>
@@ -24,9 +27,16 @@
   </div>
 
   <div class="field">
-    <%= f.label :due_at, "Due", class: "label" %>
+    <%= f.label :due_date, "Due date", class: "label" %>
     <div class="control">
-      <%= f.datetime_field :due_at, class: "input" %>
+      <%= f.date_field :due_date, class: "input" %>
+    </div>
+  </div>
+
+  <div class="field">
+    <%= f.label :due_time, "Due time (optional)", class: "label" %>
+    <div class="control">
+      <%= f.time_field :due_time, class: "input" %>
     </div>
   </div>
 
@@ -61,6 +71,6 @@
 
   <div class="control">
     <%= f.submit "Save", class: "button is-primary" %>
-    <%= link_to "Cancel", task_list_path(task), class: "button is-light" %>
+    <%= link_to "Cancel", safe_return_to || task_list_path(task), class: "button is-light" %>
   </div>
 <% end %>

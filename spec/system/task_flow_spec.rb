@@ -26,7 +26,7 @@ RSpec.describe "Task flow", type: :system do
     task = Task.create!(title: "edit-me")
     visit tasks_path
     find("a[aria-label='Edit #{task.title}']").click
-    expect(page).to have_current_path(edit_task_path(task))
+    expect(page).to have_current_path(edit_task_path(task), ignore_query: true)
   end
 
   it "renders the row controls as svg icons, not text" do

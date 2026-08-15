@@ -1,6 +1,8 @@
 class TasksController < ApplicationController
+  UPCOMING_DAYS = 7
+
   before_action :set_task, only: %i[edit update destroy complete]
-  helper_method :task_list_path
+  helper_method :task_list_path, :safe_return_to
 
   def index
     @project = Project.find(params[:project_id]) if params[:project_id]
@@ -11,14 +13,24 @@ class TasksController < ApplicationController
     @tasks = Task.completed.order(completed_at: :desc)
   end
 
+  def today
+    @tasks = Task.active.due_today_or_undated.ordered.includes(:labels)
+  end
+
+  def upcoming
+    range = 1.day.from_now.beginning_of_day..UPCOMING_DAYS.days.from_now.end_of_day
+    @groups = Task.active.due_between(range).ordered.includes(:labels)
+                  .group_by { |t| t.due_at.to_date }
+  end
+
   def new
-    @task = Task.new
+    @task = Task.new(due_date: Date.current.iso8601)
   end
 
   def create
     @task = Task.new(task_params)
     if @task.save
-      redirect_to task_list_path(@task)
+      redirect_to safe_return_to || task_list_path(@task)
     else
       render :new, status: :unprocessable_content
     end
@@ -28,7 +40,7 @@ class TasksController < ApplicationController
 
   def update
     if @task.update(task_params)
-      redirect_to task_list_path(@task)
+      redirect_to safe_return_to || task_list_path(@task)
     else
       render :edit, status: :unprocessable_content
     end
@@ -36,12 +48,12 @@ class TasksController < ApplicationController
 
   def destroy
     @task.destroy
-    redirect_to task_list_path(@task)
+    redirect_back_or_to task_list_path(@task)
   end
 
   def complete
     @task.complete!
-    redirect_to task_list_path(@task), notice: "Task completed."
+    redirect_back_or_to task_list_path(@task), notice: "Task completed."
   end
 
   private
@@ -56,6 +68,12 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :notes, :due_at, :project_id, :priority, label_ids: [])
+    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, label_ids: [])
+  end
+
+  # Only accept internal, non-protocol-relative paths (blocks "//evil.com" open redirects).
+  def safe_return_to
+    path = params[:return_to]
+    path if path.present? && path.start_with?("/") && !path.start_with?("//")
   end
 end
