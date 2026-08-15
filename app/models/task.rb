@@ -22,7 +22,7 @@ class Task < ApplicationRecord
         task_title: title,
         project_name: project&.name,
         priority: priority,
-        label_names: labels.pluck(:name).sort.join(", "),
+        label_names: labels.pluck(:name).sort_by { |n| n.downcase }.join(", "),
         due_at: due_at,
         completed_at: Time.current
       )

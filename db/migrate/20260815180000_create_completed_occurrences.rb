@@ -42,12 +42,15 @@ class CreateCompletedOccurrences < ActiveRecord::Migration[8.0]
       ]))
     end
 
+    execute("DELETE FROM task_labels WHERE task_id IN (SELECT id FROM tasks WHERE completed_at IS NOT NULL)")
     execute("DELETE FROM tasks WHERE completed_at IS NOT NULL")
     remove_column :tasks, :completed_at
   end
 
+  # Irreversible: `up` deletes the completed task rows and the migration-free
+  # backfill has no all_day column or project foreign key to restore them
+  # faithfully. A rollback would silently discard completion history.
   def down
-    add_column :tasks, :completed_at, :datetime
-    drop_table :completed_occurrences
+    raise ActiveRecord::IrreversibleMigration
   end
 end
