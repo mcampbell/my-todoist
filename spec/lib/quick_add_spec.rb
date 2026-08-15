@@ -45,7 +45,7 @@ RSpec.describe QuickAdd, type: :model do
 
     it "returns nil due fields when no date or time token is present" do
       expect(described_class.parse("buy milk")).to eq(
-        title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil
+        title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil, recurrence: nil
       )
     end
   end
@@ -152,14 +152,16 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
-    it "rejects bare 'workday' as recurrence shorthand (not preceded by next)" do
-      expect { described_class.parse("Take out trash workday") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError)
+    it "extracts bare 'workday' as recurrence shorthand (not preceded by next)" do
+      expect(described_class.parse("Take out trash workday")).to include(
+        title: "Take out trash", recurrence: "every weekday"
+      )
     end
 
-    it "rejects bare 'weekdays' as recurrence shorthand (not preceded by next)" do
-      expect { described_class.parse("Take out trash weekdays") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError)
+    it "extracts bare 'weekdays' as recurrence shorthand (not preceded by next)" do
+      expect(described_class.parse("Take out trash weekdays")).to include(
+        title: "Take out trash", recurrence: "every weekday"
+      )
     end
 
     it "parses a month-day phrase as all-day" do
@@ -229,50 +231,64 @@ RSpec.describe QuickAdd, type: :model do
     end
   end
 
-  describe "recurrence rejection" do
-    it "rejects every <weekday> phrases" do
-      expect { described_class.parse("Call dentist every wednesday") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+  describe "recurrence extraction" do
+    it "extracts every <weekday> phrases" do
+      expect(described_class.parse("Call dentist every wednesday")).to include(
+        title: "Call dentist", recurrence: "every wednesday"
+      )
     end
 
-    it "rejects every! with a count and unit" do
-      expect { described_class.parse("water plants every! 10 minutes") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+    it "extracts every! with a count and unit, preserving the bang" do
+      expect(described_class.parse("water plants every! 10 minutes")).to include(
+        title: "water plants", recurrence: "every! 10 minutes"
+      )
     end
 
-    it "rejects every <unit> phrases" do
-      expect { described_class.parse("stretch every day") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+    it "extracts every <unit> phrases" do
+      expect(described_class.parse("stretch every day")).to include(
+        title: "stretch", recurrence: "every day"
+      )
     end
 
-    it "rejects every N <unit> phrases" do
-      expect { described_class.parse("walk every 3 days") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+    it "extracts every N <unit> phrases" do
+      expect(described_class.parse("walk every 3 days")).to include(
+        title: "walk", recurrence: "every 3 days"
+      )
     end
 
-    it "rejects every weekday" do
-      expect { described_class.parse("sync every weekday") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+    it "extracts every weekday" do
+      expect(described_class.parse("sync every weekday")).to include(
+        title: "sync", recurrence: "every weekday"
+      )
     end
 
-    it "rejects the bare weekdays shorthand" do
-      expect { described_class.parse("sync weekdays") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+    it "normalizes the bare weekdays shorthand" do
+      expect(described_class.parse("sync weekdays")).to include(
+        title: "sync", recurrence: "every weekday"
+      )
     end
 
-    it "rejects the bare workday shorthand" do
-      expect { described_class.parse("sync workday") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+    it "normalizes the bare workday shorthand" do
+      expect(described_class.parse("sync workday")).to include(
+        title: "sync", recurrence: "every weekday"
+      )
     end
 
-    it "rejects recurrence phrases case-insensitively" do
-      expect { described_class.parse("Every Wednesday") }
-        .to raise_error(QuickAdd::RecurrenceNotSupportedError, /Recurrence not supported yet/)
+    it "extracts recurrence phrases case-insensitively" do
+      expect(described_class.parse("Every Wednesday")).to include(
+        title: "", recurrence: "every wednesday"
+      )
     end
 
-    it "does not reject a title that merely contains every" do
+    it "leaves a malformed every phrase in the title (no extraction)" do
+      expect(described_class.parse("water every potato")).to include(
+        title: "water every potato", recurrence: nil
+      )
+    end
+
+    it "does not extract a title that merely contains every" do
       expect(described_class.parse("clean every room")).to include(
-        title: "clean every room", priority: nil, due_date: nil, due_time: nil
+        title: "clean every room", priority: nil, due_date: nil, due_time: nil, recurrence: nil
       )
     end
   end

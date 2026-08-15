@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_15_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_15_180001) do
   create_table "completed_occurrences", force: :cascade do |t|
     t.datetime "completed_at", null: false
     t.datetime "created_at", null: false
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_180000) do
     t.text "notes"
     t.integer "priority", default: 0, null: false
     t.integer "project_id"
+    t.string "recurrence"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["project_id"], name: "index_tasks_on_project_id"

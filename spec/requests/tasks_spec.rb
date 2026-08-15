@@ -144,12 +144,25 @@ RSpec.describe "Tasks", type: :request do
       end
     end
 
-    it "rejects recurrence phrases with an error and creates nothing" do
-      expect {
-        post tasks_path, params: { task: { title: "water plants every! 10 minutes" } }
-      }.not_to change(Task, :count)
-      expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("Recurrence not supported yet")
+    it "persists recurrence from a quick-add phrase" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        post tasks_path, params: { task: { title: "water plants every 3 days" } }
+        task = Task.last
+        expect(task.title).to eq("water plants")
+        expect(task.recurrence).to eq("every 3 days")
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 15).beginning_of_day)
+        expect(task.all_day?).to eq(true)
+      end
+    end
+
+    it "defaults a recurring task with no time to a real time anchor for sub-day recurrence" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        post tasks_path, params: { task: { title: "water plants every 10 minutes" } }
+        task = Task.last
+        expect(task.recurrence).to eq("every 10 minutes")
+        expect(task.all_day?).to eq(false)
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 15, 10, 0, 0))
+      end
     end
 
     it "re-renders 422 on blank title, creating nothing" do
@@ -216,6 +229,22 @@ RSpec.describe "Tasks", type: :request do
       task = Task.create!(title: "old")
       patch task_path(task), params: { task: { title: "new" }, return_to: "//evil.com" }
       expect(response).to redirect_to(tasks_path)
+    end
+
+    it "sets and clears recurrence via the edit form" do
+      task = Task.create!(title: "old")
+      patch task_path(task), params: { task: { recurrence: "every 3 days" } }
+      expect(task.reload.recurrence).to eq("every 3 days")
+
+      patch task_path(task), params: { task: { recurrence: "" } }
+      expect(task.reload.recurrence).to be_nil
+    end
+
+    it "re-renders 422 on an invalid recurrence, changing nothing" do
+      task = Task.create!(title: "old")
+      patch task_path(task), params: { task: { recurrence: "every potatoes" } }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(task.reload.recurrence).to be_nil
     end
 
     it "falls back to task_list_path with no referer" do
@@ -290,6 +319,21 @@ RSpec.describe "Tasks", type: :request do
       task = Task.create!(title: "do it", project: project)
       patch complete_task_path(task)
       expect(response).to redirect_to(project_tasks_path(project))
+    end
+
+    it "keeps a recurring task active and out of Completed after completion" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "water plants", recurrence: "every 3 days",
+                            due_at: Time.zone.local(2026, 8, 15, 9, 0))
+        patch complete_task_path(task)
+        task.reload
+        expect(Task.count).to eq(1)
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 18, 9, 0))
+        expect(CompletedOccurrence.last.task_title).to eq("water plants")
+
+        get tasks_path
+        expect(response.body).to include("water plants")
+      end
     end
 
     it "falls back to task_list_path with no referer" do

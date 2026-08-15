@@ -41,8 +41,19 @@ class TasksController < ApplicationController
       priority: parsed[:priority] || 0,
       due_date: parsed[:due_date],
       due_time: parsed[:due_time],
+      recurrence: parsed[:recurrence],
       label_ids: qp[:label_ids] || []
     }
+    if parsed[:recurrence].present?
+      # A recurrence with no date token defaults the anchor to today (fixed
+      # stepping needs a starting point; rolling ignores it anyway).
+      attrs[:due_date] ||= Date.current.iso8601
+      # Sub-day recurrence needs a real time anchor or all_day stays true and
+      # the notifier (slice 6) would skip it.
+      if parsed[:due_time].blank? && recurrence_is_sub_day?(parsed[:recurrence])
+        attrs[:due_time] = Time.current.strftime("%H:%M")
+      end
+    end
     project_name = params[:project_name].presence || parsed[:project_name]
     if project_name.present?
       project = Project.find_by(name: project_name)
@@ -62,10 +73,6 @@ class TasksController < ApplicationController
     else
       render :new, status: :unprocessable_content
     end
-  rescue QuickAdd::RecurrenceNotSupportedError => e
-    @task = Task.new(quick_add_params)
-    @task.errors.add(:title, e.message)
-    render :new, status: :unprocessable_content
   end
 
   def edit; end
@@ -107,7 +114,14 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, label_ids: [])
+    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, label_ids: [])
+  end
+
+  # True for hour/minute recurrences, which need a real time-of-day anchor so
+  # the task is not all_day (else due_tag hides the time and the slice-6
+  # notifier would skip it).
+  def recurrence_is_sub_day?(recurrence)
+    recurrence.match?(/\Aevery!?\s*\d*\s*(hour|minute)/i)
   end
 
   # Create accepts only the quick-add field and labels; priority, due date,

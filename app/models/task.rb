@@ -5,6 +5,7 @@ class Task < ApplicationRecord
 
   validates :title, presence: true
   validates :priority, inclusion: { in: 0..3 }
+  validate :recurrence_must_be_parseable
 
   scope :ordered, -> { order(Arel.sql("due_at ASC NULLS LAST, created_at DESC")) }
   scope :due_today_or_undated, -> { where("due_at <= ? OR due_at IS NULL", Time.current.end_of_day) }
@@ -15,10 +16,14 @@ class Task < ApplicationRecord
     due_at.present? && due_at < Time.current.beginning_of_day
   end
 
+  def recurrence=(value)
+    super(value.presence)
+  end
+
   def complete!
     with_lock do
       reload
-      CompletedOccurrence.create!(
+      snapshot = CompletedOccurrence.create!(
         task_title: title,
         project_name: project&.name,
         priority: priority,
@@ -26,7 +31,12 @@ class Task < ApplicationRecord
         due_at: due_at,
         completed_at: Time.current
       )
-      destroy!
+      if recurrence.blank?
+        destroy!
+      else
+        update!(due_at: Recurrence.parse(recurrence).next_from(due_at: due_at || Time.current, now: Time.current))
+      end
+      snapshot
     end
   end
 
@@ -48,6 +58,13 @@ class Task < ApplicationRecord
   before_validation :compose_due_at, if: -> { @due_date_assigned }
 
   private
+
+  def recurrence_must_be_parseable
+    return if recurrence.blank?
+    Recurrence.parse(recurrence)
+  rescue Recurrence::InvalidError
+    errors.add(:recurrence, "is invalid")
+  end
 
   def compose_due_at
     if @due_date.blank?

@@ -1,10 +1,6 @@
 # Parses quick-add free text into task attributes.
 # Permissive by design: unrecognized tokens stay in the title.
 class QuickAdd
-  RecurrenceNotSupportedError = Class.new(StandardError)
-
-  RECURRENCE_ERROR = "Recurrence not supported yet."
-
   PRIORITY_TOKENS = { 1 => 3, 2 => 2, 3 => 1, 4 => 0 }.freeze
   PRIORITY_RE = /\bp([1-4])\b/
   PROJECT_RE = /(?<!\w)#([^\s#]+)/
@@ -12,7 +8,7 @@ class QuickAdd
   # Recurrence grammar (specs/design.md): "every"/"every!" plus a day, unit,
   # weekday, or N-unit count; or the bare shorthand weekdays/workday. Runs
   # before chronic, which would otherwise parse "every weekday" as a one-off.
-  RECURRENCE_RE = /\bevery!?\s+(?:\d+\s+)?(?:days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday)\b/i
+  RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?:(?<count>\d+)\s+)?(?<unit>days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday)\b/i
   # Bare "weekdays"/"workday" (no "every" prefix) is recurrence shorthand for
   # "every weekday" -- UNLESS it is "next"/"last" + weekday/workday, which is
   # a one-off date (like "next monday" / "last monday"), not recurrence.
@@ -29,19 +25,22 @@ class QuickAdd
   TIME_ANCHOR_RE = /\A(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2}|noon|midnight|o'clock|am|pm)\z/i
   TRAILING_PUNCTUATION_RE = /[.,;!?]+\z/
 
-  # Returns { title:, priority:, due_date:, due_time:, project_name: }.
-  # due_date is "YYYY-MM-DD", due_time is "HH:MM"; due_time and project_name
-  # are nil when absent. due_time is set only for phrases with an explicit
-  # time token — chronic's 12:00 default for bare dates never leaks (the Task
-  # model derives all_day from due_time). project_name is the trimmed
-  # #token text; matching is case-insensitive at the DB (NOCASE).
-  # Raises RecurrenceNotSupportedError for recurrence-shaped phrases.
+  # Returns { title:, priority:, due_date:, due_time:, project_name:,
+  # recurrence: }.
+  # due_date is "YYYY-MM-DD", due_time is "HH:MM"; due_time, project_name,
+  # and recurrence are nil when absent. due_time is set only for phrases with
+  # an explicit time token — chronic's 12:00 default for bare dates never
+  # leaks (the Task model derives all_day from due_time). project_name is the
+  # trimmed #token text; matching is case-insensitive at the DB (NOCASE).
+  # Recurrence phrases extract a `recurrence:` value (stored verbatim) and
+  # leave the title; the bare shorthand weekdays/workday normalizes to
+  # "every weekday".
   def self.parse(text)
     raw = text.to_s
-    raise RecurrenceNotSupportedError, RECURRENCE_ERROR if recurrence?(raw)
 
     title = raw.dup
     priority = extract_priority!(title)
+    recurrence = extract_recurrence!(title)
     due_date = nil
     due_time = nil
 
@@ -71,14 +70,29 @@ class QuickAdd
       priority: priority,
       due_date: due_date,
       due_time: due_time,
-      project_name: project_name
+      project_name: project_name,
+      recurrence: recurrence
     }
   end
 
-  def self.recurrence?(text)
-    text.match?(RECURRENCE_RE) || text.match?(WEEKDAYS_SHORTHAND_RE)
+  # Extracts and normalizes a recurrence phrase, removing it from the title.
+  # Returns the canonical recurrence string, or nil when none is present.
+  def self.extract_recurrence!(title)
+    if (match = title.match(RECURRENCE_RE))
+      title[match.begin(0)...match.end(0)] = ""
+      bang = match[:bang].empty? ? "" : "!"
+      count = match[:count] ? "#{match[:count]} " : ""
+      return "every#{bang} #{count}#{match[:unit].downcase}"
+    end
+
+    if (match = title.match(WEEKDAYS_SHORTHAND_RE))
+      title[match.begin(0)...match.end(0)] = ""
+      return "every weekday"
+    end
+
+    nil
   end
-  private_class_method :recurrence?
+  private_class_method :extract_recurrence!
 
   def self.extract_priority!(title)
     if (match = title.match(PRIORITY_RE))

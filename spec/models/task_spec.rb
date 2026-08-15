@@ -32,6 +32,53 @@ RSpec.describe Task, type: :model do
       task.complete!
       expect { Task.find(task.id) }.to raise_error(ActiveRecord::RecordNotFound)
     end
+
+    it "keeps a recurring task active and advances its due_at (fixed weekly)" do
+      # every wednesday, due 2026-01-28, completed Saturday 2026-02-07 -> 2026-02-11.
+      travel_to(Time.zone.local(2026, 2, 7, 12, 0, 0)) do
+        task = Task.create!(title: "meeting", recurrence: "every wednesday",
+                            due_at: Time.zone.local(2026, 1, 28, 12, 0, 0))
+        task.complete!
+        expect(Task.count).to eq(1)
+        expect(CompletedOccurrence.count).to eq(1)
+        task.reload
+        expect(task.recurrence).to eq("every wednesday")
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11, 12, 0, 0))
+      end
+    end
+
+    it "advances a fixed N-days recurring task in whole intervals (worked example)" do
+      # every 3 days, due 2026-02-02, completed 2026-02-10 -> 2026-02-11 (1 day out).
+      travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) do
+        task = Task.create!(title: "pills", recurrence: "every 3 days",
+                            due_at: Time.zone.local(2026, 2, 2, 12, 0, 0))
+        task.complete!
+        task.reload
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11, 12, 0, 0))
+      end
+    end
+
+    it "advances a rolling recurring task from the completion time" do
+      travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) do
+        task = Task.create!(title: "pills", recurrence: "every! 6 hours",
+                            due_at: Time.zone.local(2026, 2, 10, 8, 0))
+        task.complete!
+        task.reload
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 10, 18, 0))
+      end
+    end
+
+    it "snapshots the occurrence even for a recurring task" do
+      travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) do
+        task = Task.create!(title: "pills", recurrence: "every day",
+                            due_at: Time.zone.local(2026, 2, 10, 12, 0))
+        task.complete!
+        occurrence = CompletedOccurrence.last
+        expect(occurrence.task_title).to eq("pills")
+        expect(occurrence.due_at).to eq(Time.zone.local(2026, 2, 10, 12, 0))
+        expect(occurrence.completed_at).to be_present
+      end
+    end
   end
 
   describe "organization (slice 2)" do
