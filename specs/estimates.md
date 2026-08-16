@@ -44,3 +44,7 @@ Notes:
   estimated; its old rework R4 (drop `completed_at IS NULL`) is void since
   slice 5 destroyed that column and slice 6 adds no column or poller.
 - Parallelizing streams 2 / 4+5 / 6 after slice 1 compresses wall-clock, not effort.
+
+## "in X unit" date-pinning grammar
+
+- Single slice, easy (1 point): regex + parse branch + duration math, no new deps. See specs/in-x-unit-design.md.

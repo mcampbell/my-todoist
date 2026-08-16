@@ -8,7 +8,7 @@ class QuickAdd
   # Recurrence grammar (specs/design.md): "every"/"every!" plus a day, unit,
   # weekday, or N-unit count; or the bare shorthand weekdays/workday. Runs
   # before chronic, which would otherwise parse "every weekday" as a one-off.
-  RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?:(?<count>\d+)\s+)?(?<unit>days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday)\b/i
+  RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?:(?<count>#{Recurrence::COUNT_RE})\s+)?(?<unit>days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday)\b/i
   # Bare "weekdays"/"workday" (no "every" prefix) is recurrence shorthand for
   # "every weekday" -- UNLESS it is "next"/"last" + weekday/workday, which is
   # a one-off date (like "next monday" / "last monday"), not recurrence.
@@ -16,6 +16,10 @@ class QuickAdd
   # "workday" isn't Chronic vocabulary (Chronic understands "weekday"); this
   # maps the one word we accept as input to the word we hand Chronic.
   CHRONIC_SYNONYMS = { "workday" => "weekday" }.freeze
+
+  # "in X unit" date-pinning grammar (specs/in-x-unit-design.md): relative
+  # offset from now, e.g. "in 3 days", "in 15 minutes", "in a week".
+  IN_UNIT_RE = /\bin\s+(?:(?<count>\d+)|an?)\s+(?<unit>days?|hours?|minutes?|weeks?|months?|years?)\b/i
 
   WORD_RE = /[^\s]+/
   NUMBER_RE = /\A\d+(?:st|nd|rd|th)?\z/i
@@ -41,10 +45,9 @@ class QuickAdd
     title = raw.dup
     priority = extract_priority!(title)
     recurrence = extract_recurrence!(title)
-    due_date = nil
-    due_time = nil
+    due_date, due_time = extract_due_offset!(title)
 
-    if (span = date_span(title))
+    if !due_date && (span = date_span(title))
       parsed = span[:parsed]
       if span[:time_anchor]
         due_time = parsed.strftime("%H:%M")
@@ -103,6 +106,25 @@ class QuickAdd
     finish
   end
   private_class_method :recurrence_span_end
+
+  # Extracts an "in <count> <unit>" relative offset, removing it from the
+  # title. Returns [due_date, due_time] ("YYYY-MM-DD", "HH:MM" or nil), or
+  # [nil, nil] when no match.
+  def self.extract_due_offset!(title)
+    if (match = title.match(IN_UNIT_RE))
+      finish = recurrence_span_end(title, match.end(0))
+      title[match.begin(0)...finish] = ""
+
+      count = match[:count]&.to_i || 1
+      offset = count.public_send(match[:unit].downcase)
+      target = Time.current + offset
+      due_time = offset < 1.day ? target.strftime("%H:%M") : nil
+      return [ target.to_date.iso8601, due_time ]
+    end
+
+    [ nil, nil ]
+  end
+  private_class_method :extract_due_offset!
 
   def self.extract_priority!(title)
     if (match = title.match(PRIORITY_RE))
