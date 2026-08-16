@@ -104,6 +104,12 @@ fires, and keeps the main pane full-width.
     from { transform: translateX(-100%); }
     to { transform: translateX(0); }
   }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .nav-drawer[open] .nav-sidebar {
+      animation: none;
+    }
+  }
 }
 
 /* Wide screens (>= 768px): default Bulma layout */
@@ -119,7 +125,8 @@ Breakdown:
   to layout — its children flow directly into the parent `.columns`.
 - Below 768px: toggle button is fixed top-left; nav sidebar is hidden by 
   default and positioned fixed + full height when `<details open>`. A smooth 
-  slide-in animation plays when the drawer opens.
+  slide-in animation plays when the drawer opens (respects 
+  `prefers-reduced-motion`).
 - Above 768px: toggle is hidden; sidebar flows normally via Bulma (no change 
   to existing layout).
 
@@ -130,8 +137,9 @@ but doesn't participate in layout this way.
 ## Test plan
 
 System spec in `spec/system/responsive_nav_flow_spec.rb` (leveraging `rack_test`
-driver; CSS breakpoint rendering verification deferred to manual browser testing
-or a separate browser-driven suite):
+driver; CSS breakpoint rendering, overlay styling, and native `<details>` 
+disclosure verification deferred to manual browser testing or a separate 
+browser-driven suite):
 
 1. **Markup structure** (all viewport sizes):
    - `details#nav-drawer` element is present.
@@ -148,26 +156,28 @@ or a separate browser-driven suite):
    - `.nav-sidebar` and `.nav-main` are positioned correctly via class names 
      on the HTML (setup is correct).
 
-3. **Native `<details>` behavior** (pure HTML/DOM, no CSS required):
-   - Clicking the `<summary>` toggles the `[open]` attribute on `<details>` 
-     (native browser API, works in headless driver).
+3. **Turbo page navigation** (SPA behavior, no CSS required):
    - Navigating to another page resets the `<details>` to closed state 
      (Turbo replaces `<body>`, recreating the closed `<details>`; manual 
      verification in browser confirms the drawer re-closes after link clicks).
 
-## CSS breakpoint & overlay rendering
+## CSS breakpoint, overlay rendering, and native `<details>` behavior
 
-The 768px media query and fixed-position overlay styling cannot be asserted
-programmatically via `rack_test` (no CSS engine, no viewport resize).
+The 768px media query, fixed-position overlay styling, and native `<details>`
+interactive disclosure cannot be asserted programmatically via `rack_test`
+(no rendering engine, no viewport resize, no browser semantics).
 Verify these manually in a real browser:
 - Resize to <768px width → toggle button ("Menu") appears at top-left; nav
   sidebar is hidden (main pane full-width).
 - Resize to ≥768px width → toggle button disappears; nav and main pane
   display side-by-side.
-- Click "Menu" to open drawer; sidebar appears as an overlay on top of the 
-  main pane with a smooth slide-in animation. Click "Menu" again to close. 
-  Navigate to another page → drawer closes automatically (Turbo replaces 
-  `<body>`).
+- Click "Menu" to open drawer → `<details>` element receives `[open]` attribute;
+  sidebar appears as an overlay on top of the main pane with a smooth 
+  slide-in animation.
+- Click "Menu" again to close → `[open]` attribute removed from `<details>`;
+  sidebar slides out and is hidden.
+- Navigate to another page → drawer closes automatically (Turbo replaces 
+  `<body>`, recreating closed `<details>`).
 
 No new JavaScript or state persistence required — pure CSS + native
 `<details>` behavior.
@@ -183,8 +193,9 @@ No new JavaScript or state persistence required — pure CSS + native
 
 - `app/views/layouts/application.html.erb` — wrap nav in `<details>`, add
   class names for media-query targeting.
-- `app/assets/stylesheets/application.css` — add `display: contents` rule
-  and 768px media query with drawer overlay + toggle styling.
+- `app/assets/stylesheets/application.css` — add `display: contents` rule,
+  768px media query with drawer overlay + toggle styling, and 
+  `prefers-reduced-motion` guard for animation.
 
 No changes to `_navbar.html.erb`, `app/models/task.rb`, or any non-view
 files.
