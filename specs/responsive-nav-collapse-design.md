@@ -6,10 +6,11 @@ resolved Q&A this design is based on).
 
 ## Overview
 
-Replace Bulma's passive column stacking below 768px with an explicit hidden
-sidebar + `<details>`/`<summary>` drawer toggle. Main task pane stays fixed
-at full width on narrow screens; nav hides by default and appears as an
-overlay when drawer is open.
+Introduce a collapsible nav drawer for mobile screens below 768px, keeping
+the main task pane fixed at full width. Currently, Bulma's two-column layout
+squeezes both columns to narrow widths on small screens; this change hides the
+nav sidebar by default and reveals it via a toggle-button drawer overlay instead,
+so the main task pane remains full-width on narrow viewports.
 
 ## Changes
 
@@ -54,12 +55,12 @@ sidebar by default, shows the drawer as an overlay when `<details open>`
 fires, and keeps the main pane full-width.
 
 ```css
+.nav-drawer {
+  display: contents;
+}
+
 /* Responsive nav drawer for mobile (< 768px) */
 @media (max-width: 767.98px) {
-  .nav-drawer {
-    display: contents;
-  }
-  
   .nav-toggle {
     display: block;
     position: fixed;
@@ -73,6 +74,11 @@ fires, and keeps the main pane full-width.
     cursor: pointer;
     font-size: 1rem;
     font-weight: 500;
+    list-style: none;
+  }
+  
+  .nav-toggle::-webkit-details-marker {
+    display: none;
   }
   
   .nav-sidebar {
@@ -91,41 +97,30 @@ fires, and keeps the main pane full-width.
     border-right: 1px solid #dbdbdb;
     overflow-y: auto;
     padding-top: 3.5rem;
+    animation: slideInFromLeft 0.3s ease;
   }
   
-  .nav-main {
-    width: 100%;
+  @keyframes slideInFromLeft {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
   }
 }
 
 /* Wide screens (>= 768px): default Bulma layout */
 @media (min-width: 768px) {
-  .nav-drawer {
-    /* `details` contributes nothing to layout; content flows through */
-    display: contents;
-  }
-  
   .nav-toggle {
     display: none;
-  }
-  
-  .nav-sidebar {
-    /* Retains Bulma's `column is-narrow` layout */
-  }
-  
-  .nav-main {
-    /* Retains Bulma's `column` flex layout */
   }
 }
 ```
 
 Breakdown:
-- `.nav-drawer { display: contents; }` on both breakpoints makes the
-  `<details>` element invisible to layout — its children flow directly into
-  the parent `.columns`.
-- Below 768px: toggle button is fixed top-left; nav sidebar is hidden by
-  default and positioned fixed + full height when `<details open>`.
-- Above 768px: toggle is hidden; sidebar flows normally via Bulma (no change
+- `.nav-drawer { display: contents; }` makes the `<details>` element invisible 
+  to layout — its children flow directly into the parent `.columns`.
+- Below 768px: toggle button is fixed top-left; nav sidebar is hidden by 
+  default and positioned fixed + full height when `<details open>`. A smooth 
+  slide-in animation plays when the drawer opens.
+- Above 768px: toggle is hidden; sidebar flows normally via Bulma (no change 
   to existing layout).
 
 Rationale for `display: contents`: avoids wrapping the column in an extra
@@ -134,25 +129,45 @@ but doesn't participate in layout this way.
 
 ## Test plan
 
-System spec in `spec/system/responsive_nav_flow_spec.rb`:
+System spec in `spec/system/responsive_nav_flow_spec.rb` (leveraging `rack_test`
+driver; CSS breakpoint rendering verification deferred to manual browser testing
+or a separate browser-driven suite):
 
-1. **Wide screen (>= 768px)**:
-   - Toggle button not visible.
-   - Nav sidebar and main pane displayed side-by-side as today.
+1. **Markup structure** (all viewport sizes):
+   - `details#nav-drawer` element is present.
+   - `summary.nav-toggle` with text "Menu" is a child of `#nav-drawer`.
+   - `div.nav-sidebar.column.is-narrow` wraps the nav (inside details).
+   - `div.nav-main.column` wraps the main content.
    - All nav links (Inbox, Overdue, Today, Upcoming, Completed, New task,
-     projects) are clickable and navigate correctly.
+     Manage projects, Manage labels) are clickable and navigate correctly.
 
-2. **Narrow screen (< 768px)**:
-   - Toggle button ("Menu") visible at fixed top-left.
-   - Nav sidebar hidden by default (main pane full-width).
-   - Clicking toggle opens the drawer; sidebar slides in from the left.
-   - Clicking a nav link (e.g., Inbox) navigates and closes the drawer
-     (native `<details>` behavior: full page load resets state).
-   - Clicking toggle again closes the drawer.
+2. **CSS class targeting** (assertions about class presence, not rendering):
+   - `.nav-toggle` has styling (setup verified via class presence on HTML; 
+     actual overlay/fixed positioning verified manually in browser due to CSS 
+     media query limitations of rack_test).
+   - `.nav-sidebar` and `.nav-main` are positioned correctly via class names 
+     on the HTML (setup is correct).
 
-3. **Resize from wide to narrow**:
-   - Drawer state persists correctly as viewport crosses 768px threshold.
-   - No layout jump or visual glitch.
+3. **Native `<details>` behavior** (pure HTML/DOM, no CSS required):
+   - Clicking the `<summary>` toggles the `[open]` attribute on `<details>` 
+     (native browser API, works in headless driver).
+   - Navigating to another page resets the `<details>` to closed state 
+     (Turbo replaces `<body>`, recreating the closed `<details>`; manual 
+     verification in browser confirms the drawer re-closes after link clicks).
+
+## CSS breakpoint & overlay rendering
+
+The 768px media query and fixed-position overlay styling cannot be asserted
+programmatically via `rack_test` (no CSS engine, no viewport resize).
+Verify these manually in a real browser:
+- Resize to <768px width → toggle button ("Menu") appears at top-left; nav
+  sidebar is hidden (main pane full-width).
+- Resize to ≥768px width → toggle button disappears; nav and main pane
+  display side-by-side.
+- Click "Menu" to open drawer; sidebar appears as an overlay on top of the 
+  main pane with a smooth slide-in animation. Click "Menu" again to close. 
+  Navigate to another page → drawer closes automatically (Turbo replaces 
+  `<body>`).
 
 No new JavaScript or state persistence required — pure CSS + native
 `<details>` behavior.
@@ -161,15 +176,15 @@ No new JavaScript or state persistence required — pure CSS + native
 
 - Closing the drawer on outside-tap (would require JS; deferred per Q7 grill).
 - Closing on Escape key (would require JS).
-- Persistent drawer state across page loads (not applicable; full page
-  reloads reset `<details>` state naturally).
+- Persistent drawer state across page loads (not applicable; Turbo naturally
+  resets it by recreating the HTML).
 
 ## Files changed
 
 - `app/views/layouts/application.html.erb` — wrap nav in `<details>`, add
   class names for media-query targeting.
-- `app/assets/stylesheets/application.css` — add 768px media query with
-  drawer overlay + toggle styling.
+- `app/assets/stylesheets/application.css` — add `display: contents` rule
+  and 768px media query with drawer overlay + toggle styling.
 
 No changes to `_navbar.html.erb`, `app/models/task.rb`, or any non-view
 files.
