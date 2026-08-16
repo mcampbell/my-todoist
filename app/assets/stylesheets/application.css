@@ -21,14 +21,23 @@
   max-width: 22rem;
 }
 
-/* Responsive nav drawer: <details> is invisible to layout; its children flow
-   directly into the parent .columns for wide-screen Bulma two-column layout. */
-.nav-drawer {
-  display: contents;
+/* Responsive nav drawer. A visually-hidden checkbox drives a pure-CSS
+   disclosure: the visible `<label>` is the "Menu" toggle (narrow widths);
+   the sidebar renders normally at wide widths. Unlike `<details>`, whose
+   closed-state some engines hide regardless of CSS, the checkbox approach is
+   engine-independent — the sidebar is never hidden on wide screens. */
+.nav-drawer-toggle {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
-/* Mobile (<= 768px): hide the sidebar, show it as a fixed overlay via the
-   toggle summary when <details open>. */
+.nav-toggle {
+  display: none;
+}
+
+/* Mobile (<= 768px): hide the sidebar behind the drawer, reveal it as a fixed
+   overlay while the toggle checkbox is checked. */
 @media (width <= 768px) {
   .nav-toggle {
     display: block;
@@ -43,22 +52,13 @@
     cursor: pointer;
     font-size: 1rem;
     font-weight: 500;
-    list-style: none;
   }
 
-  .nav-toggle::-webkit-details-marker {
+  .column.nav-sidebar {
     display: none;
   }
 
-  .nav-drawer .nav-sidebar {
-    display: none;
-  }
-
-  .column.nav-main {
-    padding-top: 3rem;
-  }
-
-  .nav-drawer[open] .nav-sidebar {
+  .nav-drawer-toggle:checked ~ .column.nav-sidebar {
     display: block;
     position: fixed;
     top: 0;
@@ -79,13 +79,17 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .nav-drawer[open] .nav-sidebar {
+    .nav-drawer-toggle:checked ~ .column.nav-sidebar {
       animation: none;
     }
   }
+
+  .column.nav-main {
+    padding-top: 3rem;
+  }
 }
 
-/* Wide screens (> 768px): default Bulma layout */
+/* Wide screens (> 768px): default Bulma layout, sidebar always visible. */
 @media (width > 768px) {
   .nav-toggle {
     display: none;

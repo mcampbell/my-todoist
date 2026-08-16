@@ -24,12 +24,12 @@
     <div id="toast-container" data-turbo-permanent aria-live="polite"></div>
     <main class="section">
       <div class="columns">
-        <details id="nav-drawer" class="nav-drawer">
-          <summary class="nav-toggle">Menu</summary>
-          <div class="column is-narrow nav-sidebar">
-            <%= render "layouts/navbar" %>
-          </div>
-        </details>
+        <input type="checkbox" id="nav-drawer" class="nav-drawer-toggle"
+               aria-label="Toggle navigation menu">
+        <label for="nav-drawer" class="nav-toggle">Menu</label>
+        <div class="column is-narrow nav-sidebar">
+          <%= render "layouts/navbar" %>
+        </div>
         <div class="column nav-main">
           <% flash.each do |type, message| %>
             <div class="notification is-<%= type == "alert" ? "danger" : "success" %>">
