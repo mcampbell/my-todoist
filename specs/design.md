@@ -12,12 +12,16 @@ with this doc.
 
 ## Domain
 
-Single mutable `Task` row (no template/instance, no subtasks). On complete of a
-recurring task, `due_at` advances in place.
+`Task` is a live row (no template/instance, no subtasks). Completed
+occurrences are logged immutably in `CompletedOccurrence`. On complete of a
+recurring task, `due_at` advances in place and the task stays active; a one-off
+task gets a final snapshot and the row is destroyed.
 
-**Task**: title, notes, due_at (datetime, nullable), completed_at (nullable),
-project_id (nullable = Inbox), priority (0..3), recurrence (string, nullable),
-notified_at (datetime, nullable).
+**Task**: title, notes, due_at (datetime, nullable), all_day (bool),
+project_id (nullable = Inbox), priority (0..3), recurrence (string, nullable).
+**CompletedOccurrence**: immutable snapshot of a finished occurrence
+(task_title, project_name, priority, label_names, due_at, all_day,
+completed_at). No live FK — an audit record nothing later modifies.
 **Project**: name.
 **Label**: name; Task<->Label join (`task_labels`).
 
@@ -180,22 +184,29 @@ stores recurrence string. On complete: advance due_at per semantics above,
 clear completed_at (task stays active, re-scheduled). Missed-occurrence catch-up
 rule. Depends on slice 4 grammar + Task.due_at.
 
-### Slice 6 — Notifications + scheduler
+### Slice 6 — Client-side due notifications (in-page toasts)
 
-Adds the Solid Queue stack (removed from slice 1 as unused): `solid_queue` gem,
-`active_job/railtie` in application.rb, queue DB in database.yml + production.rb
-adapter config, `bin/jobs`, `config/queue.yml`, `config/recurring.yml`,
-`db/queue_schema.rb`. Then a recurring job polls every 1 min for due, un-notified tasks
-(due_at <= now AND notified_at IS NULL AND completed_at IS NULL). Fire macOS
-notification via `terminal-notifier` (fallback `osascript`). Set notified_at.
-Manual start (`bin/dev`); on boot the same poll sweeps missed items and fires
-once. Depends only on Task.due_at (slice 1) — can parallel slices 2–5.
+No server scheduler. A JS module (importmap) polls `GET /tasks/due_since.
+json?since=<ISO8601 UTC>` every 30s and shows Bulma in-page toasts for tasks
+that crossed `due_at` since its anchor, skipping `all_day` tasks (no time to
+fire). The endpoint returns server `now`; the client advances its anchor to
+it each poll, so each task toasts once per page session. The page-load
+anchor means already-overdue tasks never toast — they're visible on
+Today/Overdue the moment you arrive. On background-tab resume the client
+advances the anchor silently (no toast burst). **No Active Job, no Solid
+Queue, no recurring job, no `notified_at`, no OS/`terminal-notifier`
+notification** — the original server-side scheduler is superseded (user
+decision 2026-08-15; the app runs on WSL2 Linux or macOS — no OS-coupled
+notification). Desktop-first; works on
+mobile Chrome verbatim once the server is reachable on the LAN (bind +
+port-forward follow-up). Implementation plan: `specs/slice-6-plan.md`.
+Depends only on Task.due_at + all_day (slice 1) — parallel to slices 2–5.
 
 ## Merge conflicts (taken to unlock parallel streams)
 
-1. **`tasks` schema/model** — slices 2, 5, 6 each add columns (project_id +
-   priority; recurrence; notified_at) + concurrent migrations. Serialize
-   migrations by timestamp; expect model-file merge on Task.
+1. **`tasks` schema/model** — slices 2 and 5 each add columns (project_id +
+   priority; recurrence) + concurrent migrations. Serialize migrations by
+   timestamp; expect model-file merge on Task.
 2. **Layout / nav partial** — slice 2 (sidebar) and slice 3 (Today/Upcoming
    links) both edit `app/views/layouts` nav.
 3. **TasksController#create** — slice 1 structured params vs slice 4 parse-from-
@@ -213,8 +224,10 @@ once. Depends only on Task.due_at (slice 1) — can parallel slices 2–5.
 ## Deferred (named, out of v1)
 
 Sections within projects. Subtasks. Todoist import. Holiday-aware weekdays.
-Email/in-app notifications (macOS-only). launchd autostart. Multi-timezone.
-Second-level recurrence granularity. `every <ordinal> <unit>` month-boundary
+Email/OS-level (push) notifications — in-page due toasts ship in slice 6;
+anything beyond that (email, OS push, cross-device dedup, background-tab
+delivery) stays out of v1. launchd autostart. Multi-timezone. Second-level
+recurrence granularity. `every <ordinal> <unit>` month-boundary
 recurrence — Nth incident of a unit in the month, ordinals `first`/`1st`
 through `fifth`/`5th` plus `last` (e.g. `every first monday`,
 `every 3rd friday`, `every last workday`).
@@ -223,4 +236,5 @@ the structured form control).
 
 ## Open questions
 
-None blocking. Confirm `terminal-notifier` install acceptable (else osascript-only).
+None blocking. (Client-side toasts need no OS notification tooling; the
+former `terminal-notifier` install question is moot.)

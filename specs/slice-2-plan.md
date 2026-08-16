@@ -359,9 +359,10 @@ Turbo Complete/Delete wiring.
 
 ## Rework / merge cost this slice imposes on later slices
 
-- **Task model + schema** — slices 5 (recurrence) and 6 (notified_at) each add
-  columns and a concurrent migration. Serialize migrations by timestamp; expect
-  a Task model-file merge (design C-note 1). This slice keeps its Task edits
+- **Task model + schema** — slices 5 (recurrence) and 6 (in-page toasts) each
+  touch the Task model; only slice 5 adds a column + migration — slice 6's
+  planned `notified_at` was dropped (client-side toasts, no column). Serialize
+  migrations by timestamp; expect a Task model-file merge (design C-note 1). This slice keeps its Task edits
   small (associations + one scope + one validation) to minimize that merge.
 - **`_navbar.html.erb`** — slice 3 (Today/Upcoming links) edits the same
   sidebar partial. Kept as a partial (not inlined into the layout) for exactly
@@ -376,5 +377,6 @@ Turbo Complete/Delete wiring.
 
 ## Schema left extensible for later slices
 
-`tasks` will still gain `recurrence` (slice 5) and `notified_at` (slice 6).
-Don't pre-add — additive migrations land per slice (design C1).
+`tasks` will still gain `recurrence` (slice 5). Slice 6's originally-planned
+`notified_at` column was dropped — toasts are client-side, no column. Don't
+pre-add — additive migrations land per slice (design C1).

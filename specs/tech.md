@@ -10,8 +10,9 @@ place decisions land when they're a standing rule, not a one-slice detail.
 - Rails 8, Ruby. SQLite3 (dev + "prod" are same local DB).
 - Views: builtin ERB. Assets: Propshaft + Importmap (no Node build).
 - CSS: **Bulma** (pure-CSS drop-in via importmap/vendored stylesheet).
-- Jobs: Solid Queue (SQLite-backed) — added slice 6 when notifications need a
-  scheduler; not present before then (removed from slice 1 as unused).
+- Jobs: none. Due reminders (slice 6) are client-side — a JS poll to a JSON
+  endpoint shows in-page toasts; no background scheduler, no Solid Queue, no
+  Active Job.
 - Tests: rspec-rails.
 - Date NLP: `chronic` gem (one-off dates, slice 4). Recurrence (slice 5):
   custom parser (PORO), no gem.
@@ -38,6 +39,11 @@ place decisions land when they're a standing rule, not a one-slice detail.
   NULLS LAST, created_at DESC")`) is the standing pattern for any future
   nullable-sort-key scope — SQLite-specific syntax, noted here so it isn't
   reinvented per-slice.
+- **Cross-platform: WSL2+browser and MacOS+browser.** Dev/runtime targets
+  both. No OS-specific paths, shell commands, or line-ending assumptions.
+  Don't recommend or write code that works on one and breaks on the other
+  (e.g. Windows-only paths, macOS-only tools like `pbcopy`/`open`,
+  case-insensitive-filesystem assumptions).
 
 ## Deferred tech (named, not adopted)
 
