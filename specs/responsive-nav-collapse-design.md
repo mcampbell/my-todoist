@@ -59,8 +59,8 @@ fires, and keeps the main pane full-width.
   display: contents;
 }
 
-/* Responsive nav drawer for mobile (< 768px) */
-@media (max-width: 767.98px) {
+/* Responsive nav drawer for mobile (<= 768px) */
+@media (width <= 768px) {
   .nav-toggle {
     display: block;
     position: fixed;
@@ -81,8 +81,12 @@ fires, and keeps the main pane full-width.
     display: none;
   }
   
-  .nav-sidebar {
+  .nav-drawer .nav-sidebar {
     display: none;
+  }
+
+  .column.nav-main {
+    padding-top: 3rem;
   }
   
   .nav-drawer[open] .nav-sidebar {
@@ -112,8 +116,8 @@ fires, and keeps the main pane full-width.
   }
 }
 
-/* Wide screens (>= 768px): default Bulma layout */
-@media (min-width: 768px) {
+/* Wide screens (> 768px): default Bulma layout */
+@media (width > 768px) {
   .nav-toggle {
     display: none;
   }
@@ -126,7 +130,8 @@ Breakdown:
 - Below 768px: toggle button is fixed top-left; nav sidebar is hidden by 
   default and positioned fixed + full height when `<details open>`. A smooth 
   slide-in animation plays when the drawer opens (respects 
-  `prefers-reduced-motion`).
+  `prefers-reduced-motion`). `.column.nav-main` gets `padding-top: 3rem` so the
+  fixed toggle never obscures the first main-pane element.
 - Above 768px: toggle is hidden; sidebar flows normally via Bulma (no change 
   to existing layout).
 
@@ -167,17 +172,22 @@ The 768px media query, fixed-position overlay styling, and native `<details>`
 interactive disclosure cannot be asserted programmatically via `rack_test`
 (no rendering engine, no viewport resize, no browser semantics).
 Verify these manually in a real browser:
-- Resize to <768px width → toggle button ("Menu") appears at top-left; nav
+- Resize to ≤768px width → toggle button ("Menu") appears at top-left; nav
   sidebar is hidden (main pane full-width).
-- Resize to ≥768px width → toggle button disappears; nav and main pane
+- Resize to >768px width → toggle button disappears; nav and main pane
   display side-by-side.
 - Click "Menu" to open drawer → `<details>` element receives `[open]` attribute;
   sidebar appears as an overlay on top of the main pane with a smooth 
   slide-in animation.
 - Click "Menu" again to close → `[open]` attribute removed from `<details>`;
-  sidebar slides out and is hidden.
+  sidebar is hidden immediately (no exit animation exists — close is instant).
 - Navigate to another page → drawer closes automatically (Turbo replaces 
   `<body>`, recreating closed `<details>`).
+
+Cross-browser: the `.nav-drawer { display: contents }` technique relies on the
+engine suppressing the closed-`<details>` content-hiding box. Verified in
+Chromium only; confirm the same wide-screen reveal (sidebar visible on desktop)
+and mobile `[open]` toggle in Firefox and Safari before merge.
 
 No new JavaScript or state persistence required — pure CSS + native
 `<details>` behavior.
