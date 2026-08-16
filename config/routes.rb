@@ -6,6 +6,7 @@ Rails.application.routes.draw do
       patch :complete
     end
     collection do
+      get :due_since
       get :completed
       get :today
       get :upcoming

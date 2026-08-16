@@ -29,6 +29,22 @@ class TasksController < ApplicationController
                   .group_by { |t| t.due_at.to_date }
   end
 
+  # Client-side toast poll (slice 6): timed tasks due in (since, now]. The
+  # client advances its anchor to response.now each poll, so server time wins.
+  def due_since
+    since = Time.iso8601(params[:since])
+    now = Time.current
+    tasks = Task.where(all_day: false)
+                .where("due_at > ? AND due_at <= ?", since, now)
+                .order(:due_at)
+    render json: {
+      now: now.utc.iso8601(6),
+      tasks: tasks.pluck(:id, :title, :due_at).map { |id, title, due| { id: id, title: title, due_at: due&.utc.iso8601(6) } }
+    }
+  rescue ArgumentError, TypeError
+    render json: { error: "since must be ISO8601" }, status: :bad_request
+  end
+
   def new
     @task = Task.new
   end

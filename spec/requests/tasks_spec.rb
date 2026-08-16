@@ -685,4 +685,64 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include("has-background-danger-light")
     end
   end
+
+  describe "GET /tasks/due_since" do
+    it "returns a timed task due in (since, now] with id, title, due_at, and a now field" do
+      task = Task.create!(title: "due-now", all_day: false, due_at: 1.minute.ago)
+
+      get due_since_tasks_path, params: { since: 5.minutes.ago.iso8601 }
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body["now"]).to be_present
+      expect(body["tasks"]).to eq([ { "id" => task.id, "title" => "due-now", "due_at" => task.due_at.utc.iso8601(6) } ])
+    end
+
+    it "excludes an all_day task that is technically due" do
+      Task.create!(title: "all-day", all_day: true, due_at: Time.current.beginning_of_day)
+      timed = Task.create!(title: "timed", all_day: false, due_at: 1.minute.ago)
+
+      get due_since_tasks_path, params: { since: 1.hour.ago.iso8601 }
+      body = JSON.parse(response.body)
+      expect(body["tasks"].map { |t| t["title"] }).to eq([ "timed" ])
+    end
+
+    it "excludes a task with due_at at or before since (already overdue at load)" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        due_at = 5.minutes.ago
+        Task.create!(title: "boundary", all_day: false, due_at: due_at)
+        in_window = Task.create!(title: "in-window", all_day: false, due_at: 1.minute.ago)
+
+        get due_since_tasks_path, params: { since: due_at.iso8601 }
+        body = JSON.parse(response.body)
+        expect(body["tasks"].map { |t| t["title"] }).to eq([ "in-window" ])
+      end
+    end
+
+    it "excludes a task due in the future" do
+      Task.create!(title: "future", all_day: false, due_at: 1.hour.from_now)
+
+      get due_since_tasks_path, params: { since: 1.day.ago.iso8601 }
+      body = JSON.parse(response.body)
+      expect(body["tasks"]).to be_empty
+    end
+
+    it "returns 400 for an unparseable since" do
+      get due_since_tasks_path, params: { since: "not-a-date" }
+      expect(response).to have_http_status(:bad_request)
+      expect(JSON.parse(response.body)["error"]).to eq("since must be ISO8601")
+    end
+
+    it "serializes now with at least the precision of a returned due_at (no re-toast)" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0) + 0.25) do
+        task = Task.create!(title: "ms-task", all_day: false, due_at: Time.current)
+
+        get due_since_tasks_path, params: { since: (Time.current - 1).iso8601(6) }
+        body = JSON.parse(response.body)
+        expect(body["tasks"].map { |t| t["title"] }).to eq([ "ms-task" ])
+        # The client anchors on response.now; a truncated now below the task's
+        # due_at would put the task back in the poll window and re-toast it.
+        expect(Time.iso8601(body["now"])).to be >= Time.iso8601(body["tasks"].first["due_at"])
+      end
+    end
+  end
 end
