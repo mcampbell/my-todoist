@@ -10,7 +10,8 @@ RSpec.describe "Task flow", type: :system do
     visit tasks_path
     find("button[aria-label='Complete #{task.title}']").click
 
-    expect(task.reload).to be_completed
+    expect(Task.exists?(task.id)).to be(false)
+    expect(CompletedOccurrence.last.task_title).to eq("complete-me")
     expect(page).to have_no_content("complete-me")
   end
 
@@ -109,5 +110,29 @@ RSpec.describe "Task flow", type: :system do
     expect(task.title).to eq("Call dentist")
     expect(task.due_at).to eq(Time.zone.local(2026, 8, 15, 12, 0))
     expect(task.all_day?).to eq(false)
+  end
+
+  it "completes a recurring task and it reappears with an advanced due date" do
+    travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+      visit new_task_path
+      fill_in "Title", with: "Water plants every 3 days"
+      click_button "Save"
+    end
+
+    task = Task.last
+    expect(task.recurrence).to eq("every 3 days")
+
+    travel_to(Time.zone.local(2026, 8, 18, 10, 0, 0)) do
+      visit tasks_path
+      expect(page).to have_content("Water plants")
+      expect(page).to have_content("↻ every 3 days")
+      find("button[aria-label='Complete Water plants']").click
+    end
+
+    task.reload
+    expect(Task.count).to eq(1)
+    expect(task.due_at).to eq(Time.zone.local(2026, 8, 21).beginning_of_day)
+    expect(page).to have_content("Water plants")
+    expect(page).to have_content("↻ every 3 days")
   end
 end

@@ -8,24 +8,24 @@ class TasksController < ApplicationController
 
   def index
     @project = Project.find(params[:project_id]) if params[:project_id]
-    @tasks = Task.active.where(project: @project).ordered.includes(:labels)
+    @tasks = Task.where(project: @project).ordered.includes(:labels)
   end
 
   def completed
-    @tasks = Task.completed.order(completed_at: :desc)
+    @occurrences = CompletedOccurrence.order(completed_at: :desc)
   end
 
   def today
-    @tasks = Task.active.due_today_or_undated.ordered.includes(:labels)
+    @tasks = Task.due_today_or_undated.ordered.includes(:labels)
   end
 
   def overdue
-    @tasks = Task.active.overdue.ordered.includes(:labels)
+    @tasks = Task.overdue.ordered.includes(:labels)
   end
 
   def upcoming
     range = 1.day.from_now.beginning_of_day..UPCOMING_DAYS.days.from_now.end_of_day
-    @groups = Task.active.due_between(range).ordered.includes(:labels)
+    @groups = Task.due_between(range).ordered.includes(:labels)
                   .group_by { |t| t.due_at.to_date }
   end
 
@@ -41,8 +41,12 @@ class TasksController < ApplicationController
       priority: parsed[:priority] || 0,
       due_date: parsed[:due_date],
       due_time: parsed[:due_time],
+      recurrence: parsed[:recurrence],
       label_ids: qp[:label_ids] || []
     }
+    if parsed[:recurrence].present?
+      apply_recurrence_anchors!(attrs, parsed[:recurrence], nil)
+    end
     project_name = params[:project_name].presence || parsed[:project_name]
     if project_name.present?
       project = Project.find_by(name: project_name)
@@ -60,18 +64,22 @@ class TasksController < ApplicationController
     if @task.save
       redirect_to safe_return_to || task_list_path(@task)
     else
+      # On recurrence-validation failure the parsed title has already lost the
+      # recurrence span; rebuild from the raw quick-add string so the edit
+      # control shows the exact phrase the user must correct.
+      preserve_quick_add_input!(@task) if parsed[:recurrence].present?
       render :new, status: :unprocessable_content
     end
-  rescue QuickAdd::RecurrenceNotSupportedError => e
-    @task = Task.new(quick_add_params)
-    @task.errors.add(:title, e.message)
-    render :new, status: :unprocessable_content
   end
 
   def edit; end
 
   def update
-    if @task.update(task_params)
+    attrs = task_params.to_h.with_indifferent_access
+    if attrs[:recurrence].present?
+      apply_recurrence_anchors!(attrs, attrs[:recurrence], @task)
+    end
+    if @task.update(attrs)
       redirect_to safe_return_to || task_list_path(@task)
     else
       render :edit, status: :unprocessable_content
@@ -84,8 +92,9 @@ class TasksController < ApplicationController
   end
 
   def complete
+    path = task_list_path(@task)
     @task.complete!
-    redirect_back_or_to task_list_path(@task), notice: "Task completed."
+    redirect_back_or_to path, notice: "Task completed."
   end
 
   private
@@ -106,7 +115,63 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, label_ids: [])
+    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, label_ids: [])
+  end
+
+  # True for hour/minute recurrences, which need a real time-of-day anchor so
+  # the task is not all_day (else due_tag hides the time and the slice-6
+  # notifier would skip it). Based on the parsed unit, not the raw string, so
+  # invalid recurrence text (e.g. "every 0 minutes") is never treated as
+  # sub-day and cannot seed a timed anchor before validation rejects it.
+  def recurrence_is_sub_day?(recurrence)
+    rule = Recurrence.parse(recurrence)
+    rule && rule.unit.in?(%i[hour minute])
+  rescue Recurrence::InvalidError
+    false
+  end
+
+  # A recurring task defaults its anchor date to today when it has no date at
+  # all (fixed stepping needs a starting point; rolling ignores it anyway) —
+  # but only for the initial bootstrap, never overriding an explicit blank
+  # post from the edit form. A sub-day recurrence always needs a real time
+  # anchor so the task is not all_day (the slice-6 notifier skips all_day
+  # tasks and due_tag hides the time on them).
+  def apply_recurrence_anchors!(attrs, recurrence, existing_task)
+    # Skip anchoring entirely for malformed recurrence text: the loose-prefix
+    # checks below would otherwise seed due_date/due_time that persist on the
+    # in-memory task once validation rightly rejects the recurrence.
+    Recurrence.parse(recurrence)
+  rescue Recurrence::InvalidError
+    nil
+  else
+    if recurrence_is_sub_day?(recurrence) && attrs[:due_time].blank?
+      attrs[:due_time] = Time.current.strftime("%H:%M")
+    end
+
+    # Bootstrap today's date only when this edit assigns a recurrence to a
+    # task that had none (or creates one without a date). A repeated edit of a
+    # task the user already cleared must not silently re-add today.
+    bootstrapping = existing_task.nil? ||
+      (existing_task.recurrence.blank? && existing_task.due_at.blank?)
+    attrs[:due_date] = Date.current.iso8601 if attrs[:due_date].blank? && bootstrapping
+  end
+
+  # Copy the raw quick-add string (which the parsed title already lost the
+  # recurrence span from) plus the failures onto a fresh task for the error
+  # render.
+  def preserve_quick_add_input!(failed_task)
+    raw = Task.new(quick_add_params)
+    # The parsed title errors (e.g. "can't be blank" when the phrase was only
+    # a recurrence) describe the stripped title, not the restored raw string.
+    # Drop them when a recurrence error is the real problem; keep them when
+    # title presence is the only thing that failed, so the page shows the
+    # user a reason for the 422.
+    other_errors = failed_task.errors.any? { |error| error.attribute != :title }
+    failed_task.errors.each do |error|
+      next if error.attribute == :title && other_errors
+      raw.errors.add(error.attribute, error.message)
+    end
+    @task = raw
   end
 
   # Create accepts only the quick-add field and labels; priority, due date,

@@ -15,6 +15,7 @@ Rails.application.routes.draw do
 
   resources :projects, except: :show
   resources :labels, except: :show
+  resources :completed_occurrences, only: :show
 
   get "projects/:project_id/tasks", to: "tasks#index", as: :project_tasks
 

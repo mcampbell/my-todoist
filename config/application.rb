@@ -27,7 +27,10 @@ module MyTodoist
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # Displayed times are the user's local wall clock (Eastern); the DB keeps
+    # UTC. Rails converts stored timestamps into Time.zone on read and
+    # Time.current is Eastern, so views format local time without extra work.
+    config.time_zone = "Eastern Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
     # Don't generate system test files.

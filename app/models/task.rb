@@ -5,26 +5,44 @@ class Task < ApplicationRecord
 
   validates :title, presence: true
   validates :priority, inclusion: { in: 0..3 }
+  validate :recurrence_must_be_parseable
 
-  scope :active, -> { where(completed_at: nil) }
-  scope :completed, -> { where.not(completed_at: nil) }
   scope :ordered, -> { order(Arel.sql("due_at ASC NULLS LAST, created_at DESC")) }
   scope :due_today_or_undated, -> { where("due_at <= ? OR due_at IS NULL", Time.current.end_of_day) }
   scope :due_between, ->(range) { where(due_at: range) }
   scope :overdue, -> { where("due_at < ?", Time.current.beginning_of_day) }
 
-  def completed?
-    completed_at.present?
+  def overdue?
+    due_at.present? && due_at < Time.current.beginning_of_day
   end
 
-  def overdue?
-    !completed? && due_at.present? && due_at < Time.current.beginning_of_day
+  def recurrence=(value)
+    super(value.presence)
   end
 
   def complete!
     with_lock do
-      return if completed?
-      update!(completed_at: Time.current)
+      reload
+      snapshot = CompletedOccurrence.create!(
+        task_title: title,
+        project_name: project&.name,
+        priority: priority,
+        label_names: labels.pluck(:name).sort_by { |n| n.downcase }.join(", "),
+        due_at: due_at,
+        all_day: all_day,
+        completed_at: Time.current
+      )
+      if recurrence.blank?
+        destroy!
+      else
+        next_due = Recurrence.parse(recurrence).next_from(due_at: due_at || Time.current, now: Time.current)
+        # A rolling all-day recurrence reschedules to the completion time, so
+        # due_at moves off midnight; clear all_day so the due tag shows the
+        # new time. Fixed recurrences that stay at midnight keep all_day.
+        timed = !next_due.to_time.strftime("%H:%M").in?(%w[00:00])
+        update!(due_at: next_due, all_day: all_day && !timed)
+      end
+      snapshot
     end
   end
 
@@ -46,6 +64,13 @@ class Task < ApplicationRecord
   before_validation :compose_due_at, if: -> { @due_date_assigned }
 
   private
+
+  def recurrence_must_be_parseable
+    return if recurrence.blank?
+    Recurrence.parse(recurrence)
+  rescue Recurrence::InvalidError
+    errors.add(:recurrence, "is invalid")
+  end
 
   def compose_due_at
     if @due_date.blank?

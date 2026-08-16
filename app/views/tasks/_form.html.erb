@@ -41,6 +41,13 @@
   </div>
 
   <div class="field">
+    <%= f.label :recurrence, "Recurrence (e.g. every 3 days, every! monday)", class: "label" %>
+    <div class="control">
+      <%= f.text_field :recurrence, class: "input", placeholder: "every day / every! monday / every 3 months" %>
+    </div>
+  </div>
+
+  <div class="field">
     <%= f.label :project_id, "Project", class: "label" %>
     <div class="control">
       <div class="select">

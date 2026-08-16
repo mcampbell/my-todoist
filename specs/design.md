@@ -36,8 +36,11 @@ notified_at (datetime, nullable).
   - `every N days` / `every! N days` — every N days (e.g. `every 3 days`)
   - `every week` / `every! week` — weekly
   - `every N weeks` / `every! N weeks` — every N weeks
-  - `every month` / `every! month` — monthly
-  - `every N months` / `every! N months` — every N months
+  - `every month` / `every! month` — monthly, lands on the 1st of the
+    target month (not the anchor's day-of-month) — sidesteps day-of-month
+    clamping/anchor-drift on short months entirely.
+  - `every N months` / `every! N months` — every N months, same
+    1st-of-month landing rule
   - `every year` / `every! year` — yearly
   - `every N years` / `every! N years` — every N years
   - `every monday` … `every sunday` — specific weekday (rolling `every!
