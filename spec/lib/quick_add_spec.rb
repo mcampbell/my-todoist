@@ -256,6 +256,12 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
+    it "extracts every <ordinal word> <weekday> phrases" do
+      expect(described_class.parse("Trash day every other monday")).to include(
+        title: "Trash day", recurrence: "every other monday"
+      )
+    end
+
     it "extracts every weekday" do
       expect(described_class.parse("sync every weekday")).to include(
         title: "sync", recurrence: "every weekday"
@@ -301,6 +307,87 @@ RSpec.describe QuickAdd, type: :model do
       )
       expect(described_class.parse("Every Wednesday.")).to include(
         title: "", recurrence: "every wednesday"
+      )
+    end
+  end
+
+  describe "in-X-unit due date extraction" do
+    def parse_at(time, text)
+      travel_to(time) { described_class.parse(text) }
+    end
+
+    it "extracts 'in <N> days' as an all-day due date" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "walk dog in 3 days")).to include(
+        title: "walk dog", due_date: "2026-08-18", due_time: nil
+      )
+    end
+
+    it "extracts 'in <N> hours' as a timed due date" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "check oven in 2 hours")).to include(
+        title: "check oven", due_date: "2026-08-15", due_time: "12:00"
+      )
+    end
+
+    it "extracts 'in <N> minutes' as a timed due date" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "water plants in 15 minutes")).to include(
+        title: "water plants", due_date: "2026-08-15", due_time: "10:15"
+      )
+    end
+
+    it "extracts 'in <N> weeks' as an all-day due date" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "renew pass in 1 week")).to include(
+        title: "renew pass", due_date: "2026-08-22", due_time: nil
+      )
+    end
+
+    it "extracts 'in <N> months' as an all-day due date" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "review lease in 6 months")).to include(
+        title: "review lease", due_date: "2027-02-15", due_time: nil
+      )
+    end
+
+    it "extracts 'in <N> years' as an all-day due date" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "renew passport in 1 year")).to include(
+        title: "renew passport", due_date: "2027-08-15", due_time: nil
+      )
+    end
+
+    it "resolves 'a'/'an' to a count of 1" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "renew pass in a week")).to include(
+        title: "renew pass", due_date: "2026-08-22", due_time: nil
+      )
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "check oven in an hour")).to include(
+        title: "check oven", due_date: "2026-08-15", due_time: "11:00"
+      )
+    end
+
+    it "strips the phrase cleanly when mid-title" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "call mom in 3 days about trip")).to include(
+        title: "call mom about trip", due_date: "2026-08-18", due_time: nil
+      )
+    end
+
+    it "strips the phrase cleanly when at the end, absorbing trailing punctuation" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "walk dog in 3 days.")).to include(
+        title: "walk dog", due_date: "2026-08-18", due_time: nil
+      )
+    end
+
+    it "does not match a title that merely contains a unit word without 'in <count>'" do
+      expect(described_class.parse("review 3 days worth of logs")).to include(
+        title: "review 3 days worth of logs", due_date: nil, due_time: nil
+      )
+    end
+
+    it "does not interact with the recurrence grammar in the same title" do
+      expect(described_class.parse("water plants every monday")).to include(
+        recurrence: "every monday", due_date: nil, due_time: nil
+      )
+    end
+
+    it "coexists with recurrence grammar in the same title" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "every monday in 3 days clean desk")).to include(
+        title: "clean desk", recurrence: "every monday", due_date: "2026-08-18", due_time: nil
       )
     end
   end
