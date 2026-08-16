@@ -17,8 +17,17 @@ class Recurrence
   INTERVAL_UNITS = %i[day week year hour minute].freeze
   WEEKDAY_NAME_UNITS = WEEKDAYS.keys.freeze
 
-  UNIT_RE = /days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday/
-  GRAMMAR = /\Aevery(?<bang>!)?\s+(?:(?<count>\d+)\s+)?(?<unit>#{UNIT_RE})\z/i
+  ORDINAL_WORDS = {
+    "other" => 2, "first" => 1, "second" => 2, "third" => 3, "fourth" => 4,
+    "fifth" => 5, "sixth" => 6, "seventh" => 7, "eighth" => 8, "ninth" => 9,
+    "tenth" => 10, "eleventh" => 11, "twelfth" => 12, "thirteenth" => 13,
+    "fourteenth" => 14, "fifteenth" => 15, "sixteenth" => 16, "seventeenth" => 17,
+    "eighteenth" => 18, "nineteenth" => 19, "twentieth" => 20
+  }.freeze
+
+  UNIT_RE = /days?|weeks?|months?|years?|hours?|minutes?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|weekdays?|workdays?/
+  COUNT_RE = /\d+(?:st|nd|rd|th)?|#{ORDINAL_WORDS.keys.join('|')}/
+  GRAMMAR = /\Aevery(?<bang>!)?\s+(?:(?<count>#{COUNT_RE})\s+)?(?<unit>#{UNIT_RE})\z/i
 
   attr_reader :unit, :count
 
@@ -28,14 +37,17 @@ class Recurrence
     match = GRAMMAR.match(string.strip.downcase)
     raise InvalidError, "unrecognized recurrence: #{string.inspect}" unless match
 
-    count = match[:count] ? match[:count].to_i : 1
+    count = match[:count] ? resolve_count(match[:count]) : 1
     unit = normalize_unit(match[:unit])
     raise InvalidError, "invalid recurrence: #{string.inspect}" if count < 1
-    raise InvalidError, "count invalid for #{unit}: #{string.inspect}" if
-      (WEEKDAY_NAME_UNITS.include?(unit) || unit == :weekday) && count != 1
 
     new(unit: unit, count: count, rolling: match[:bang].present?)
   end
+
+  def self.resolve_count(token)
+    token[0] =~ /\d/ ? token.to_i : ORDINAL_WORDS.fetch(token)
+  end
+  private_class_method :resolve_count
 
   def self.normalize_unit(word)
     unit = word.to_s.sub(/s\z/, "").to_sym
@@ -83,34 +95,37 @@ class Recurrence
 
   def advance_weekday(due_at, now)
     anchor = rolling? ? now : due_at
-    result = next_occurrence_of_weekday(anchor)
+    result = next_occurrence_of_weekday(anchor, count)
     unless rolling?
-      result = next_occurrence_of_weekday(result) while result < now
+      result = next_occurrence_of_weekday(result, count) while result < now
     end
     result
   end
 
-  # Next calendar date that falls on this recurrent weekday, strictly after
+  # Next calendar date `steps` occurrences of this recurrent weekday after
   # the anchor, preserving the anchor's clock time.
-  def next_occurrence_of_weekday(anchor)
+  def next_occurrence_of_weekday(anchor, steps)
     target = WEEKDAYS.fetch(unit)
     delta = (target - anchor.wday) % 7
     delta = 7 if delta.zero?
-    anchor + delta.days
+    anchor + delta.days + (steps - 1) * 7.days
   end
 
   # Business-day recurrence: advance one calendar day at a time, skipping
-  # Saturday and Sunday.
+  # Saturday and Sunday, `count` business days per step.
   def advance_business_day(due_at, now)
     anchor = rolling? ? now : due_at
-    result = next_business_day(anchor)
-    result = next_business_day(result) while result < now unless rolling?
+    result = next_business_day(anchor, count)
+    result = next_business_day(result, count) while result < now unless rolling?
     result
   end
 
-  def next_business_day(time)
-    candidate = time + 1.day
-    candidate += 1.day while [ 0, 6 ].include?(candidate.wday)
+  def next_business_day(time, steps)
+    candidate = time
+    steps.times do
+      candidate += 1.day
+      candidate += 1.day while [ 0, 6 ].include?(candidate.wday)
+    end
     candidate
   end
 

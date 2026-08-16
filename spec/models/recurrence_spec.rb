@@ -59,8 +59,36 @@ RSpec.describe Recurrence do
       expect(Recurrence.parse("Every! Monday")).not_to be_nil
     end
 
-    it "rejects a count on a weekday-name recurrence" do
-      expect { Recurrence.parse("every 3 monday") }.to raise_error(Recurrence::InvalidError)
+    it "accepts a count on a weekday-name recurrence" do
+      rule = Recurrence.parse("every 3 monday")
+      expect(rule.unit).to eq(:monday)
+      expect(rule.count).to eq(3)
+    end
+
+    it "accepts plural weekday names with a count" do
+      rule = Recurrence.parse("every 3 mondays")
+      expect(rule.unit).to eq(:monday)
+      expect(rule.count).to eq(3)
+    end
+
+    it "treats 'other' as a synonym for count 2" do
+      rule = Recurrence.parse("every other monday")
+      expect(rule.count).to eq(2)
+    end
+
+    it "resolves word-ordinal counts" do
+      expect(Recurrence.parse("every third monday").count).to eq(3)
+      expect(Recurrence.parse("every third week").interval).to eq(3.weeks)
+      expect(Recurrence.parse("every twentieth day").interval).to eq(20.days)
+    end
+
+    it "resolves digit-suffix ordinal counts" do
+      expect(Recurrence.parse("every 2nd monday").count).to eq(2)
+      expect(Recurrence.parse("every 21st day").interval).to eq(21.days)
+    end
+
+    it "rejects an ordinal word beyond the static twentieth bound" do
+      expect { Recurrence.parse("every twenty-first day") }.to raise_error(Recurrence::InvalidError)
     end
   end
 
@@ -142,6 +170,18 @@ RSpec.describe Recurrence do
         result = rule.next_from(due_at: Time.zone.local(2026, 2, 6, 9, 0), now: Time.current)
         expect(result).to eq(Time.zone.local(2026, 2, 11, 9, 0)) # Wednesday
       end
+
+      it "advances a weekday-name recurrence by count weeks from the anchor" do
+        rule = Recurrence.parse("every 2 monday")
+        result = rule.next_from(due_at: Time.zone.local(2026, 2, 9, 9, 0), now: Time.current)
+        expect(result).to eq(Time.zone.local(2026, 2, 23, 9, 0))
+      end
+
+      it "advances a business-day recurrence by count business days" do
+        rule = Recurrence.parse("every 2 weekday")
+        result = rule.next_from(due_at: Time.zone.local(2026, 2, 6, 9, 0), now: Time.current)
+        expect(result).to eq(Time.zone.local(2026, 2, 12, 9, 0)) # Thursday
+      end
     end
 
     describe "rolling (bang)" do
@@ -199,6 +239,18 @@ RSpec.describe Recurrence do
         rule = Recurrence.parse("every! weekday")
         result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.zone.local(2026, 2, 6, 9, 0, 0))
         expect(result).to eq(Time.zone.local(2026, 2, 9, 9, 0, 0))
+      end
+
+      it "reschedules a weekday-name recurrence to the second occurrence for 'other'" do
+        rule = Recurrence.parse("every! other monday")
+        result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
+        expect(result).to eq(Time.zone.local(2026, 2, 23, 12, 0, 0))
+      end
+
+      it "reschedules a business-day recurrence count business days from now" do
+        rule = Recurrence.parse("every! 2 weekday")
+        result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.zone.local(2026, 2, 6, 9, 0, 0))
+        expect(result).to eq(Time.zone.local(2026, 2, 10, 9, 0, 0))
       end
     end
   end
