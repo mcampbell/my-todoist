@@ -196,7 +196,8 @@ Today/Overdue the moment you arrive. On background-tab resume the client
 advances the anchor silently (no toast burst). **No Active Job, no Solid
 Queue, no recurring job, no `notified_at`, no OS/`terminal-notifier`
 notification** — the original server-side scheduler is superseded (user
-decision 2026-08-15; host is WSL2 Linux, not macOS). Desktop-first; works on
+decision 2026-08-15; the app runs on WSL2 Linux or macOS — no OS-coupled
+notification). Desktop-first; works on
 mobile Chrome verbatim once the server is reachable on the LAN (bind +
 port-forward follow-up). Implementation plan: `specs/slice-6-plan.md`.
 Depends only on Task.due_at + all_day (slice 1) — parallel to slices 2–5.

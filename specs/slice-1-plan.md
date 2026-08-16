@@ -139,5 +139,6 @@ wiring. Skip system specs for create/edit/list (request specs cover them).
 
 ## Schema left extensible for later slices
 
-`tasks` will later gain `project_id`, `priority`, `recurrence`, `notified_at`
-(design C1). Don't pre-add — additive migrations land per slice.
+`tasks` will later gain `project_id`, `priority`, `recurrence` (design C1);
+`notified_at` was in C1 but is dropped — slice 6 ships client-side toasts
+with no column. Don't pre-add — additive migrations land per slice.

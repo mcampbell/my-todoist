@@ -5,8 +5,8 @@ in-page toast. Pure client-side: a JS module polls a lightweight JSON
 endpoint; the server only answers a query. No OS notification, no macOS
 `terminal-notifier`/`osascript`, **no Active Job, no Solid Queue, no
 recurring poller, no `notified_at` column** — the original design's entire
-server-side scheduler is superseded (user decision 2026-08-15; host is WSL2
-Linux, not macOS).
+server-side scheduler is superseded (user decision 2026-08-15; the app
+runs on WSL2 Linux or macOS — no OS-coupled notification).
 
 The app must **not** toast tasks already overdue when the page opens
 (Today/Overdue show them) — the poll's `since` anchor handles this
@@ -54,11 +54,14 @@ Full log: `~/tmp/2026-08-15-slice-6-grill.md`. Summary:
   visible after a hidden period, run one silent poll that advances the anchor
   without toasting, then resume normal toasts. Honors "don't notify on
   overdue you're being shown."
-- **Mount + script persist across Turbo navigations:** the toast container
-  and `<script>` live in `application.html.erb` `<body>` outside `<%= yield
-  %>`, so Turbo soft-nav never tears them down and the poller keeps running
-  + anchor keeps advancing across views. The JS module is guarded so
-  Turbo-driven restores don't double-start its interval.
+- **Mount + script persist across Turbo navigations:** Turbo Drive swaps the
+  whole `<body>` on each soft visit, so placement alone does not survive.
+  Mark the container `<div id="toast-container" data-turbo-permanent …>` —
+  Turbo carries the permanent node (and in-flight toasts) across visits by
+  matching `id`, so keep the same `id` in the layout. The module (its
+  `<script>` lives in `<head>`, not re-run by Drive) stays active, and
+  re-resolves `container` via `getElementById` each poll; guarded so
+  Turbo-driven restores never double-start its interval.
 - **Toast UX:** fixed top-right stack, Bulma `notification`, auto-dismiss
   ~8s + manual close, click navigates to the task edit page. Default poll
   interval **30s**.
@@ -73,20 +76,19 @@ Full log: `~/tmp/2026-08-15-slice-6-grill.md`. Summary:
 
 - `config/routes.rb`: inside `resources :tasks` collection,
   `get :due_since`.
-- `app/models/task.rb`: add scope
-  `scope :due_since, ->(since) { where(all_day: false).where("due_at > ? AND due_at <= ?", since, Time.current) }`
-  (or a `where` chain inline in the action — one line, no need for a scope
-  if it stays single-use; prefer the inline query, YAGNI).
+- `app/models/task.rb`: no change needed — the due query stays inline in the
+  controller (single-use; a `Task.due_since` scope would be dead code).
 - `app/controllers/tasks_controller.rb`: add
   ```ruby
   def due_since
     since = Time.iso8601(params[:since])
+    now = Time.current
     tasks = Task.where(all_day: false)
-      .where("due_at > ? AND due_at <= ?", since, Time.current)
+      .where("due_at > ? AND due_at <= ?", since, now)
       .order(:due_at)
     render json: {
-      now: Time.current.iso8601,
-      tasks: tasks.pluck(:id, :title, :due_at).map { |id, title, due| { id: id, title: title, due_at: due&.iso8601 } }
+      now: now.utc.iso8601,
+      tasks: tasks.pluck(:id, :title, :due_at).map { |id, title, due| { id: id, title: title, due_at: due&.utc.iso8601 } }
     }
   rescue ArgumentError, TypeError
     render json: { error: "since must be ISO8601" }, status: :bad_request
@@ -108,23 +110,65 @@ Full log: `~/tmp/2026-08-15-slice-6-grill.md`. Summary:
 - `app/javascript/notifications.js`:
   - Module-scope: `let anchor = Date.now()`, `const INTERVAL = 30_000`,
     `let started = false` (idempotency guard against Turbo cache restore),
-    `let suppressed = false`, `let container = null`.
-  - `ensureContainer()` lazily creates `<div id="toast-container">` under
-    `document.body` if absent (defensive — normally rendered in layout).
-  - `poll()`: `fetch(/tasks/due_since.json?since=AISO8601(anchor))`; on
-    `ok`, set `anchor = payload.now`; if not `suppressed`, `payload.tasks`
-    → toast each; clear `suppressed` after. On non-ok, leave anchor (no
-    widen-the-gap) and just return.
+    `let inFlight = false` (poll concurrency guard), `let container = null`,
+    `let wasHidden = document.hidden` (visibility edge latch).
+  - `ensureContainer()` resolves `document.getElementById("toast-container")`,
+    creating it under `document.body` only if absent, and always re-assigns
+    `container` — so it tracks the live node across Turbo body swaps.
+  - `poll({ silent = false })`: guard with `inFlight` — if a previous poll is
+    still awaiting, return immediately; set `inFlight = true` at entry and
+    clear it in a `finally` (an overlapping `setInterval` tick or a resume
+    silent poll cannot overlap an in-flight request). URL is built with
+    `'/tasks/due_since.json?since=' + encodeURIComponent(new
+    Date(anchor).toISOString())` so the query value is always safely
+    encoded. The whole async body
+    is wrapped in try/catch so a `fetch` rejection (network/DNS) or
+    `response.json()` parse throw logs and returns — no unhandled promise
+    rejection escapes, and the anchor is untouched. On `ok`: unless
+    `silent`, toast each of `payload.tasks` first (per-item try/catch so one
+    bad render logs and continues, never aborts the batch); then advance the
+    anchor to server time — `anchor = Date.parse(payload.now)` — with no
+    monotonic comparison: the `inFlight` guard already serializes polls, so
+    an out-of-order completion cannot occur; and a one-way guard would pin
+    `anchor` above the server clock whenever the client runs ahead (any
+    client/server clock skew: `anchor` starts at the browser's `Date.now()`,
+    which can sit
+    above the Rails server's clock, making the endpoint's `due_at > since`
+    window empty and silently disabling every toast). Toasting before
+    advancing keeps a render error from consuming never-toasted tasks. On non-ok,
+    leave the anchor (no widen-the-gap) and return. A silent poll advances
+    the anchor but never toasts. `poll()` calls `ensureContainer()` at
+    entry — the container exists before any toast appends.
   - `toast(task)`: build a Bulma `.notification` div with the task title,
-    close (delete) button; append to container; `setTimeout` remove ~8s;
-    click on the body navigates to `/tasks/<id>/edit`.
-  - `document.visibilitychange` → when `document.hidden` becomes false
-    (and was previously true), set `suppressed = true` for the next poll.
+    close (delete) button; append to container; `setTimeout` remove ~8s.
+    Navigation: a click listener on the `.notification` element itself
+    (`click` → `Turbo.visit('/tasks/' + id + '/edit')` for the soft nav —
+    there is no bare `visit` global; Turbo's API is `Turbo.visit(url)`).
+    Do **not** wrap the notification
+    in `<a href>` — `stopPropagation()` cancels bubbling to ancestor
+    *listeners*, not an enclosing anchor's default navigation, so an `<a>`
+    body would navigate even when the close button is clicked. The `.delete`
+    close handler calls `event.stopPropagation()` before `remove()` so its
+    click does not bubble to the navigation listener.
+    `toast()` re-resolves `container` via `ensureContainer()` first, so an
+    append never hits a `null` container.
+  - `document.visibilitychange` → fire the silent resume poll **only on the
+    hidden→visible edge**: `if (wasHidden && !document.hidden)
+    poll({ silent: true });` then set `wasHidden = document.hidden` on every
+    event. This fires one silent poll per resume (advancing the anchor to
+    resume-time, no toasts) and never fires on visible→hidden or repeated
+    visible events. Not a flag for the next interval tick, so a task that
+    comes due between resume and the next tick still toasts. If the silent
+    poll fires while a regular poll is still in flight, the `inFlight` guard
+    drops it and that poll resolves normally — the anchor still advances and
+    the hidden gap toasts once: bounded to at most one stray toast, never a
+    burst.
   - Start: attach on `DOMContentLoaded` and the Turbo `turbo:load` event,
     guarded by `started` (module-level instance + one `setInterval`).
 - `app/views/layouts/application.html.erb`: add the toast container in
-  `<body>` (outside `<%= yield %>`), e.g.
-  `<div id="toast-container" aria-live="polite"></div>`.
+  `<body>`, marked permanent so Turbo carries it (and any in-flight toasts)
+  across visits:
+  `<div id="toast-container" data-turbo-permanent aria-live="polite"></div>`.
 - `app/assets/stylesheets/application.css`: `#toast-container { position:
   fixed; top: 1rem; right: 1rem; z-index: 1000; display: flex;
   flex-direction: column; gap: 0.5rem; min-width: 16rem; max-width: 22rem;
@@ -138,8 +182,13 @@ Full log: `~/tmp/2026-08-15-slice-6-grill.md`. Summary:
   already-overdue items never toast even while the Today list renders them).
 - Confirm Turbo soft-navigation does **not** reset the anchor (module
   persists) and does **not** double-start the interval.
-- Confirm `suppressed` catches the resume case: a poll that fires after the
-  tab comes back advances `anchor` to server `now` without toasting.
+- Confirm the resume's immediate silent poll advances `anchor` to server
+  `now` without toasting (tasks that came due while the tab was hidden are
+  not spammed), and a task due after resume toasts on the next regular tick.
+  Edge: if a regular poll is in flight at the resume moment, the `inFlight`
+  guard drops the silent poll and that poll advances the anchor instead
+  (toasting the hidden gap once — see the Step-2 visibilitychange note);
+  the common path above is what the resume check should confirm.
 - Confirm a task that becomes due while the page is visible and stationary
   toasts exactly once (anchor advanced per poll → the same task fails
   `due_at > anchor` on the next poll).
@@ -158,7 +207,7 @@ Full log: `~/tmp/2026-08-15-slice-6-grill.md`. Summary:
     Turbo navigation.
   - Confirm an `all_day` task due today neither times out nor toasts.
   - (Background-tab resume is hard to automate in a smoke; verify the
-    `suppressed` flag logic in code + a manual tab-switch check.)
+    `poll({ silent: true })` resume path in code + a manual tab-switch check.)
 
 ## Done when
 
@@ -171,18 +220,25 @@ Full log: `~/tmp/2026-08-15-slice-6-grill.md`. Summary:
   `notified_at`; `db/schema.rb` untouched by this slice.
 - Full suite green, Rubocop clean.
 
-## Rework / design-doc cost this slice imposes
+## Doc changes already applied (commit cad2af3, this branch)
 
-- **design.md**: Slice 6 section rewritten (client-side toasts, no job
-  stack); Task Domain drops `notified_at`; Deferred entry updates
-  ("macOS-only in-app notification" → shipped as in-page toasts; email still
-  deferred); Open question about `terminal-notifier` resolves (not needed).
-- **design.md Domain** (pre-existing, from slice 5, not done yet): the
-  "single mutable Task row" sentence + `completed_at` field are stale —
-  `CompletedOccurrence` exists and `Task#complete!` destroys one-offs. Update
-  while editing the Domain section for `notified_at`.
-- **README.md**: "Slice 6 adds Active Job plus Solid Queue for reminders"
-  is now false → replace with the client-side toast description.
-- **specs/estimates.md**: slice 6 size medium→small (no job stack, no
-  column); rework R4 (`drop completed_at IS NULL`, slice 5→6) is void —
-  remove; conflict C1 no longer includes slice 6 (it adds no column).
+All doc edits this slice introduces were committed alongside this plan;
+none remain as pending action.
+
+- **design.md** — Slice 6 rewritten (client-side toasts, no job stack); Task
+  Domain drops `notified_at` and reflects `CompletedOccurrence` + one-off
+  destruction (slice-5 follow-up); Deferred/Open questions updated.
+- **README.md** — "Slice 6 adds Active Job plus Solid Queue for reminders"
+  replaced with the client-side toast description.
+- **specs/estimates.md** — slice 6 medium→small; rework R4 void (there is no
+  `completed_at` after slice 5); conflict C1 no longer includes slice 6 (no
+  column added).
+- **specs/tech.md, specs/todo-app-grill.md** — stale job-stack claims
+  corrected.
+- **specs/slice-1-plan.md, slice-2-plan.md, slice-5-plan.md** — stale
+  `notified_at` forward-references corrected in the review pass (working
+  tree, not in cad2af3 — land with this branch's commit).
+- **Grill log:** `~/tmp/2026-08-15-slice-6-grill.md`.
+
+If implementing on a fresh checkout, `git show cad2af3` confirms these edits —
+do not re-apply them.

@@ -363,10 +363,12 @@ follow-up edit once this slice lands (not done as part of this plan).
 
 ## Rework / merge cost this slice imposes on later slices
 
-- **Slice 6 (notifications)** — design.md's poll query (`due_at <= now AND
-  notified_at IS NULL AND completed_at IS NULL`) needs its `completed_at`
-  clause dropped; every row in `tasks` is inherently not completed once
-  this slice lands, so the clause is redundant, not just stale.
+- **Slice 6 (toasts)** — the old design's server poll query (`due_at <= now AND
+  notified_at IS NULL AND completed_at IS NULL`) is superseded: slice 6 polls
+  client-side with `due_at > since AND due_at <= now AND all_day == false`,
+  and both dead clauses are gone — `completed_at` (every row is inherently
+  active once this slice lands) and `notified_at` (dropped in slice 6's
+  design).
 - **design.md's Domain section** needs a follow-up edit: the "single
   mutable Task row, no template/instance" line no longer fully describes
   the model once `CompletedOccurrence` exists as an immutable instance

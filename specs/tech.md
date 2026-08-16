@@ -39,6 +39,11 @@ place decisions land when they're a standing rule, not a one-slice detail.
   NULLS LAST, created_at DESC")`) is the standing pattern for any future
   nullable-sort-key scope — SQLite-specific syntax, noted here so it isn't
   reinvented per-slice.
+- **Cross-platform: WSL2+browser and MacOS+browser.** Dev/runtime targets
+  both. No OS-specific paths, shell commands, or line-ending assumptions.
+  Don't recommend or write code that works on one and breaks on the other
+  (e.g. Windows-only paths, macOS-only tools like `pbcopy`/`open`,
+  case-insensitive-filesystem assumptions).
 
 ## Deferred tech (named, not adopted)
 
