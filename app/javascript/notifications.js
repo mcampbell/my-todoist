@@ -51,8 +51,30 @@ async function poll({ silent = false } = {}) {
   }
 }
 
+// Short beep via Web Audio API — no asset file needed. Browsers may block
+// AudioContext before any user gesture on the page; that's fine, the toast
+// still renders silently rather than erroring.
+function beep() {
+  try {
+    const ctx = new AudioContext();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.2);
+    oscillator.onended = () => ctx.close();
+  } catch (error) {
+    console.error("beep failed:", error);
+  }
+}
+
 function toast(task) {
   ensureContainer();
+  beep();
   const notification = document.createElement("div");
   notification.className = "notification is-info";
   notification.appendChild(document.createTextNode(task.title));
