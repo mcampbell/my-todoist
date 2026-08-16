@@ -48,6 +48,10 @@ a plan for a "todo" app, in case I stop being able to run Todoist. It should run
 **Recommended:** macOS native notification via background job + terminal-notifier/osascript
 **Answer:** Chosen. Implies: Rails app/scheduler process must be running in background continuously (launchd or similar) to fire at due times.
 
+> **Superseded 2026-08-15 (slice 6):** client-side, browser-based toasts
+> replace the macOS notification + background scheduler. See
+> `specs/design.md` Slice 6 and `~/tmp/2026-08-15-slice-6-grill.md`.
+
 ## Q10: Scheduler tech
 
 **Recommended:** Solid Queue recurring job

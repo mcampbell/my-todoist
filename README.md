@@ -12,8 +12,8 @@ No authentication, no authorization, and no other security controls are
 required. Do not add them. Keep the framework surface small: the app loads
 only Active Record, Action Controller, Action View, and Active Model. Do not
 add Active Job, Solid Queue, Active Storage, Action Mailer, Action Cable, or a
-deployment stack unless a real feature needs it. Slice 6 adds Active Job plus
-Solid Queue for reminders.
+deployment stack unless a real feature needs it. Slice 6's due reminders are
+client-side (a JS poll shows in-page toasts); no background job stack.
 
 ## How to Run
 

@@ -10,8 +10,9 @@ place decisions land when they're a standing rule, not a one-slice detail.
 - Rails 8, Ruby. SQLite3 (dev + "prod" are same local DB).
 - Views: builtin ERB. Assets: Propshaft + Importmap (no Node build).
 - CSS: **Bulma** (pure-CSS drop-in via importmap/vendored stylesheet).
-- Jobs: Solid Queue (SQLite-backed) — added slice 6 when notifications need a
-  scheduler; not present before then (removed from slice 1 as unused).
+- Jobs: none. Due reminders (slice 6) are client-side — a JS poll to a JSON
+  endpoint shows in-page toasts; no background scheduler, no Solid Queue, no
+  Active Job.
 - Tests: rspec-rails.
 - Date NLP: `chronic` gem (one-off dates, slice 4). Recurrence (slice 5):
   custom parser (PORO), no gem.
