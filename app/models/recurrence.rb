@@ -26,7 +26,7 @@ class Recurrence
   }.freeze
 
   UNIT_RE = /days?|weeks?|months?|years?|hours?|minutes?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|weekdays?|workdays?/
-  COUNT_RE = /\d+(?:st|nd|rd|th)?|#{ORDINAL_WORDS.keys.join('|')}/
+  COUNT_RE = /\d+(?:'?(?:st|nd|rd|th))?|#{ORDINAL_WORDS.keys.join('|')}/
   GRAMMAR = /\Aevery(?<bang>!)?\s+(?:(?<count>#{COUNT_RE})\s+)?(?<unit>#{UNIT_RE})\z/i
 
   attr_reader :unit, :count

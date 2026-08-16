@@ -87,6 +87,14 @@ RSpec.describe Recurrence do
       expect(Recurrence.parse("every 21st day").interval).to eq(21.days)
     end
 
+    it "resolves digit-suffix ordinal counts with an apostrophe" do
+      expect(Recurrence.parse("every 1'st day").interval).to eq(1.day)
+      expect(Recurrence.parse("every 2'nd monday").count).to eq(2)
+      expect(Recurrence.parse("every 3'rd day").interval).to eq(3.days)
+      expect(Recurrence.parse("every 4'th day").interval).to eq(4.days)
+      expect(Recurrence.parse("every 20'th day").interval).to eq(20.days)
+    end
+
     it "rejects an ordinal word beyond the static twentieth bound" do
       expect { Recurrence.parse("every twenty-first day") }.to raise_error(Recurrence::InvalidError)
     end
