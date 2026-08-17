@@ -48,3 +48,21 @@ Notes:
 ## "in X unit" date-pinning grammar
 
 - Single slice, easy (1 point): regex + parse branch + duration math, no new deps. See specs/in-x-unit-design.md.
+
+## Specific-date pinning grammar
+
+Two slices, sliced by input format (see specs/specific-date-design.md).
+Four of six requested formats already work via existing Chronic pipeline —
+zero cost, confirmed by reading `date_span`, not estimated.
+
+| Slice | Work | Size | Points |
+|---|---|---|---|
+| 1 | Compact dash/slash date token (`15-aug-2026`) | trivial | 0.5 |
+| 2 | Bare ordinal day-of-month (`the 24th`) | trivial | 0.5 |
+| | **Subtotal** | | **1** |
+
+| # | Conflict | Cost | Points |
+|---|---|---|---|
+| C4 | Both slices edit `date_span`'s anchor helpers in `quick_add.rb`, same ~30-line region — additive `||` conditions, line-adjacency only | trivial | 0.5 |
+
+No rework: neither slice touches code from an earlier feature.
