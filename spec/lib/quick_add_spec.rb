@@ -229,6 +229,54 @@ RSpec.describe QuickAdd, type: :model do
         title: "Call dentist", priority: 2, due_date: "2026-08-19", due_time: "15:00"
       )
     end
+
+    it "parses a compact dash date with year (15-aug-2026)" do
+      expect(parse_at(Time.zone.local(2026, 8, 1, 10, 0, 0), "Call dentist 15-aug-2026")).to include(
+        title: "Call dentist", due_date: "2026-08-15", due_time: nil
+      )
+    end
+
+    it "parses a compact dash date without a year, defaulting to current year (15-aug)" do
+      expect(parse_at(Time.zone.local(2026, 8, 1, 10, 0, 0), "Call dentist 15-aug")).to include(
+        title: "Call dentist", due_date: "2026-08-15", due_time: nil
+      )
+    end
+
+    it "parses a compact slash date (15/aug/2026)" do
+      expect(parse_at(Time.zone.local(2026, 8, 1, 10, 0, 0), "Call dentist 15/aug/2026")).to include(
+        title: "Call dentist", due_date: "2026-08-15", due_time: nil
+      )
+    end
+
+    it "parses a compact dash date placed mid-title, stripping cleanly" do
+      expect(parse_at(Time.zone.local(2026, 8, 1, 10, 0, 0), "Call dentist 15-aug-2026 about braces")).to include(
+        title: "Call dentist about braces", due_date: "2026-08-15", due_time: nil
+      )
+    end
+
+    it "parses a bare ordinal day-of-month still ahead this month (the 24th)" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist the 24th")).to include(
+        title: "Call dentist", due_date: "2026-08-24", due_time: nil
+      )
+    end
+
+    it "rolls a bare ordinal day-of-month to next month once it has passed (the 3rd)" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist the 3rd")).to include(
+        title: "Call dentist", due_date: "2026-09-03", due_time: nil
+      )
+    end
+
+    it "rolls to a month that actually has the ordinal day, skipping shorter months (the 31st)" do
+      expect(QuickAdd.send(:roll_ordinal_day, Time.zone.local(2026, 5, 31, 10, 0, 0)).to_date).to eq(
+        Date.new(2026, 7, 31)
+      )
+    end
+
+    it "leaves a bare ordinal without 'the' in the title with no due date" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "Call dentist 24th")).to include(
+        title: "Call dentist 24th", due_date: nil, due_time: nil
+      )
+    end
   end
 
   describe "recurrence extraction" do

@@ -25,6 +25,10 @@ class QuickAdd
   NUMBER_RE = /\A\d+(?:st|nd|rd|th)?\z/i
   # Words chronic recognizes as date material (used to find candidate spans).
   DATE_WORD_RE = /\A(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|tomorrow|today|yesterday|next|last|weekday|workday|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|weeks?|months?|years?)\z/i
+  # Compact dash/slash date token, e.g. "15-aug-2026", "15-aug", "15/aug/2026".
+  COMPACT_DATE_RE = /\A\d{1,2}[-\/](?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)(?:[-\/]\d{2,4})?\z/i
+  # Bare ordinal day-of-month, e.g. "24th" in "the 24th".
+  ORDINAL_DAY_RE = /\A\d{1,2}(?:st|nd|rd|th)\z/i
   # Explicit time forms (digit and word) plus their standalone am/pm markers.
   TIME_ANCHOR_RE = /\A(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2}|noon|midnight|o'clock|am|pm)\z/i
   TRAILING_PUNCTUATION_RE = /[.,;!?]+\z/
@@ -142,12 +146,16 @@ class QuickAdd
     words = text.to_enum(:scan, WORD_RE).map { Regexp.last_match }
     words.each_with_index do |word, i|
       bare = classify(word[0])
-      next unless date_word?(bare) || time_anchor?(bare)
+      # Known limitation: this also matches non-date ordinals, e.g. "the 2nd
+      # item" -- accepted trade-off (specs/specific-date-grill.md Q3).
+      ordinal_day = ORDINAL_DAY_RE.match?(bare) && i > 0 && classify(words[i - 1][0]).casecmp?("the")
+      next unless date_word?(bare) || time_anchor?(bare) || ordinal_day
 
       j = i
       j += 1 while words[j + 1] && anchor_word?(words[j + 1][0])
       k = i
       k -= 1 while k > 0 && NUMBER_RE.match?(classify(words[k - 1][0]))
+      k -= 1 if ordinal_day
       span_words = words[k..j]
 
       parsed = nil
@@ -158,6 +166,8 @@ class QuickAdd
         attempt = attempt[1..]
       end
       next unless parsed
+
+      parsed = roll_ordinal_day(parsed) if ordinal_day && parsed.to_date < Time.zone.now.to_date
 
       span_texts = attempt.map { |w| classify(w[0]) }
       return {
@@ -185,12 +195,13 @@ class QuickAdd
 
   # Normalizes a classified word to whatever Chronic itself understands.
   def self.chronic_word(word)
+    return word.tr("-/", " ") if COMPACT_DATE_RE.match?(word)
     CHRONIC_SYNONYMS[word.downcase] || word
   end
   private_class_method :chronic_word
 
   def self.date_word?(word)
-    DATE_WORD_RE.match?(word)
+    DATE_WORD_RE.match?(word) || COMPACT_DATE_RE.match?(word)
   end
   private_class_method :date_word?
 
@@ -205,4 +216,18 @@ class QuickAdd
     time <= Time.current ? time + 1.day : time
   end
   private_class_method :roll_bare_time
+
+  # A bare ordinal day-of-month ("the 3rd") that has already passed this
+  # month means the next month that actually has that day-of-month --
+  # plain `+ 1.month` would clamp e.g. the 31st into a 30-day month.
+  def self.roll_ordinal_day(time)
+    day = time.day
+    month = Date.new(time.year, time.month, 1)
+    loop do
+      month = month.next_month
+      break if Date.new(month.year, month.month, -1).day >= day
+    end
+    time.change(year: month.year, month: month.month, day: day)
+  end
+  private_class_method :roll_ordinal_day
 end
