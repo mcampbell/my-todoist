@@ -92,10 +92,12 @@ RSpec.describe QuickAdd, type: :model do
     end
 
     it "combines project with priority and date tokens in one submission" do
-      expect(described_class.parse("Call #Health dentist p2 wed 3pm")).to include(
-        title: "Call dentist", project_name: "Health", priority: 2,
-        due_date: "2026-08-19", due_time: "15:00"
-      )
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        expect(described_class.parse("Call #Health dentist p2 wed 3pm")).to include(
+          title: "Call dentist", project_name: "Health", priority: 2,
+          due_date: "2026-08-19", due_time: "15:00"
+        )
+      end
     end
   end
 
