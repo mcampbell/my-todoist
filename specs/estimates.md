@@ -66,3 +66,9 @@ zero cost, confirmed by reading `date_span`, not estimated.
 | C4 | Both slices edit `date_span`'s anchor helpers in `quick_add.rb`, same ~30-line region — additive `||` conditions, line-adjacency only | trivial | 0.5 |
 
 No rework: neither slice touches code from an earlier feature.
+
+## "q" global shortcut for new task
+
+Single slice, trivial (0.5 points): one keydown listener in
+`application.js`, no new deps, no schema/controller change. See
+specs/q-shortcut-design.md. No conflict, no rework.
