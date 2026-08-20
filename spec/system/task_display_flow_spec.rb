@@ -4,24 +4,24 @@ require "rails_helper"
 RSpec.describe "Task display", type: :system do
   before { driven_by(:rack_test) }
 
-  it "renders a P1-P3 priority badge but hides the P0 baseline" do
-    Task.create!(title: "Urgent", priority: 1)
+  it "renders a p1-p4 priority badge but hides the p4 baseline" do
+    Task.create!(title: "P3 task", priority: 1)
     Task.create!(title: "Baseline", priority: 0)
 
     visit tasks_path
 
-    expect(page).to have_css(".tag.is-info", text: "P1")
+    expect(page).to have_css(".tag.is-info", text: "P3")
     within("tr", text: "Baseline") { expect(page).to have_no_css(".tag") }
   end
 
-  it "colors P2 and P3 badges distinctly from P1" do
-    Task.create!(title: "Medium", priority: 2)
-    Task.create!(title: "Low", priority: 3)
+  it "colors P2 and P1 badges distinctly from P3" do
+    Task.create!(title: "P2 task", priority: 2)
+    Task.create!(title: "P1 task", priority: 3)
 
     visit tasks_path
 
     expect(page).to have_css(".tag.is-warning", text: "P2")
-    expect(page).to have_css(".tag.is-danger", text: "P3")
+    expect(page).to have_css(".tag.is-danger", text: "P1")
   end
 
   it "highlights an overdue task's row" do

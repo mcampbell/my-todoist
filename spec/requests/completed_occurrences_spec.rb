@@ -30,5 +30,27 @@ RSpec.describe "CompletedOccurrences", type: :request do
       due_text = Nokogiri::HTML(response.body).at_xpath("//tr[th='Due']/td").text.strip
       expect(due_text).to eq("Jan 1")
     end
+
+    it "renders the priority row in the p1..p4 display convention" do
+      urgent = CompletedOccurrence.create!(
+        task_title: "Urgent occurrence", priority: 3,
+        completed_at: Time.current
+      )
+
+      get completed_occurrence_path(urgent)
+
+      priority_text = Nokogiri::HTML(response.body).at_xpath("//tr[th='Priority']/td").text.strip
+      expect(priority_text).to eq("P1")
+
+      baseline = CompletedOccurrence.create!(
+        task_title: "Baseline occurrence", priority: 0,
+        completed_at: Time.current
+      )
+
+      get completed_occurrence_path(baseline)
+
+      priority_text = Nokogiri::HTML(response.body).at_xpath("//tr[th='Priority']/td").text.strip
+      expect(priority_text).to eq("P4")
+    end
   end
 end

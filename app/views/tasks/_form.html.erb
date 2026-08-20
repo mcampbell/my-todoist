@@ -60,7 +60,7 @@
     <%= f.label :priority, class: "label" %>
     <div class="control">
       <div class="select">
-        <%= f.select :priority, (0..3).map { |n| ["P#{n}", n] } %>
+        <%= f.select :priority, priority_select_options %>
       </div>
     </div>
   </div>

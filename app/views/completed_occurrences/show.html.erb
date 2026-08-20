@@ -4,7 +4,7 @@
   <tbody>
     <tr><th>Title</th><td><%= @occurrence.task_title %></td></tr>
     <tr><th>Project</th><td><%= @occurrence.project_name.presence || "Inbox" %></td></tr>
-    <tr><th>Priority</th><td>P<%= @occurrence.priority %></td></tr>
+    <tr><th>Priority</th><td>P<%= priority_label(@occurrence.priority) || @occurrence.priority %></td></tr>
     <tr><th>Labels</th><td><%= @occurrence.label_names.presence || "-" %></td></tr>
     <tr><th>Due</th><td><%= due_tag(@occurrence) || "-" %></td></tr>
     <tr><th>Completed</th><td><%= format_time(@occurrence.completed_at) %></td></tr>
