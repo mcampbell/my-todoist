@@ -516,10 +516,10 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).not_to include("inbox-task")
     end
 
-    it "renders a badge for P3 and none for P0" do
+    it "renders a badge for P1 and none for P0" do
       Task.create!(title: "urgent", priority: 3, due_at: Time.current)
       get tasks_path
-      expect(Capybara.string(response.body)).to have_css("span.tag.is-danger", text: "P3")
+      expect(Capybara.string(response.body)).to have_css("span.tag.is-danger", text: "P1")
 
       Task.delete_all
       Task.create!(title: "plain", priority: 0, due_at: Time.current)
