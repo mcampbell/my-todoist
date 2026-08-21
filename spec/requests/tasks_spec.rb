@@ -503,6 +503,15 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).not_to include("work-task")
     end
 
+    it "Inbox shows an overdue nil-project task, marked with the danger background class" do
+      Task.create!(title: "overdue-inbox-task", due_at: 1.day.ago)
+      get tasks_path
+      expect(response.body).to include("overdue-inbox-task")
+      expect(Capybara.string(response.body)).to have_css(
+        "tr.has-background-danger-light", text: "overdue-inbox-task"
+      )
+    end
+
     it "per-project view shows only that project's active tasks, headed by its name" do
       project = Project.create!(name: "Work")
       other = Project.create!(name: "Home")
