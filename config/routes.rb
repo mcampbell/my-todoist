@@ -14,6 +14,8 @@ Rails.application.routes.draw do
     end
   end
 
+  resource :os_notification, only: :create
+
   resources :projects, except: :show
   resources :labels, except: :show
   resources :completed_occurrences, only: :show
