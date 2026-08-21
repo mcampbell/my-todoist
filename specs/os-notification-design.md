@@ -1,4 +1,4 @@
-# OS-level toast for due tasks (macOS)
+# OS-level toast for due tasks (macOS / WSL2)
 
 ## Grill
 
@@ -48,6 +48,38 @@ itself introduces... no wait, it's escaping backslashes first so a
 literal `\` in a title/message doesn't get consumed as an AppleScript
 escape character, or land the string in a state where a trailing
 backslash swallows the closing quote).
+
+## WSL2
+
+Q: This app's dev machine runs WSL2 under Windows. Does `macos?` cover it?
+A: No — Ruby inside WSL2 reports `host_os` as plain `linux`, same as any
+other Linux. The only WSL signal is the kernel string in `/proc/version`
+(`OsNotifier.wsl?` matches `/microsoft/i` there).
+
+Q: What pops the toast on Windows?
+A: `powershell.exe` — reachable from WSL via interop, no install needed on
+the WSL side. Uses `System.Windows.Forms.NotifyIcon#ShowBalloonTip`, which
+ships with .NET already on Windows — a real modern-toast library
+(`BurntToast`) would need the user to `Install-Module BurntToast` on the
+Windows side first, which this app can't silently ensure, so the balloon
+tip (visually older-style, but zero setup) is the fallback that actually
+works out of the box. Verified live in-session: the balloon rendered.
+
+Q: Escaping?
+A: PowerShell single-quoted strings escape by doubling `'` → `''`
+(`escape_powershell`); different rule from AppleScript's `"`/`\\`
+handling, so it's a separate method, not a shared `escape`.
+
+Q: The PowerShell script does `Start-Sleep -Seconds 6` before disposing
+the tray icon (so the balloon has time to render) — doesn't that block?
+A: Caught in code review: `notify_wsl` originally used `Open3.capture3`,
+which waits for the subprocess to exit — so the 6-second sleep blocked
+the calling thread. Since `OsNotifier.notify` runs synchronously inside
+`OsNotificationsController#create`, that tied up a Puma worker thread per
+notification; three or more due tasks in one poll cycle could exhaust the
+default thread pool. Fixed by spawning detached instead
+(`Process.spawn` + `Process.detach`), so the request returns immediately
+and the sleep only holds the detached subprocess open.
 
 ## Testing
 
