@@ -72,9 +72,21 @@ function beep() {
   }
 }
 
+// Fire-and-forget: an OS-level toast is a nice-to-have on top of the
+// in-page one, never worth failing or retrying over.
+function notifyOs(task) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+  fetch("/os_notification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify({ title: "Task due", message: task.title }),
+  }).catch((error) => console.error("os notification failed:", error));
+}
+
 function toast(task) {
   ensureContainer();
   beep();
+  notifyOs(task);
   const notification = document.createElement("div");
   notification.className = "notification is-info";
   notification.appendChild(document.createTextNode(task.title));
