@@ -13,3 +13,14 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault()
   Turbo.visit("/tasks/new")
 })
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return
+  if (window.location.pathname !== "/tasks/new") return
+
+  const cancelLink = document.getElementById("cancel-link")
+  if (!cancelLink) return
+
+  event.preventDefault()
+  Turbo.visit(cancelLink.href)
+})
