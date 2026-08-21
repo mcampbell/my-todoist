@@ -43,6 +43,6 @@
 
   <div class="control">
     <%= f.submit "Save", class: "button is-primary" %>
-    <%= link_to "Cancel", safe_return_to || task_list_path(task), class: "button is-light" %>
+    <%= link_to "Cancel", safe_return_to || task_list_path(task), id: "cancel-link", class: "button is-light" %>
   </div>
 <% end %>
