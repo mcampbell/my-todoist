@@ -26,8 +26,20 @@ document.addEventListener("keydown", (event) => {
 })
 
 document.addEventListener("keydown", (event) => {
+  if (event.key !== "/") return
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+
+  const tag = event.target.tagName
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+  if (event.target.isContentEditable) return
+
+  event.preventDefault()
+  Turbo.visit("/tasks/search")
+})
+
+document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return
-  if (window.location.pathname !== "/tasks/new") return
+  if (![ "/tasks/new", "/tasks/search" ].includes(window.location.pathname)) return
 
   const cancelLink = document.getElementById("cancel-link")
   if (!cancelLink) return

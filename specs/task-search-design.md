@@ -36,6 +36,23 @@ Q: Nav?
 A: Added to `_navbar.html.erb` alongside Inbox/Overdue/Today/Upcoming/
 Completed.
 
+Q: Esc to abandon, like `/tasks/new` (see `esc-shortcut-design.md`)?
+A: Yes. Gave the search page's Cancel link `id="cancel-link"` and
+extended `application.js`'s existing Escape listener's path check from a
+single `"/tasks/new"` match to an allowlist including `"/tasks/search"`.
+Not generalized to every `#cancel-link` on the site (e.g. the edit-task
+form) — kept scoped to what was asked, since Escape-to-cancel on an
+in-progress edit wasn't part of this request.
+
+Q: A global shortcut to jump to search, like `q` for new task (see
+`q-shortcut-design.md`)?
+A: Yes — `/` navigates to `/tasks/search`, same listener shape as `q`
+(skips when a modifier is held or focus is already in a text field/
+contenteditable). Focus lands on the query input the same way `q`'s
+target page already gets focus on its title field: the input already has
+`autofocus: true`, which a full-page `Turbo.visit` load honors natively
+— no extra JS needed.
+
 ## LIKE, not ILIKE
 
 This app is SQLite, not Postgres — no `ILIKE`. SQLite's `LIKE` is already
