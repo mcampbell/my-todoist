@@ -11,6 +11,7 @@ Rails.application.routes.draw do
       get :today
       get :upcoming
       get :overdue
+      get :search
     end
   end
 

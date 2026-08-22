@@ -1,0 +1,17 @@
+<tr class="has-text-grey">
+  <td class="is-narrow"></td>
+  <td>
+    <%= priority_badge(occurrence) %>
+    <s><%= occurrence.task_title %></s>
+    <span class="tag is-light">Completed</span>
+    <% if occurrence.due_at %>
+      <span class="tag is-info is-light"><%= due_tag(occurrence) %></span>
+    <% end %>
+    <% occurrence.label_names.to_s.split(", ").each do |name| %>
+      <span class="tag is-light"><%= name %></span>
+    <% end %>
+  </td>
+  <td class="is-narrow">
+    <%= link_to "Details", completed_occurrence_path(occurrence), class: "button is-small is-white" %>
+  </td>
+</tr>
