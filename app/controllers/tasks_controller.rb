@@ -113,6 +113,22 @@ class TasksController < ApplicationController
     redirect_back_or_to path, notice: "Task completed."
   end
 
+  def search
+    @query = params[:q].to_s.strip
+    @include_completed = ActiveModel::Type::Boolean.new.cast(params[:include_completed])
+
+    if @query.present?
+      pattern = "%#{escape_like(@query)}%"
+      @tasks = Task.where("title LIKE ? ESCAPE '\\'", pattern).ordered.includes(:labels)
+      @completed_occurrences = @include_completed ?
+        CompletedOccurrence.where("task_title LIKE ? ESCAPE '\\'", pattern).order(completed_at: :desc) :
+        CompletedOccurrence.none
+    else
+      @tasks = Task.none
+      @completed_occurrences = CompletedOccurrence.none
+    end
+  end
+
   private
 
   def set_task
@@ -132,6 +148,12 @@ class TasksController < ApplicationController
 
   def task_params
     params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, label_ids: [])
+  end
+
+  # % and _ are LIKE wildcards; escape them (and the escape char itself)
+  # so a literal % or _ in the search box doesn't act as a wildcard.
+  def escape_like(text)
+    text.gsub("\\") { "\\\\" }.gsub("%") { "\\%" }.gsub("_") { "\\_" }
   end
 
   # True for hour/minute recurrences, which need a real time-of-day anchor so

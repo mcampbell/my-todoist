@@ -32,4 +32,10 @@ RSpec.describe "Navigation", type: :request do
     expect(response.body).to include(today_tasks_path)
     expect(response.body).to include(upcoming_tasks_path)
   end
+
+  it "has a Search link" do
+    get root_path
+    expect(response.body).to include(search_tasks_path)
+    expect(response.body).to include("Search")
+  end
 end

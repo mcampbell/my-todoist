@@ -1,0 +1,34 @@
+<%= render "page_header", title: "Search" %>
+
+<%= form_with url: search_tasks_path, method: :get, local: true do %>
+  <div class="field has-addons">
+    <div class="control is-expanded">
+      <%= text_field_tag :q, @query, class: "input", placeholder: "Search tasks", autofocus: true %>
+    </div>
+    <div class="control">
+      <%= submit_tag "Search", class: "button is-primary" %>
+    </div>
+    <div class="control">
+      <%= link_to "Cancel", root_path, id: "cancel-link", class: "button is-light" %>
+    </div>
+  </div>
+  <div class="field">
+    <label class="checkbox">
+      <%= check_box_tag :include_completed, "1", @include_completed %>
+      Include completed tasks
+    </label>
+  </div>
+<% end %>
+
+<% if @query.present? %>
+  <% if @tasks.empty? && @completed_occurrences.empty? %>
+    <p class="has-text-grey">No matches.</p>
+  <% else %>
+    <table class="table is-fullwidth is-hoverable is-vcentered">
+      <tbody>
+        <%= render @tasks %>
+        <%= render partial: "completed_result", collection: @completed_occurrences, as: :occurrence %>
+      </tbody>
+    </table>
+  <% end %>
+<% end %>

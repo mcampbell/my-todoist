@@ -670,6 +670,61 @@ RSpec.describe "Tasks", type: :request do
     end
   end
 
+  describe "GET /tasks/search" do
+    it "renders only the form, no results table, when q is blank" do
+      Task.create!(title: "buy milk")
+      get search_tasks_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("<table")
+    end
+
+    it "matches a task title case-insensitively by substring" do
+      Task.create!(title: "Buy Milk")
+      Task.create!(title: "Walk dog")
+      get search_tasks_path, params: { q: "milk" }
+      expect(response.body).to include("Buy Milk")
+      expect(response.body).not_to include("Walk dog")
+    end
+
+    it "excludes completed occurrences by default" do
+      task = Task.create!(title: "Buy milk")
+      task.complete!
+      get search_tasks_path, params: { q: "milk" }
+      expect(response.body).not_to include("Buy milk")
+    end
+
+    it "includes matching completed occurrences, read-only, when include_completed is checked" do
+      task = Task.create!(title: "Buy milk")
+      task.complete!
+      get search_tasks_path, params: { q: "milk", include_completed: "1" }
+      expect(response.body).to include("Buy milk")
+      expect(response.body).not_to include("aria-label=\"Complete Buy milk\"")
+    end
+
+    it "treats % and _ in the query as literal characters, not LIKE wildcards" do
+      Task.create!(title: "c_t")
+      Task.create!(title: "cat")
+      get search_tasks_path, params: { q: "c_t" }
+      expect(response.body).to include("c_t")
+      expect(response.body).not_to include(">cat<")
+    end
+
+    it "orders matches like every other list: due_at asc, NULLs last" do
+      no_due = Task.create!(title: "search-no-due")
+      later  = Task.create!(title: "search-later", due_at: 2.days.from_now)
+      sooner = Task.create!(title: "search-sooner", due_at: 1.day.from_now)
+
+      get search_tasks_path, params: { q: "search-" }
+      order = [ "search-sooner", "search-later", "search-no-due" ].map { |t| response.body.index(t) }
+      expect(order).to eq(order.sort)
+    end
+
+    it "the Cancel button links to the Inbox" do
+      get search_tasks_path
+      expect(Capybara.string(response.body)).to have_link("Cancel", href: root_path)
+    end
+  end
+
   describe "GET /tasks/overdue" do
     it "shows only tasks due before today" do
       Task.create!(title: "overdue-task", due_at: 1.day.ago)
