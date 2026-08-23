@@ -85,6 +85,13 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include(due.strftime("%Y-%m-%d"))
       expect(response.body).to include(due.strftime("%H:%M"))
     end
+
+    it "has a control to clear the due time and revert a timed task to all-day" do
+      due = Time.zone.local(2030, 3, 4, 9, 30)
+      task = Task.create!(title: "edit me", due_at: due)
+      get edit_task_path(task)
+      expect(Capybara.string(response.body)).to have_button("Clear time")
+    end
   end
 
   describe "edit link carries return_to back to the originating view" do

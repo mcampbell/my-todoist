@@ -47,3 +47,8 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault()
   Turbo.visit(cancelLink.href)
 })
+
+document.addEventListener("click", (event) => {
+  if (event.target.id !== "clear-due-time") return
+  document.getElementById("task_due_time").value = ""
+})
