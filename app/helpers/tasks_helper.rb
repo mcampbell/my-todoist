@@ -7,12 +7,14 @@ module TasksHelper
   PRIORITY_SELECT_OPTIONS = QuickAdd::PRIORITY_TOKENS.map { |p, stored| [ "P#{p}", stored ] }.freeze
 
   def format_time(time)
-    time&.strftime("%b %-d, %-l:%M %p")
+    return unless time
+    time.strftime("%b %-d#{year_suffix(time)}, %-l:%M %p")
   end
 
   def due_tag(task)
     return unless task.due_at
-    task.all_day? ? task.due_at.strftime("%b %-d") : format_time(task.due_at)
+    return format_time(task.due_at) unless task.all_day?
+    task.due_at.strftime("%b %-d#{year_suffix(task.due_at)}")
   end
 
   # p1..p4 display number for a stored priority integer (p1 is most urgent).
@@ -29,5 +31,13 @@ module TasksHelper
 
   def priority_select_options
     PRIORITY_SELECT_OPTIONS
+  end
+
+  private
+
+  # Single source for the "only show the year when it's not the current
+  # year" rule, shared by format_time and due_tag's all-day branch.
+  def year_suffix(time)
+    time.year == Time.current.year ? "" : ", %Y"
   end
 end

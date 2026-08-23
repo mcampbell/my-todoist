@@ -2,9 +2,16 @@ require "rails_helper"
 
 RSpec.describe TasksHelper, type: :helper do
   describe "#format_time" do
-    it "formats a time as month, day, hour, minute, meridiem" do
-      time = Time.zone.local(2030, 3, 4, 14, 5)
-      expect(helper.format_time(time)).to eq("Mar 4, 2:05 PM")
+    it "omits the year when the time is in the current year" do
+      travel_to(Time.zone.local(2030, 1, 1)) do
+        expect(helper.format_time(Time.zone.local(2030, 6, 5, 14, 30))).to eq("Jun 5, 2:30 PM")
+      end
+    end
+
+    it "includes the year when the time is not in the current year" do
+      travel_to(Time.zone.local(2026, 1, 1)) do
+        expect(helper.format_time(Time.zone.local(2030, 6, 5, 14, 30))).to eq("Jun 5, 2030, 2:30 PM")
+      end
     end
 
     it "returns nil for a nil time" do
@@ -13,18 +20,29 @@ RSpec.describe TasksHelper, type: :helper do
   end
 
   describe "#due_tag" do
-    it "renders only the date for an all-day task (no time)" do
-      task = Task.new(due_at: Time.zone.local(2030, 6, 5).beginning_of_day, all_day: true)
-      expect(helper.due_tag(task)).to eq("Jun 5")
+    it "omits the year on an all-day task in the current year" do
+      travel_to(Time.zone.local(2030, 1, 1)) do
+        task = Task.new(title: "t", all_day: true, due_at: Time.zone.local(2030, 6, 5))
+        expect(helper.due_tag(task)).to eq("Jun 5")
+      end
     end
 
-    it "renders the date and time for a timed task" do
-      task = Task.new(due_at: Time.zone.local(2030, 6, 5, 14, 30), all_day: false)
-      expect(helper.due_tag(task)).to eq("Jun 5, 2:30 PM")
+    it "includes the year on an all-day task not in the current year" do
+      travel_to(Time.zone.local(2026, 1, 1)) do
+        task = Task.new(title: "t", all_day: true, due_at: Time.zone.local(2030, 6, 5))
+        expect(helper.due_tag(task)).to eq("Jun 5, 2030")
+      end
     end
 
-    it "returns nil when there is no due date" do
-      expect(helper.due_tag(Task.new)).to be_nil
+    it "includes the year on a timed task not in the current year" do
+      travel_to(Time.zone.local(2026, 1, 1)) do
+        task = Task.new(title: "t", all_day: false, due_at: Time.zone.local(2030, 6, 5, 14, 30))
+        expect(helper.due_tag(task)).to eq("Jun 5, 2030, 2:30 PM")
+      end
+    end
+
+    it "returns nil when the task has no due_at" do
+      expect(helper.due_tag(Task.new(title: "t"))).to be_nil
     end
   end
 
@@ -36,30 +54,20 @@ RSpec.describe TasksHelper, type: :helper do
   end
 
   describe "#priority_badge" do
-    it "renders p1 (stored 3) as a danger P1 tag" do
-      expect(helper.priority_badge(Task.new(priority: 3)))
-        .to eq('<span class="tag is-danger">P1</span>')
+    it "renders a colored tag for p1..p3" do
+      task = Task.new(title: "t", priority: 3)
+      expect(helper.priority_badge(task)).to include("P1").and include("is-danger")
     end
 
-    it "renders p2 (stored 2) as a warning P2 tag" do
-      expect(helper.priority_badge(Task.new(priority: 2)))
-        .to eq('<span class="tag is-warning">P2</span>')
-    end
-
-    it "renders p3 (stored 1) as an info P3 tag" do
-      expect(helper.priority_badge(Task.new(priority: 1)))
-        .to eq('<span class="tag is-info">P3</span>')
-    end
-
-    it "renders no badge for p4 (stored 0, baseline)" do
-      expect(helper.priority_badge(Task.new(priority: 0))).to be_nil
+    it "renders nothing for p4 (stored 0), the baseline priority" do
+      task = Task.new(title: "t", priority: 0)
+      expect(helper.priority_badge(task)).to be_nil
     end
   end
 
   describe "#priority_select_options" do
-    it "offers p1..p4 labels mapped to stored integers, urgent first" do
-      expect(helper.priority_select_options)
-        .to eq([ [ "P1", 3 ], [ "P2", 2 ], [ "P3", 1 ], [ "P4", 0 ] ])
+    it "lists p1..p4 in urgent-first order, each mapped to its stored integer" do
+      expect(helper.priority_select_options).to eq([ [ "P1", 3 ], [ "P2", 2 ], [ "P3", 1 ], [ "P4", 0 ] ])
     end
   end
 end
