@@ -41,6 +41,7 @@ RSpec.describe "Recurrence models", type: :system do
 
     task = Task.last
     expect(task.due_at).to eq(Time.zone.local(2026, 8, 24).beginning_of_day)
+    expect(task.all_day?).to eq(true)
   end
 
   it "steps a business-day (workday) recurrence over the weekend" do
@@ -58,6 +59,7 @@ RSpec.describe "Recurrence models", type: :system do
 
     task = Task.last
     expect(task.due_at).to eq(Time.zone.local(2026, 8, 24).beginning_of_day)
+    expect(task.all_day?).to eq(true)
   end
 
   it "reschedules a rolling (every!) weekday recurrence from completion time, not the original due date" do
@@ -74,7 +76,8 @@ RSpec.describe "Recurrence models", type: :system do
     end
 
     task = Task.last
-    expect(task.due_at).to eq(Time.zone.local(2026, 8, 24, 9, 0, 0))
+    expect(task.all_day?).to eq(true)
+    expect(task.due_at).to eq(Time.zone.local(2026, 8, 24).beginning_of_day)
   end
 
   it "skips a full cycle for an 'every other' ordinal count" do

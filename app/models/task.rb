@@ -35,12 +35,19 @@ class Task < ApplicationRecord
       if recurrence.blank?
         destroy!
       else
-        next_due = Recurrence.parse(recurrence).next_from(due_at: due_at || Time.current, now: Time.current)
-        # A rolling all-day recurrence reschedules to the completion time, so
-        # due_at moves off midnight; clear all_day so the due tag shows the
-        # new time. Fixed recurrences that stay at midnight keep all_day.
-        timed = !next_due.to_time.strftime("%H:%M").in?(%w[00:00])
-        update!(due_at: next_due, all_day: all_day && !timed)
+        rule = Recurrence.parse(recurrence)
+        next_due = rule.next_from(due_at: due_at || Time.current, now: Time.current)
+        # A rolling recurrence reschedules from the completion clock time, so
+        # an all-day task's next occurrence would otherwise pick up whatever
+        # time it happened to be completed at. all_day tasks have no time to
+        # preserve, so floor to the date only and keep all_day as it was --
+        # unless the recurrence is sub-day (hour/minute): flooring that would
+        # stall the task at the same midnight forever, so let it become timed
+        # instead (an all-day task recurring every N minutes makes no sense
+        # as all-day in the first place).
+        sub_day = rule.unit.in?(%i[hour minute])
+        next_due = next_due.beginning_of_day if all_day && !sub_day
+        update!(due_at: next_due, all_day: all_day && !sub_day)
       end
       snapshot
     end
