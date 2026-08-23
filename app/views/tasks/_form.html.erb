@@ -35,9 +35,15 @@
 
   <div class="field">
     <%= f.label :due_time, "Due time (optional)", class: "label" %>
-    <div class="control">
-      <%= f.time_field :due_time, class: "input" %>
+    <div class="field has-addons">
+      <div class="control">
+        <%= f.time_field :due_time, class: "input" %>
+      </div>
+      <div class="control">
+        <button type="button" id="clear-due-time" class="button is-light">Clear time</button>
+      </div>
     </div>
+    <p class="help">Clear the time to make this an all-day task.</p>
   </div>
 
   <div class="field">
