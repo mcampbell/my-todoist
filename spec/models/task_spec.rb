@@ -68,14 +68,25 @@ RSpec.describe Task, type: :model do
       end
     end
 
-    it "turns a rolling all-day task timed when due_at moves to the completion time" do
+    it "keeps a rolling all-day task all-day, landing at midnight on the completion-advanced date" do
       travel_to(Time.zone.local(2026, 2, 10, 10, 0, 0)) do
         task = Task.create!(title: "pill", recurrence: "every! day",
                             due_at: Time.zone.local(2026, 2, 10).beginning_of_day, all_day: true)
         task.complete!
         task.reload
+        expect(task.all_day?).to eq(true)
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11).beginning_of_day)
+      end
+    end
+
+    it "does not stall on a sub-day rolling recurrence attached to an all-day task" do
+      travel_to(Time.zone.local(2026, 2, 10, 10, 0, 0)) do
+        task = Task.create!(title: "pill", recurrence: "every! 5 minutes",
+                            due_at: Time.zone.local(2026, 2, 10).beginning_of_day, all_day: true)
+        task.complete!
+        task.reload
         expect(task.all_day?).to eq(false)
-        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11, 10, 0, 0))
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 10, 10, 5, 0))
       end
     end
 
