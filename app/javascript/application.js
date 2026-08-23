@@ -50,5 +50,9 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("click", (event) => {
   if (event.target.id !== "clear-due-time") return
-  document.getElementById("task_due_time").value = ""
+
+  const dueTime = document.getElementById("task_due_time")
+  if (!dueTime) return
+
+  dueTime.value = ""
 })
