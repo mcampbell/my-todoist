@@ -100,6 +100,28 @@ RSpec.describe Task, type: :model do
         expect(task.due_at).to eq(Time.zone.local(2026, 2, 11).beginning_of_day)
       end
     end
+
+    it "keeps a fixed month-unit all-day recurrence all-day" do
+      travel_to(Time.zone.local(2026, 2, 10, 10, 0, 0)) do
+        task = Task.create!(title: "rent", recurrence: "every month",
+                            due_at: Time.zone.local(2026, 2, 1).beginning_of_day, all_day: true)
+        task.complete!
+        task.reload
+        expect(task.all_day?).to eq(true)
+        expect(task.due_at).to eq(Time.zone.local(2026, 3, 1).beginning_of_day)
+      end
+    end
+
+    it "keeps a rolling month-unit all-day recurrence all-day" do
+      travel_to(Time.zone.local(2026, 2, 10, 10, 0, 0)) do
+        task = Task.create!(title: "rent", recurrence: "every! month",
+                            due_at: Time.zone.local(2026, 2, 1).beginning_of_day, all_day: true)
+        task.complete!
+        task.reload
+        expect(task.all_day?).to eq(true)
+        expect(task.due_at).to eq(Time.zone.local(2026, 3, 1).beginning_of_day)
+      end
+    end
       it "advances a rolling recurring task from the completion time" do
       travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) do
         task = Task.create!(title: "pills", recurrence: "every! 6 hours",

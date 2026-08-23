@@ -55,6 +55,17 @@ as "all day" in the first place — the task becomes timed instead, same
 as the old (buggy) behavior did for that specific case, so it still
 advances.
 
+## Fixed and rolling, symmetrically
+
+The fix itself never branches on `rolling?` — `all_day && !sub_day`
+applies identically whether the recurrence is fixed (`every`) or
+rolling (`every!`). Fixed recurrence was already correct before this
+fix (every `next_from` branch preserves `due_at`'s own clock time when
+not rolling, so an all-day task's midnight was never disturbed) — the
+bug was rolling-only. Test coverage now asserts `all_day?` explicitly
+for both variants across every recurrence unit family: interval
+(day), weekday-name, business-day, and month.
+
 ## Testing
 
 `spec/models/task_spec.rb`: rolling all-day day-unit recurrence now
