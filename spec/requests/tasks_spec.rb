@@ -747,7 +747,7 @@ RSpec.describe "Tasks", type: :request do
   describe "GET /tasks/overdue" do
     it "shows only tasks due before today" do
       Task.create!(title: "overdue-task", due_at: 1.day.ago)
-      Task.create!(title: "today-task", due_at: Time.current)
+      Task.create!(title: "today-task", due_at: Time.current.beginning_of_day, all_day: true)
       Task.create!(title: "undated-task")
       Task.create!(title: "tomorrow-task", due_at: 1.day.from_now)
       completed = Task.create!(title: "completed-task", due_at: 1.day.ago)

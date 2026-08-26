@@ -10,10 +10,17 @@ class Task < ApplicationRecord
   scope :ordered, -> { order(Arel.sql("due_at ASC NULLS LAST, created_at DESC")) }
   scope :due_today_or_undated, -> { where("due_at <= ? OR due_at IS NULL", Time.current.end_of_day) }
   scope :due_between, ->(range) { where(due_at: range) }
-  scope :overdue, -> { where("due_at < ?", Time.current.beginning_of_day) }
+  # A timed task is overdue once its time passes; an all-day task only once
+  # the whole day has passed (its due_at sits at midnight).
+  scope :overdue, -> {
+    where("(all_day = ? AND due_at < ?) OR (all_day = ? AND due_at < ?)",
+          false, Time.current, true, Time.current.beginning_of_day)
+  }
 
   def overdue?
-    due_at.present? && due_at < Time.current.beginning_of_day
+    return false if due_at.blank?
+
+    due_at < (all_day? ? Time.current.beginning_of_day : Time.current)
   end
 
   def recurrence=(value)
