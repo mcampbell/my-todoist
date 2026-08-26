@@ -251,6 +251,15 @@ RSpec.describe Task, type: :model do
         expect(Task.overdue).to contain_exactly(overdue)
         expect(Task.overdue).not_to include(due_today, undated)
       end
+
+      it "includes a timed task whose time has passed today" do
+        timed_past = Task.create!(title: "timed past", due_at: 1.hour.ago, all_day: false)
+        timed_future = Task.create!(title: "timed future", due_at: 1.hour.from_now, all_day: false)
+        all_day_today = Task.create!(title: "all day today", due_at: Time.current.beginning_of_day, all_day: true)
+
+        expect(Task.overdue).to include(timed_past)
+        expect(Task.overdue).not_to include(timed_future, all_day_today)
+      end
     end
 
     describe "#overdue?" do
@@ -262,6 +271,20 @@ RSpec.describe Task, type: :model do
         expect(overdue.overdue?).to eq(true)
         expect(due_today.overdue?).to eq(false)
         expect(undated.overdue?).to eq(false)
+      end
+
+      it "is true for a timed task once its time has passed today" do
+        timed_past = Task.create!(title: "timed past", due_at: 1.hour.ago, all_day: false)
+        timed_future = Task.create!(title: "timed future", due_at: 1.hour.from_now, all_day: false)
+
+        expect(timed_past.overdue?).to eq(true)
+        expect(timed_future.overdue?).to eq(false)
+      end
+
+      it "is false for an all-day task due today regardless of time of day" do
+        all_day_today = Task.create!(title: "all day today", due_at: Time.current.beginning_of_day, all_day: true)
+
+        expect(all_day_today.overdue?).to eq(false)
       end
     end
 
