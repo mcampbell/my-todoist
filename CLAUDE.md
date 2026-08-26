@@ -81,3 +81,8 @@ this project has no team to size work for.
   `Layout/SpaceInsideArrayLiteralBrackets`.
 - Write a failing spec first for every code change (TDD), then make it
   pass.
+
+## Miscellaneious Notes
+
+- There is no Jira tracking, so any PR's created should not worry about Jira
+  ticket, team, or parent.
