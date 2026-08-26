@@ -28,13 +28,21 @@ class Recurrence
   UNIT_RE = /days?|weeks?|months?|years?|hours?|minutes?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|weekdays?|workdays?/
   COUNT_RE = /\d+(?:'?(?:st|nd|rd|th))?|#{ORDINAL_WORDS.keys.join('|')}/
   GRAMMAR = /\Aevery(?<bang>!)?\s+(?:(?<count>#{COUNT_RE})\s+)?(?<unit>#{UNIT_RE})\z/i
+  # Yearly-anchored form: "every[!] {ordinal/last} {day/weekday} in <month>".
+  # Shares its vocabulary with the one-shot PointInTime grammar.
+  ANCHORED_GRAMMAR = /\Aevery(?<bang>!)?\s+(?<ord>#{CalendarTerms::ORDINAL_RE})\s+(?<day>#{CalendarTerms::DAY_RE})\s+(?:in\s+)?(?<month>#{CalendarTerms::MONTH_RE})\z/i
 
   attr_reader :unit, :count
 
   def self.parse(string)
     return nil if string.blank?
 
-    match = GRAMMAR.match(string.strip.downcase)
+    normalized = string.strip.downcase
+    if (anchored = ANCHORED_GRAMMAR.match(normalized))
+      return build_anchored(anchored)
+    end
+
+    match = GRAMMAR.match(normalized)
     raise InvalidError, "unrecognized recurrence: #{string.inspect}" unless match
 
     count = match[:count] ? resolve_count(match[:count]) : 1
@@ -43,6 +51,23 @@ class Recurrence
 
     new(unit: unit, count: count, rolling: match[:bang].present?)
   end
+
+  # A yearly-anchored rule must be valid every year: reject an ordinal above
+  # the month's guaranteed count (e.g. "every 5th monday in feb"), so
+  # #next_from never faces a year whose month lacks the target. :last always
+  # exists.
+  def self.build_anchored(match)
+    ordinal = CalendarTerms.ordinal(match[:ord])
+    token = CalendarTerms.token(match[:day])
+    month = CalendarTerms.month_number(match[:month])
+
+    unless ordinal == :last || (ordinal >= 1 && ordinal <= MonthDay.guaranteed_min(month, token))
+      raise InvalidError, "no #{match[:ord]} #{match[:day]} in #{match[:month]}"
+    end
+
+    new(unit: :anchored, rolling: match[:bang].present?, ordinal: ordinal, token: token, month: month)
+  end
+  private_class_method :build_anchored
 
   def self.resolve_count(token)
     token[0] =~ /\d/ ? token.to_i : ORDINAL_WORDS.fetch(token)
@@ -55,10 +80,13 @@ class Recurrence
   end
   private_class_method :normalize_unit
 
-  def initialize(unit:, count: 1, rolling: false)
+  def initialize(unit:, count: 1, rolling: false, ordinal: nil, token: nil, month: nil)
     @unit = unit
     @count = count
     @rolling = rolling
+    @ordinal = ordinal
+    @token = token
+    @month = month
   end
 
   def rolling?
@@ -78,7 +106,9 @@ class Recurrence
   def next_from(due_at:, now: Time.current)
     raise ArgumentError, "due_at required" if due_at.nil?
 
-    if WEEKDAY_NAME_UNITS.include?(unit)
+    if unit == :anchored
+      advance_anchored(due_at, now)
+    elsif WEEKDAY_NAME_UNITS.include?(unit)
       advance_weekday(due_at, now)
     elsif unit == :weekday
       advance_business_day(due_at, now)
@@ -92,6 +122,27 @@ class Recurrence
   end
 
   private
+
+  # Yearly-anchored: the target is the ordinal/last <token> of <month>,
+  # carrying the anchor's clock time. Fixed counts from the original due_at;
+  # rolling counts from completion (now). Walk years until the occurrence is
+  # strictly after the anchor and not in the past. The parse-time guarantee
+  # (guaranteed_min) means MonthDay.nth_of never returns nil here.
+  def advance_anchored(due_at, now)
+    anchor = rolling? ? now : due_at
+    year = anchor.year
+    loop do
+      result = occurrence_in(year, anchor)
+      return result if result > anchor && result >= now
+
+      year += 1
+    end
+  end
+
+  def occurrence_in(year, anchor)
+    date = MonthDay.nth_of(year, @month, @ordinal, @token)
+    date.in_time_zone.change(hour: anchor.hour, min: anchor.min, sec: anchor.sec)
+  end
 
   def advance_weekday(due_at, now)
     anchor = rolling? ? now : due_at
