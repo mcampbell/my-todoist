@@ -63,6 +63,13 @@ class TasksController < ApplicationController
     if parsed[:recurrence].present?
       apply_recurrence_anchors!(attrs, parsed[:recurrence], nil)
     end
+    if parsed[:due_error].present?
+      failed = Task.new(attrs)
+      failed.errors.add(:due_at, parsed[:due_error])
+      preserve_quick_add_input!(failed)
+      render :new, status: :unprocessable_content
+      return
+    end
     project_name = params[:project_name].presence || parsed[:project_name]
     if project_name.present?
       project = Project.find_by(name: project_name)
@@ -191,7 +198,15 @@ class TasksController < ApplicationController
     # task the user already cleared must not silently re-add today.
     bootstrapping = existing_task.nil? ||
       (existing_task.recurrence.blank? && existing_task.due_at.blank?)
-    attrs[:due_date] = Date.current.iso8601 if attrs[:due_date].blank? && bootstrapping
+    if attrs[:due_date].blank? && bootstrapping
+      rule = Recurrence.parse(recurrence)
+      attrs[:due_date] =
+        if rule.unit == :anchored
+          rule.next_from(due_at: Time.current, now: Time.current).to_date.iso8601
+        else
+          Date.current.iso8601
+        end
+    end
   end
 
   # Copy the raw quick-add string (which the parsed title already lost the

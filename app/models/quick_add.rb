@@ -9,6 +9,11 @@ class QuickAdd
   # weekday, or N-unit count; or the bare shorthand weekdays/workday. Runs
   # before chronic, which would otherwise parse "every weekday" as a one-off.
   RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?:(?<count>#{Recurrence::COUNT_RE})\s+)?(?<unit>days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday)\b/i
+  # Yearly-anchored recurrence, e.g. "every! first monday in jun". Must be
+  # tried before RECURRENCE_RE, which would otherwise read "every first monday"
+  # as a weekly Monday and strand "in jun" in the title. Shares its ordinal/
+  # day/month vocabulary with PointInTime via CalendarTerms.
+  ANCHORED_RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?<ord>#{CalendarTerms::ORDINAL_RE})\s+(?<day>#{CalendarTerms::DAY_RE})\s+(?:in\s+)?(?<month>#{CalendarTerms::MONTH_RE})(?:\s+(?:at\s+)?(?<time>#{CalendarTerms::TIME_RE}))?\b/i
   # Bare "weekdays"/"workday" (no "every" prefix) is recurrence shorthand for
   # "every weekday" -- UNLESS it is "next"/"last" + weekday/workday, which is
   # a one-off date (like "next monday" / "last monday"), not recurrence.
@@ -48,10 +53,21 @@ class QuickAdd
 
     title = raw.dup
     priority = extract_priority!(title)
-    recurrence = extract_recurrence!(title)
-    due_date, due_time = extract_due_offset!(title)
+    recurrence, recurrence_time = extract_recurrence!(title)
+    # Point-in-time runs after the "every"-prefixed recurrences (so those win)
+    # but before the bare weekdays/workday shorthand (so "first workday in
+    # september" is a one-off date, not an "every weekday" recurrence).
+    due_date, due_time, due_error = extract_point_in_time!(title) if recurrence.nil?
+    if recurrence.nil? && due_date.nil? && due_error.nil?
+      recurrence = extract_weekday_shorthand!(title)
+    end
 
-    if !due_date && (span = date_span(title))
+    if !due_date && !due_error
+      offset_date, offset_time = extract_due_offset!(title)
+      due_date, due_time = offset_date, offset_time
+    end
+
+    if !due_date && !due_error && (span = date_span(title))
       parsed = span[:parsed]
       if span[:time_anchor]
         due_time = parsed.strftime("%H:%M")
@@ -62,6 +78,8 @@ class QuickAdd
       end
       title[span[:start]...span[:end]] = ""
     end
+
+    due_time ||= recurrence_time
 
     project_name = nil
     if (match = title.match(PROJECT_RE))
@@ -78,21 +96,42 @@ class QuickAdd
       due_date: due_date,
       due_time: due_time,
       project_name: project_name,
-      recurrence: recurrence
+      recurrence: recurrence,
+      due_error: due_error
     }
   end
 
   # Extracts and normalizes a recurrence phrase, removing it from the title.
   # Returns the canonical recurrence string, or nil when none is present.
+  # Returns [recurrence_string, due_time]. due_time is the optional "at <time>"
+  # of an anchored recurrence ("every third monday in jun at 3pm"), which the
+  # recurrence pattern itself does not carry -- it becomes the task's due_time
+  # and the advance preserves that clock time. nil recurrence -> [nil, nil].
   def self.extract_recurrence!(title)
+    if (match = title.match(ANCHORED_RECURRENCE_RE))
+      finish = recurrence_span_end(title, match.end(0))
+      title[match.begin(0)...finish] = ""
+      bang = match[:bang].empty? ? "" : "!"
+      recurrence = "every#{bang} #{match[:ord]} #{match[:day]} in #{match[:month]}".downcase
+      return [ recurrence, CalendarTerms.time(match[:time]) ]
+    end
+
     if (match = title.match(RECURRENCE_RE))
       finish = recurrence_span_end(title, match.end(0))
       title[match.begin(0)...finish] = ""
       bang = match[:bang].empty? ? "" : "!"
       count = match[:count] ? "#{match[:count]} " : ""
-      return "every#{bang} #{count}#{match[:unit].downcase}"
+      return [ "every#{bang} #{count}#{match[:unit].downcase}", nil ]
     end
 
+    [ nil, nil ]
+  end
+  private_class_method :extract_recurrence!
+
+  # Bare "weekdays"/"workday" shorthand for "every weekday". Runs after
+  # point-in-time so it never swallows the "workday" inside e.g. "first
+  # workday in september".
+  def self.extract_weekday_shorthand!(title)
     if (match = title.match(WEEKDAYS_SHORTHAND_RE))
       finish = recurrence_span_end(title, match.end(0))
       title[match.begin(0)...finish] = ""
@@ -101,7 +140,29 @@ class QuickAdd
 
     nil
   end
-  private_class_method :extract_recurrence!
+  private_class_method :extract_weekday_shorthand!
+
+  # One-shot anchored date ("first monday in march [at 3pm]"). Delegates the
+  # grammar to PointInTime; strips the matched span. Returns
+  # [due_date, due_time, due_error]: due_error carries the "no 6th monday in
+  # feb" message when the shape matched but the day does not exist, which the
+  # controller surfaces on errors[:due_at].
+  def self.extract_point_in_time!(title)
+    result = PointInTime.parse(title)
+    return [ nil, nil, nil ] if result.nil?
+
+    strip_span!(title, result.range.begin, result.range.end)
+    [ result.due_date, result.time, nil ]
+  rescue PointInTime::InvalidError => e
+    strip_span!(title, e.range.begin, e.range.end)
+    [ nil, nil, e.message ]
+  end
+  private_class_method :extract_point_in_time!
+
+  def self.strip_span!(title, from, to)
+    title[from...recurrence_span_end(title, to)] = ""
+  end
+  private_class_method :strip_span!
 
   # The phrase sits mid-title or at its end; absorb attached sentence
   # punctuation (".", "!", "?") so it does not leak into the saved title.

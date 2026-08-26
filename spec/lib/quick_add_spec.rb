@@ -45,7 +45,8 @@ RSpec.describe QuickAdd, type: :model do
 
     it "returns nil due fields when no date or time token is present" do
       expect(described_class.parse("buy milk")).to eq(
-        title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil, recurrence: nil
+        title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil, recurrence: nil,
+        due_error: nil
       )
     end
   end
@@ -439,6 +440,85 @@ RSpec.describe QuickAdd, type: :model do
       expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "every monday in 3 days clean desk")).to include(
         title: "clean desk", recurrence: "every monday", due_date: "2026-08-18", due_time: nil
       )
+    end
+  end
+
+  describe "anchored date grammar" do
+    def parse_at(time, text)
+      travel_to(time) { described_class.parse(text) }
+    end
+
+    it "resolves a one-shot nth weekday in a month" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "ship it first monday in september")).to include(
+        title: "ship it", due_date: "2026-09-07", due_time: nil, recurrence: nil, due_error: nil
+      )
+    end
+
+    it "rolls a passed one-shot to next year" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "first monday in august")).to include(
+        due_date: "2027-08-02"
+      )
+    end
+
+    it "resolves a one-shot business day with a time" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "invoices first workday in september at 9am")).to include(
+        title: "invoices", due_date: "2026-09-01", due_time: "09:00"
+      )
+    end
+
+    it "reports due_error for an impossible one-shot day, no due_date" do
+      result = parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "party 6th monday in feb")
+      expect(result[:due_date]).to be_nil
+      expect(result[:due_error]).to match(/6th monday in feb/i)
+    end
+
+    it "reports due_error when the nth day is absent that specific year" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "5th monday in feb")[:due_error]).to match(/5th monday in feb/i)
+    end
+
+    it "extracts a yearly-anchored recurrence (bang)" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "plan offsite every! first monday in jun")).to include(
+        title: "plan offsite", recurrence: "every! first monday in jun", due_date: nil, due_error: nil
+      )
+    end
+
+    it "extracts a yearly-anchored recurrence (no bang)" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "board meeting every first monday in june")).to include(
+        recurrence: "every first monday in june"
+      )
+    end
+
+    it "a no-'every' anchored phrase is a one-off date, not a recurrence" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "first workday in september")).to include(
+        due_date: "2026-09-01", recurrence: nil
+      )
+    end
+
+    it "bare workday shorthand still means every weekday" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "take out trash workday")).to include(
+        recurrence: "every weekday"
+      )
+    end
+
+    it "does not strip the weekdays shorthand from the title when an explicit recurrence is present" do
+      expect(described_class.parse("buy weekdays supplies every monday")).to include(
+        title: "buy weekdays supplies", recurrence: "every monday"
+      )
+    end
+
+    it "accepts a yearly-anchored recurrence without the optional 'in'" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "board meeting every first monday june"))
+        .to include(recurrence: "every first monday in june")
+    end
+
+    it "captures the optional time on a yearly-anchored recurrence" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "review budget every third monday in jun at 3pm"))
+        .to include(title: "review budget", recurrence: "every third monday in jun", due_time: "15:00", due_date: nil)
+    end
+
+    it "leaves due_time nil for a yearly-anchored recurrence without a time" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "every last friday in march"))
+        .to include(recurrence: "every last friday in march", due_time: nil)
     end
   end
 end
