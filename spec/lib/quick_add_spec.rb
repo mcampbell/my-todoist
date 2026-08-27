@@ -542,6 +542,11 @@ RSpec.describe QuickAdd, type: :model do
         .to include(due_date: "2026-09-07", recurrence: nil)
     end
 
+    it "accepts feb 29 as a yearly recurrence" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "leap birthday every feb 29"))
+        .to include(title: "leap birthday", recurrence: "every feb 29", due_date: nil, due_error: nil)
+    end
+
     it "normalizes day-first order to month-first" do
       expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "every 20 sep"))
         .to include(recurrence: "every sep 20")
