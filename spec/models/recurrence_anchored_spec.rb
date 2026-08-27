@@ -95,15 +95,15 @@ RSpec.describe Recurrence, "anchored yearly recurrence" do
         expect(Recurrence.parse("every! sep 20")).to be_rolling
       end
 
-      it "rejects a day the month cannot guarantee every year" do
+      it "rejects a day no year of the month ever has" do
         expect { Recurrence.parse("every feb 30") }.to raise_error(Recurrence::InvalidError)
         expect { Recurrence.parse("every sep 31") }.to raise_error(Recurrence::InvalidError)
-        expect { Recurrence.parse("every feb 29") }.to raise_error(Recurrence::InvalidError)
       end
 
-      it "accepts a day guaranteed in every year" do
+      it "accepts a real day, including feb 29 (leap years only)" do
         expect(Recurrence.parse("every jan 31").unit).to eq(:anchored)
         expect(Recurrence.parse("every feb 28").unit).to eq(:anchored)
+        expect(Recurrence.parse("every feb 29").unit).to eq(:anchored)
       end
 
       it "rejects a zero day" do
@@ -133,6 +133,12 @@ RSpec.describe Recurrence, "anchored yearly recurrence" do
         rule = Recurrence.parse("every! sep 20")
         result = rule.next_from(due_at: Time.zone.local(2025, 9, 20, 9, 0, 0), now: Time.current)
         expect(result).to eq(Time.zone.local(2026, 9, 20, 12, 0, 0))
+      end
+
+      it "feb 29 skips non-leap years to the next leap year" do
+        rule = Recurrence.parse("every feb 29")
+        result = rule.next_from(due_at: Time.zone.local(2024, 2, 29, 9, 0, 0), now: Time.current)
+        expect(result).to eq(Time.zone.local(2028, 2, 29, 9, 0, 0)) # 2025-2027 have no Feb 29
       end
     end
   end

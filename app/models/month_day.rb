@@ -37,11 +37,12 @@ module MonthDay
     lengths(month).product((0..6).to_a).map { |len, start| count_in(len, start, token) }.min
   end
 
-  # Days `month` is guaranteed to have in every year (February: 28). A
-  # day-of-month yearly rule at or below this exists every year; above it does
-  # not (e.g. Feb 29 only in leap years, Sep 31 never).
-  def days_guaranteed(month)
-    month == 2 ? 28 : MONTH_LENGTHS.fetch(month)
+  # Most days `month` can have in any year (February: 29). A day-of-month
+  # yearly rule at or below this exists in at least some year; above it never
+  # exists (e.g. Feb 30, Sep 31). Feb 29 is valid but occurs in leap years
+  # only -- the year walk skips the years it is absent.
+  def days_max(month)
+    month == 2 ? 29 : MONTH_LENGTHS.fetch(month)
   end
 
   def matching_days(year, month, token)

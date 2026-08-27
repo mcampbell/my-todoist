@@ -77,14 +77,14 @@ class Recurrence
   end
   private_class_method :build_anchored
 
-  # A month + day-of-month rule must land every year: reject a day the month
-  # cannot guarantee (Feb 29, Sep 31, ...), so #next_from never faces a year
-  # whose month lacks it.
+  # A month + day-of-month rule must exist in some year: reject a day no year
+  # of the month ever has (Feb 30, Sep 31, ...). Feb 29 is allowed; #next_from
+  # walks past the non-leap years that lack it.
   def self.build_anchored_dom(match)
     month = CalendarTerms.month_number(match[:month])
     day = match[:day].to_i
 
-    unless day >= 1 && day <= MonthDay.days_guaranteed(month)
+    unless day >= 1 && day <= MonthDay.days_max(month)
       raise InvalidError, "no #{match[:month]} #{match[:day]}"
     end
 
@@ -147,25 +147,33 @@ class Recurrence
 
   private
 
-  # Yearly-anchored: the target is the ordinal/last <token> of <month>,
-  # carrying the anchor's clock time. Fixed counts from the original due_at;
-  # rolling counts from completion (now). Walk years until the occurrence is
-  # strictly after the anchor and not in the past. The parse-time guarantee
-  # (guaranteed_min) means MonthDay.nth_of never returns nil here.
+  # Yearly-anchored: the target is the ordinal/last <token>, or the fixed
+  # day-of-month, of <month>, carrying the anchor's clock time. Fixed counts
+  # from the original due_at; rolling counts from completion (now). Walk years
+  # until the occurrence is strictly after the anchor and not in the past.
+  # occurrence_in is nil for a year that lacks the target (only Feb 29 in a
+  # non-leap year); skip it. Feb 29 recurs, so a leap year always follows.
   def advance_anchored(due_at, now)
     anchor = rolling? ? now : due_at
     year = anchor.year
     loop do
       result = occurrence_in(year, anchor)
-      return result if result > anchor && result >= now
+      return result if result && result > anchor && result >= now
 
       year += 1
     end
   end
 
   def occurrence_in(year, anchor)
-    date = @day ? Date.new(year, @month, @day) : MonthDay.nth_of(year, @month, @ordinal, @token)
+    date = @day ? day_of_month(year) : MonthDay.nth_of(year, @month, @ordinal, @token)
+    return if date.nil?
+
     date.in_time_zone.change(hour: anchor.hour, min: anchor.min, sec: anchor.sec)
+  end
+
+  # The @day of @month in `year`, or nil when that year lacks it (Feb 29).
+  def day_of_month(year)
+    Date.new(year, @month, @day) if Date.valid_date?(year, @month, @day)
   end
 
   def advance_weekday(due_at, now)
