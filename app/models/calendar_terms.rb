@@ -14,10 +14,13 @@ module CalendarTerms
 
   # Longer alternatives first so e.g. "sept" wins over "sep" and "monday" over
   # "mon" -- otherwise the shorter match leaves a stray letter in the title.
-  ORDINAL_RE = /first|second|third|fourth|fifth|last|\d{1,2}(?:st|nd|rd|th)/
-  DAY_RE = /mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|mon|tue|wed|thu|fri|sat|sun|weekday|workday/
-  MONTH_RE = /january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec/
-  TIME_RE = /\d{1,2}:\d{2}\s*(?:am|pm)?|\d{1,2}\s*(?:am|pm)|noon|midnight/
+  # Each fragment carries its own /i so it stays case-insensitive wherever it
+  # is interpolated: a nested Regexp embeds as (?i-mx:...) and ignores the
+  # host pattern's flags, so without this a caller's /i would not reach here.
+  ORDINAL_RE = /first|second|third|fourth|fifth|last|\d{1,2}(?:st|nd|rd|th)/i
+  DAY_RE = /mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|mon|tue|wed|thu|fri|sat|sun|weekday|workday/i
+  MONTH_RE = /january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec/i
+  TIME_RE = /\d{1,2}:\d{2}\s*(?:am|pm)?|\d{1,2}\s*(?:am|pm)|noon|midnight/i
 
   # Integer >= 1, or :last.
   def ordinal(text)

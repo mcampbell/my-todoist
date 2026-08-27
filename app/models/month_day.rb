@@ -37,6 +37,13 @@ module MonthDay
     lengths(month).product((0..6).to_a).map { |len, start| count_in(len, start, token) }.min
   end
 
+  # Days `month` is guaranteed to have in every year (February: 28). A
+  # day-of-month yearly rule at or below this exists every year; above it does
+  # not (e.g. Feb 29 only in leap years, Sep 31 never).
+  def days_guaranteed(month)
+    month == 2 ? 28 : MONTH_LENGTHS.fetch(month)
+  end
+
   def matching_days(year, month, token)
     last_day = Date.new(year, month, -1).day
     (1..last_day).map { |d| Date.new(year, month, d) }.select { |date| matches?(date, token) }

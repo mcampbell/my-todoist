@@ -31,6 +31,10 @@ class Recurrence
   # Yearly-anchored form: "every[!] {ordinal/last} {day/weekday} in <month>".
   # Shares its vocabulary with the one-shot PointInTime grammar.
   ANCHORED_GRAMMAR = /\Aevery(?<bang>!)?\s+(?<ord>#{CalendarTerms::ORDINAL_RE})\s+(?<day>#{CalendarTerms::DAY_RE})\s+(?:in\s+)?(?<month>#{CalendarTerms::MONTH_RE})\z/i
+  # Yearly month + day-of-month form: "every[!] <month> <day>" (e.g. "every
+  # sep 20") -- a fixed calendar date each year. Canonical (month-first) shape;
+  # QuickAdd normalises "every 20 sep" to this before storing.
+  ANCHORED_DOM_GRAMMAR = /\Aevery(?<bang>!)?\s+(?<month>#{CalendarTerms::MONTH_RE})\s+(?<day>\d{1,2})\z/i
 
   attr_reader :unit, :count
 
@@ -40,6 +44,10 @@ class Recurrence
     normalized = string.strip.downcase
     if (anchored = ANCHORED_GRAMMAR.match(normalized))
       return build_anchored(anchored)
+    end
+
+    if (dom = ANCHORED_DOM_GRAMMAR.match(normalized))
+      return build_anchored_dom(dom)
     end
 
     match = GRAMMAR.match(normalized)
@@ -69,6 +77,21 @@ class Recurrence
   end
   private_class_method :build_anchored
 
+  # A month + day-of-month rule must land every year: reject a day the month
+  # cannot guarantee (Feb 29, Sep 31, ...), so #next_from never faces a year
+  # whose month lacks it.
+  def self.build_anchored_dom(match)
+    month = CalendarTerms.month_number(match[:month])
+    day = match[:day].to_i
+
+    unless day >= 1 && day <= MonthDay.days_guaranteed(month)
+      raise InvalidError, "no #{match[:month]} #{match[:day]}"
+    end
+
+    new(unit: :anchored, rolling: match[:bang].present?, month: month, day: day)
+  end
+  private_class_method :build_anchored_dom
+
   def self.resolve_count(token)
     token[0] =~ /\d/ ? token.to_i : ORDINAL_WORDS.fetch(token)
   end
@@ -80,13 +103,14 @@ class Recurrence
   end
   private_class_method :normalize_unit
 
-  def initialize(unit:, count: 1, rolling: false, ordinal: nil, token: nil, month: nil)
+  def initialize(unit:, count: 1, rolling: false, ordinal: nil, token: nil, month: nil, day: nil)
     @unit = unit
     @count = count
     @rolling = rolling
     @ordinal = ordinal
     @token = token
     @month = month
+    @day = day
   end
 
   def rolling?
@@ -140,7 +164,7 @@ class Recurrence
   end
 
   def occurrence_in(year, anchor)
-    date = MonthDay.nth_of(year, @month, @ordinal, @token)
+    date = @day ? Date.new(year, @month, @day) : MonthDay.nth_of(year, @month, @ordinal, @token)
     date.in_time_zone.change(hour: anchor.hour, min: anchor.min, sec: anchor.sec)
   end
 
