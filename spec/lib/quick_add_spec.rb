@@ -520,5 +520,41 @@ RSpec.describe QuickAdd, type: :model do
       expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "every last friday in march"))
         .to include(recurrence: "every last friday in march", due_time: nil)
     end
+
+    it "extracts a month + day-of-month yearly recurrence, not a one-off date" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "renew domain every sep 20")).to include(
+        title: "renew domain", recurrence: "every sep 20", due_date: nil, due_error: nil
+      )
+    end
+
+    it "matches a capitalized month" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "every Sep 20"))
+        .to include(recurrence: "every sep 20", due_date: nil)
+    end
+
+    it "matches the weekday-anchored recurrence in mixed case and short form" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "board meeting Every First MON in JUN"))
+        .to include(title: "board meeting", recurrence: "every first mon in jun", due_date: nil)
+    end
+
+    it "matches a one-shot anchored date in mixed case" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "First Monday In September"))
+        .to include(due_date: "2026-09-07", recurrence: nil)
+    end
+
+    it "normalizes day-first order to month-first" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "every 20 sep"))
+        .to include(recurrence: "every sep 20")
+    end
+
+    it "strips an ordinal suffix from the day" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "every september 20th"))
+        .to include(recurrence: "every september 20")
+    end
+
+    it "marks the bang and captures an optional time on a day-of-month form" do
+      expect(parse_at(Time.zone.local(2026, 8, 26, 9, 0, 0), "backup every! dec 31 at 3pm"))
+        .to include(recurrence: "every! dec 31", due_time: "15:00", due_date: nil)
+    end
   end
 end

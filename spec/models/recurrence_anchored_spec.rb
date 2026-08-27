@@ -78,4 +78,62 @@ RSpec.describe Recurrence, "anchored yearly recurrence" do
         .to eq(Time.zone.local(2026, 12, 31, 12, 0, 0))
     end
   end
+
+  # Month + day-of-month yearly form: "every[!] <month> <day>" -- a fixed
+  # calendar date each year (e.g. "every sep 20"). Rejected at parse when the
+  # day is not guaranteed in every year's month, so #next_from never faces a
+  # year that lacks it (Feb 29 exists only some years, so it is rejected).
+  describe "day-of-month yearly recurrence" do
+    describe ".parse" do
+      it "parses a month + day-of-month form" do
+        rule = Recurrence.parse("every september 20")
+        expect(rule.unit).to eq(:anchored)
+        expect(rule).not_to be_rolling
+      end
+
+      it "marks a bang as rolling" do
+        expect(Recurrence.parse("every! sep 20")).to be_rolling
+      end
+
+      it "rejects a day the month cannot guarantee every year" do
+        expect { Recurrence.parse("every feb 30") }.to raise_error(Recurrence::InvalidError)
+        expect { Recurrence.parse("every sep 31") }.to raise_error(Recurrence::InvalidError)
+        expect { Recurrence.parse("every feb 29") }.to raise_error(Recurrence::InvalidError)
+      end
+
+      it "accepts a day guaranteed in every year" do
+        expect(Recurrence.parse("every jan 31").unit).to eq(:anchored)
+        expect(Recurrence.parse("every feb 28").unit).to eq(:anchored)
+      end
+
+      it "rejects a zero day" do
+        expect { Recurrence.parse("every march 0") }.to raise_error(Recurrence::InvalidError)
+      end
+    end
+
+    describe "#next_from" do
+      around do |example|
+        travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) { example.run } # Tuesday
+      end
+
+      it "fixed lands this year's date preserving the original due clock time" do
+        rule = Recurrence.parse("every september 20")
+        result = rule.next_from(due_at: Time.zone.local(2025, 9, 20, 9, 0, 0), now: Time.current)
+        expect(result).to eq(Time.zone.local(2026, 9, 20, 9, 0, 0))
+      end
+
+      it "fixed rolls a year after the date is completed on time" do
+        rule = Recurrence.parse("every september 20")
+        due = Time.zone.local(2026, 9, 20, 9, 0, 0)
+        result = rule.next_from(due_at: due, now: Time.zone.local(2026, 9, 20, 15, 0, 0))
+        expect(result).to eq(Time.zone.local(2027, 9, 20, 9, 0, 0))
+      end
+
+      it "rolling schedules from the completion clock time" do
+        rule = Recurrence.parse("every! sep 20")
+        result = rule.next_from(due_at: Time.zone.local(2025, 9, 20, 9, 0, 0), now: Time.current)
+        expect(result).to eq(Time.zone.local(2026, 9, 20, 12, 0, 0))
+      end
+    end
+  end
 end

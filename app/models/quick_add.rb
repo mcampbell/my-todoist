@@ -14,6 +14,13 @@ class QuickAdd
   # as a weekly Monday and strand "in jun" in the title. Shares its ordinal/
   # day/month vocabulary with PointInTime via CalendarTerms.
   ANCHORED_RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?<ord>#{CalendarTerms::ORDINAL_RE})\s+(?<day>#{CalendarTerms::DAY_RE})\s+(?:in\s+)?(?<month>#{CalendarTerms::MONTH_RE})(?:\s+(?:at\s+)?(?<time>#{CalendarTerms::TIME_RE}))?\b/i
+  # Month + day-of-month yearly recurrence, e.g. "every sep 20" / "every 20th
+  # sep". A yearly calendar date, distinct from the ordinal-weekday anchored
+  # form above (which needs a weekday). Either word order is accepted and
+  # normalized to month-first. Tried before RECURRENCE_RE so "every" is not
+  # stranded in the title and the date is not read as a one-off.
+  DOM_RE = /\d{1,2}(?:st|nd|rd|th)?/
+  ANCHORED_DOM_RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?:(?<month_a>#{CalendarTerms::MONTH_RE})\s+(?<day_a>#{DOM_RE})|(?<day_b>#{DOM_RE})\s+(?<month_b>#{CalendarTerms::MONTH_RE}))(?:\s+(?:at\s+)?(?<time>#{CalendarTerms::TIME_RE}))?\b/i
   # Bare "weekdays"/"workday" (no "every" prefix) is recurrence shorthand for
   # "every weekday" -- UNLESS it is "next"/"last" + weekday/workday, which is
   # a one-off date (like "next monday" / "last monday"), not recurrence.
@@ -114,6 +121,15 @@ class QuickAdd
       bang = match[:bang].empty? ? "" : "!"
       recurrence = "every#{bang} #{match[:ord]} #{match[:day]} in #{match[:month]}".downcase
       return [ recurrence, CalendarTerms.time(match[:time]) ]
+    end
+
+    if (match = title.match(ANCHORED_DOM_RECURRENCE_RE))
+      finish = recurrence_span_end(title, match.end(0))
+      title[match.begin(0)...finish] = ""
+      bang = match[:bang].empty? ? "" : "!"
+      month = (match[:month_a] || match[:month_b]).downcase
+      day = (match[:day_a] || match[:day_b]).to_i
+      return [ "every#{bang} #{month} #{day}", CalendarTerms.time(match[:time]) ]
     end
 
     if (match = title.match(RECURRENCE_RE))
