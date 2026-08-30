@@ -30,6 +30,13 @@ RSpec.describe "Task flow", type: :system do
     expect(page).to have_current_path(edit_task_path(task), ignore_query: true)
   end
 
+  it "navigates to the edit page by clicking the task title" do
+    task = Task.create!(title: "edit-me")
+    visit tasks_path
+    click_link "edit-me"
+    expect(page).to have_current_path(edit_task_path(task), ignore_query: true)
+  end
+
   it "renders the row controls as svg icons, not text" do
     task = Task.create!(title: "icon-check")
     visit tasks_path
