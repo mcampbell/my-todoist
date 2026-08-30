@@ -9,6 +9,19 @@
  * Consider organizing styles into separate files for maintainability.
  */
 
+/* Task title links read as plain text; the underline only appears on hover
+   so the row stays calm but the whole title is a click target for edit. */
+.task-title,
+.task-title:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.task-title:hover,
+.task-title:focus-visible {
+  text-decoration: underline;
+}
+
 #toast-container {
   position: fixed;
   top: 1rem;

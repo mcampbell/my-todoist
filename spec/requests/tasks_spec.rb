@@ -9,6 +9,21 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include("buy milk")
     end
 
+    it "renders each task title as a link to its edit page, carrying return_to" do
+      task = Task.create!(title: "buy milk")
+      get tasks_path
+      link = Capybara.string(response.body).find_link("buy milk")
+      expect(link[:href]).to eq(edit_task_path(task, return_to: tasks_path))
+      expect(link[:class]).to include("task-title")
+    end
+
+    it "points the title link's return_to at the originating view" do
+      Task.create!(title: "call mum", due_at: Time.current)
+      get today_tasks_path
+      link = Capybara.string(response.body).find_link("call mum")
+      expect(link[:href]).to end_with("return_to=#{CGI.escape(today_tasks_path)}")
+    end
+
     it "orders by due_at asc with NULLs last, created_at desc breaking ties" do
       no_due   = Task.create!(title: "no-due")
       tomorrow = Task.create!(title: "tomorrow", due_at: 1.day.from_now)
@@ -963,6 +978,13 @@ RSpec.describe "Tasks", type: :request do
       get search_tasks_path, params: { q: "milk", include_completed: "1" }
       expect(response.body).to include("Buy milk")
       expect(response.body).not_to include("aria-label=\"Complete Buy milk\"")
+    end
+
+    it "renders a completed occurrence's title as plain text, not an edit link" do
+      Task.create!(title: "old milk").complete!
+      get search_tasks_path, params: { q: "milk", include_completed: "1" }
+      expect(response.body).to include("old milk")
+      expect(Capybara.string(response.body)).to have_no_link("old milk")
     end
 
     it "treats % and _ in the query as literal characters, not LIKE wildcards" do
