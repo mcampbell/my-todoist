@@ -92,6 +92,12 @@ RSpec.describe "Tasks", type: :request do
       get edit_task_path(task)
       expect(Capybara.string(response.body)).to have_button("Clear time")
     end
+
+    it "renders a freeform Reschedule to field" do
+      task = Task.create!(title: "edit me")
+      get edit_task_path(task)
+      expect(response.body).to include('name="reschedule_to"')
+    end
   end
 
   describe "edit link carries return_to back to the originating view" do
@@ -360,6 +366,118 @@ RSpec.describe "Tasks", type: :request do
       task = Task.create!(title: "old")
       patch task_path(task), params: { task: { title: "new" } }
       expect(response).to redirect_to(tasks_path)
+    end
+
+    describe "reschedule_to freeform field" do
+      it "sets a date on an undated task from a relative phrase" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "t")
+          patch task_path(task), params: { task: { title: "t", due_date: "", due_time: "" }, reschedule_to: "tomorrow" }
+          expect(response).to redirect_to(tasks_path)
+          task.reload
+          expect(task.due_at).to eq(Time.zone.local(2026, 8, 16).beginning_of_day)
+          expect(task.all_day?).to eq(true)
+        end
+      end
+
+      it "sets a date from a weekday phrase" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "t")
+          patch task_path(task), params: { task: { title: "t", due_date: "", due_time: "" }, reschedule_to: "next wednesday" }
+          due = task.reload.due_at
+          expect(due.wednesday?).to eq(true)
+          expect(due.to_date).to be > Date.new(2026, 8, 15)
+        end
+      end
+
+      it "sets date and time from a phrase with a time token" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "t")
+          patch task_path(task), params: { task: { title: "t", due_date: "", due_time: "" }, reschedule_to: "tomorrow 3pm" }
+          task.reload
+          expect(task.due_at).to eq(Time.zone.local(2026, 8, 16, 15, 0, 0))
+          expect(task.all_day?).to eq(false)
+        end
+      end
+
+      it "handles an 'in N unit' offset" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "t")
+          patch task_path(task), params: { task: { title: "t", due_date: "", due_time: "" }, reschedule_to: "in 2 months" }
+          expect(task.reload.due_at.to_date).to eq(Date.new(2026, 10, 15))
+        end
+      end
+
+      it "removes the time when the phrase is date-only, keeping the pickers unchanged" do
+        task = Task.create!(title: "t", due_at: Time.zone.local(2026, 2, 20, 9, 15))
+        travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) do
+          patch task_path(task), params: {
+            task: { title: "t", due_date: "2026-02-20", due_time: "09:15" },
+            reschedule_to: "tomorrow"
+          }
+        end
+        task.reload
+        expect(task.all_day?).to eq(true)
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11).beginning_of_day)
+      end
+
+      it "rejects rescheduling a recurring task, changing nothing" do
+        task = Task.create!(title: "t", recurrence: "every 3 days", due_at: Time.zone.local(2026, 8, 20).beginning_of_day)
+        patch task_path(task), params: {
+          task: { title: "t", recurrence: "every 3 days", due_date: "2026-08-20", due_time: "" },
+          reschedule_to: "tomorrow"
+        }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.due_at).to eq(Time.zone.local(2026, 8, 20).beginning_of_day)
+      end
+
+      it "rejects when a recurrence is being set in the same submit" do
+        task = Task.create!(title: "t")
+        patch task_path(task), params: {
+          task: { title: "t", recurrence: "every 3 days", due_date: "", due_time: "" },
+          reschedule_to: "tomorrow"
+        }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.recurrence).to be_nil
+      end
+
+      it "rejects when the date picker was also changed" do
+        task = Task.create!(title: "t")
+        patch task_path(task), params: {
+          task: { title: "t", due_date: "2026-09-01", due_time: "" },
+          reschedule_to: "tomorrow"
+        }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.body).to include("not both")
+        expect(task.reload.due_at).to be_nil
+      end
+
+      it "rejects when only the time picker was changed" do
+        task = Task.create!(title: "t", due_at: Time.zone.local(2026, 8, 20, 9, 0))
+        patch task_path(task), params: {
+          task: { title: "t", due_date: "2026-08-20", due_time: "11:30" },
+          reschedule_to: "tomorrow"
+        }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.due_at).to eq(Time.zone.local(2026, 8, 20, 9, 0))
+      end
+
+      it "rejects an unparseable phrase, changing nothing" do
+        task = Task.create!(title: "t")
+        patch task_path(task), params: {
+          task: { title: "t", due_date: "", due_time: "" },
+          reschedule_to: "not a date at all"
+        }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.due_at).to be_nil
+      end
+
+      it "ignores a blank reschedule_to and updates normally" do
+        task = Task.create!(title: "old")
+        patch task_path(task), params: { task: { title: "new", due_date: "", due_time: "" }, reschedule_to: "" }
+        expect(response).to redirect_to(tasks_path)
+        expect(task.reload.title).to eq("new")
+      end
     end
   end
 

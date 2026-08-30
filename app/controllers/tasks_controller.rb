@@ -92,6 +92,11 @@ class TasksController < ApplicationController
 
   def update
     attrs = task_params.to_h.with_indifferent_access
+    @reschedule_to = params[:reschedule_to].to_s
+    if @reschedule_to.present? && !apply_reschedule!(attrs, @reschedule_to)
+      render :edit, status: :unprocessable_content
+      return
+    end
     if attrs[:recurrence].present?
       apply_recurrence_anchors!(attrs, attrs[:recurrence], @task)
     end
@@ -192,6 +197,44 @@ class TasksController < ApplicationController
     bootstrapping = existing_task.nil? ||
       (existing_task.recurrence.blank? && existing_task.due_at.blank?)
     attrs[:due_date] = Date.current.iso8601 if attrs[:due_date].blank? && bootstrapping
+  end
+
+  # Move a free-text point-in-time phrase from the edit form's "Reschedule
+  # to" field into the due_date/due_time attrs, via the shared QuickAdd
+  # grammar. Returns true (attrs mutated) or false (guard failed, error on
+  # @task for the :edit re-render). Guard order matters: a recurring task
+  # has no single "next" date to set; a changed picker means the user gave
+  # two conflicting instructions. QuickAdd never raises, so a nil due_date
+  # is its parse-failure signal. Priority/project/recurrence in the phrase
+  # are ignored -- this field sets a date only.
+  def apply_reschedule!(attrs, phrase)
+    if @task.recurrence.present? || attrs[:recurrence].present?
+      @task.errors.add(:base, "Can't reschedule a recurring task; clear the recurrence first.")
+      return false
+    end
+
+    if picker_changed?(attrs)
+      @task.errors.add(:base, "Use the date pickers or Reschedule to, not both.")
+      return false
+    end
+
+    parsed = QuickAdd.parse(phrase)
+    if parsed[:due_date].blank?
+      @task.errors.add(:base, "Couldn't read a date from that phrase.")
+      return false
+    end
+
+    attrs[:due_date] = parsed[:due_date]
+    attrs[:due_time] = parsed[:due_time]
+    true
+  end
+
+  # True when the submitted date/time picker values differ from what the
+  # form rendered (the task's current values). The pickers post pre-filled,
+  # so only a real change counts as "using" them against reschedule_to.
+  def picker_changed?(attrs)
+    (attrs.key?(:due_date) && attrs[:due_date].to_s != @task.due_date.to_s) ||
+      (attrs.key?(:due_time) && attrs[:due_time].to_s != @task.due_time.to_s)
   end
 
   # Copy the raw quick-add string (which the parsed title already lost the
