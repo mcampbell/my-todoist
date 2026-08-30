@@ -403,6 +403,55 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
+    it "reads 'next week' as one week from today" do
+      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "Plan trip next week")).to include(
+        title: "Plan trip", due_date: "2026-09-06", due_time: nil
+      )
+    end
+
+    it "reads 'next month' as one month from today" do
+      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "Pay rent next month")).to include(
+        title: "Pay rent", due_date: "2026-09-30", due_time: nil
+      )
+    end
+
+    it "reads 'next year' as one year from today" do
+      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "Do taxes next year")).to include(
+        title: "Do taxes", due_date: "2027-08-30", due_time: nil
+      )
+    end
+
+    it "still treats 'next monday' as that specific weekday, not an offset" do
+      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "Meet next monday")).to include(
+        title: "Meet", due_date: "2026-08-31", due_time: nil
+      )
+    end
+
+    it "still treats 'next weekday' as a one-off date (NEXT_UNIT_RE must not match 'week' in 'weekday')" do
+      result = parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "Call dentist next weekday")
+      expect(result[:title]).to eq("Call dentist")
+      expect(result[:recurrence]).to be_nil
+      expect(result[:due_date]).to eq("2026-08-31")
+    end
+
+    it "strips 'next month' cleanly when mid-title" do
+      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "call mom next month about the trip")).to include(
+        title: "call mom about the trip", due_date: "2026-09-30"
+      )
+    end
+
+    it "matches 'next <period>' case-insensitively" do
+      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "Do taxes Next Year")).to include(
+        title: "Do taxes", due_date: "2027-08-30"
+      )
+    end
+
+    it "coexists with a recurrence phrase in the same title" do
+      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "water plants every 3 days next week")).to include(
+        title: "water plants", recurrence: "every 3 days", due_date: "2026-09-06", due_time: nil
+      )
+    end
+
     it "resolves 'a'/'an' to a count of 1" do
       expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "renew pass in a week")).to include(
         title: "renew pass", due_date: "2026-08-22", due_time: nil
