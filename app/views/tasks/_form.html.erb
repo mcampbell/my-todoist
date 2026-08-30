@@ -46,6 +46,16 @@
     <p class="help">Clear the time to make this an all-day task.</p>
   </div>
 
+  <% if task.persisted? %>
+    <div class="field">
+      <%= label_tag :reschedule_to, "Reschedule to (e.g. tomorrow, next wed, in 2 months)", class: "label" %>
+      <div class="control">
+        <%= text_field_tag :reschedule_to, @reschedule_to, class: "input", placeholder: "tomorrow / next friday 3pm / in 2 months" %>
+      </div>
+      <p class="help">Sets the due date from free text. Don't also change the date pickers, and clear any recurrence first.</p>
+    </div>
+  <% end %>
+
   <div class="field">
     <%= f.label :recurrence, "Recurrence (e.g. every 3 days, every! monday)", class: "label" %>
     <div class="control">
