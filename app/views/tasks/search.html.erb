@@ -12,11 +12,16 @@
       <%= link_to "Cancel", root_path, id: "cancel-link", class: "button is-light" %>
     </div>
   </div>
+  <%# A link, not a JS-driven checkbox: clicking re-runs the search with the
+      flipped include_completed, so it works under rack_test with no browser.
+      The link navigates on its own; the hidden field carries the current
+      state through the Search button. The two never post together. %>
+  <%= hidden_field_tag :include_completed, (@include_completed ? "1" : "0") %>
   <div class="field">
-    <label class="checkbox">
-      <%= check_box_tag :include_completed, "1", @include_completed %>
-      Include completed tasks
-    </label>
+    <%= link_to search_tasks_path(q: @query, include_completed: (@include_completed ? "0" : "1")),
+          id: "toggle-completed", class: "is-clickable" do %>
+      <%= @include_completed ? "☑" : "☐" %> Include completed tasks
+    <% end %>
   </div>
 <% end %>
 

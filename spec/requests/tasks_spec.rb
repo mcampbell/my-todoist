@@ -987,6 +987,18 @@ RSpec.describe "Tasks", type: :request do
       get search_tasks_path
       expect(Capybara.string(response.body)).to have_link("Cancel", href: root_path)
     end
+
+    it "offers a completed-results toggle that carries the query and turns them on" do
+      get search_tasks_path, params: { q: "milk" }
+      link = Capybara.string(response.body).find("#toggle-completed")
+      expect(link[:href]).to eq(search_tasks_path(q: "milk", include_completed: "1"))
+    end
+
+    it "the toggle turns completed results back off when they are on" do
+      get search_tasks_path, params: { q: "milk", include_completed: "1" }
+      link = Capybara.string(response.body).find("#toggle-completed")
+      expect(link[:href]).to eq(search_tasks_path(q: "milk", include_completed: "0"))
+    end
   end
 
   describe "GET /tasks/overdue" do
