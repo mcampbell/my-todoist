@@ -32,6 +32,10 @@ class QuickAdd
   # "in X unit" date-pinning grammar (specs/in-x-unit-design.md): relative
   # offset from now, e.g. "in 3 days", "in 15 minutes", "in a week".
   IN_UNIT_RE = /\bin\s+(?:(?<count>\d+)|an?)\s+(?<unit>days?|hours?|minutes?|weeks?|months?|years?)\b/i
+  # "next week/month/year" -> one such period from today (like "in 1 week").
+  # Chronic's own "next <period>" returns the period's *middle* (next year ->
+  # Jul 2). The `\b` after the unit keeps this off "weekday".
+  NEXT_UNIT_RE = /\bnext\s+(?<unit>weeks?|months?|years?)\b/i
 
   WORD_RE = /[^\s]+/
   NUMBER_RE = /\A\d+(?:st|nd|rd|th)?\z/i
@@ -188,22 +192,27 @@ class QuickAdd
   end
   private_class_method :recurrence_span_end
 
-  # Extracts an "in <count> <unit>" relative offset, removing it from the
-  # title. Returns [due_date, due_time] ("YYYY-MM-DD", "HH:MM" or nil), or
-  # [nil, nil] when no match.
+  # Extracts a relative offset -- "in <count> <unit>" or "next <period>" --
+  # removing it from the title. Returns [due_date, due_time] ("YYYY-MM-DD",
+  # "HH:MM" or nil), or [nil, nil] when no match.
   def self.extract_due_offset!(title)
     if (match = title.match(IN_UNIT_RE))
-      finish = recurrence_span_end(title, match.end(0))
-      title[match.begin(0)...finish] = ""
-
       count = match[:count]&.to_i || 1
-      offset = count.public_send(match[:unit].downcase)
-      target = Time.current + offset
-      due_time = offset < 1.day ? target.strftime("%H:%M") : nil
-      return [ target.to_date.iso8601, due_time ]
+      unit = match[:unit].downcase
+    elsif (match = title.match(NEXT_UNIT_RE))
+      count = 1
+      unit = match[:unit].downcase
+    else
+      return [ nil, nil ]
     end
 
-    [ nil, nil ]
+    finish = recurrence_span_end(title, match.end(0))
+    title[match.begin(0)...finish] = ""
+
+    offset = count.public_send(unit)
+    target = Time.current + offset
+    due_time = offset < 1.day ? target.strftime("%H:%M") : nil
+    [ target.to_date.iso8601, due_time ]
   end
   private_class_method :extract_due_offset!
 

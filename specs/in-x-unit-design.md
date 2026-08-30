@@ -87,6 +87,19 @@ not in code (different feature, no shared logic to extract — YAGNI).
 - Does not touch `DATE_WORD_RE` (Q4) — day/hour/minute remain ungated bare
   words; only the `in <count> <unit>` phrase is recognized.
 
+## Extension: "next week/month/year" (2026-08-30)
+
+`NEXT_UNIT_RE = /\bnext\s+(?<unit>weeks?|months?|years?)\b/i`, handled in the
+same `extract_due_offset!` as a count-1 offset. Reason: Chronic parses
+"next <period>" to the *middle* of that period ("next year" -> Jul 2), which
+surprised a user. Now "next week" == "in 1 week", etc.
+
+- Weekday names ("next monday") and "next weekday" stay with Chronic /
+  `date_span` -- the `\b` after the unit keeps the regex off "weekday".
+- Scope: week/month/year only. "next day/hour/minute" are not period words
+  people use for a task date; Chronic's "tomorrow" already covers the day
+  case.
+
 ## Deferred / explicitly out of scope
 
 - Spelled-out cardinal words (`in three days`) — Q7.
