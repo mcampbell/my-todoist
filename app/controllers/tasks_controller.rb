@@ -100,13 +100,18 @@ class TasksController < ApplicationController
   def update
     attrs = task_params.to_h.with_indifferent_access
     @reschedule_to = params[:reschedule_to].to_s
-    if @reschedule_to.present? && !apply_reschedule!(attrs, @reschedule_to)
+    rescheduling = @reschedule_to.present?
+
+    if rescheduling && !apply_reschedule!(attrs, @reschedule_to)
       render :edit, status: :unprocessable_content
       return
     end
-    if attrs[:recurrence].present?
-      apply_recurrence_anchors!(attrs, attrs[:recurrence], @task)
+
+    unless rescheduling
+      clear_recurrence_anchor!(attrs)
+      apply_recurrence_anchors!(attrs, attrs[:recurrence], @task) if attrs[:recurrence].present?
     end
+
     if @task.update(attrs)
       redirect_to safe_return_to || task_list_path(@task)
     else
@@ -217,19 +222,25 @@ class TasksController < ApplicationController
   # Move a free-text point-in-time phrase from the edit form's "Reschedule
   # to" field into the due_date/due_time attrs, via the shared QuickAdd
   # grammar. Returns true (attrs mutated) or false (guard failed, error on
-  # @task for the :edit re-render). Guard order matters: a recurring task
-  # has no single "next" date to set; a changed picker means the user gave
-  # two conflicting instructions. QuickAdd never raises, so a nil due_date
-  # is its parse-failure signal. Priority/project/recurrence in the phrase
-  # are ignored -- this field sets a date only.
+  # @task for the :edit re-render).
+  #
+  # For a recurring task this moves the next occurrence only: the
+  # pre-reschedule due_at + all_day go into recurrence_anchor_*, so
+  # Task#complete! steps the pattern from its true phase and then clears
+  # them. The recurrence rule is never touched here.
+  #
+  # Guards: the pickers and this field are mutually exclusive; the
+  # recurrence string may not change in the same save; the phrase must
+  # yield a date (QuickAdd never raises -- a nil due_date is the failure).
+  # Priority/project/recurrence in the phrase are ignored.
   def apply_reschedule!(attrs, phrase)
-    if @task.recurrence.present? || attrs[:recurrence].present?
-      @task.errors.add(:base, "Can't reschedule a recurring task; clear the recurrence first.")
+    if picker_changed?(attrs)
+      @task.errors.add(:base, "Use the date pickers or Reschedule to, not both.")
       return false
     end
 
-    if picker_changed?(attrs)
-      @task.errors.add(:base, "Use the date pickers or Reschedule to, not both.")
+    if changing_recurrence?(attrs)
+      @task.errors.add(:base, "Change the recurrence in a separate save from a reschedule.")
       return false
     end
 
@@ -239,9 +250,26 @@ class TasksController < ApplicationController
       return false
     end
 
+    if @task.recurrence.present? && @task.due_at.present?
+      attrs[:recurrence_anchor_at] = @task.recurrence_anchor_at || @task.due_at
+      attrs[:recurrence_anchor_all_day] =
+        @task.recurrence_anchor_at ? @task.recurrence_anchor_all_day : @task.all_day
+    end
+
     attrs[:due_date] = parsed[:due_date]
     attrs[:due_time] = parsed[:due_time]
     true
+  end
+
+  # A non-reschedule edit that redefines the schedule -- a different
+  # recurrence string, or a cleared due date -- drops any pending
+  # single-occurrence anchor; the phase it protected no longer applies.
+  def clear_recurrence_anchor!(attrs)
+    return unless @task.recurrence_anchor_at?
+    return unless changing_recurrence?(attrs) || (attrs.key?(:due_date) && attrs[:due_date].blank?)
+
+    attrs[:recurrence_anchor_at] = nil
+    attrs[:recurrence_anchor_all_day] = nil
   end
 
   # True when the submitted date/time picker values differ from what the
@@ -250,6 +278,14 @@ class TasksController < ApplicationController
   def picker_changed?(attrs)
     (attrs.key?(:due_date) && attrs[:due_date].to_s != @task.due_date.to_s) ||
       (attrs.key?(:due_time) && attrs[:due_time].to_s != @task.due_time.to_s)
+  end
+
+  # True when the submitted recurrence string differs from the task's
+  # current one (the form re-posts the unchanged value on every save).
+  # Named to not collide with Active Record's dirty-tracking
+  # #recurrence_changed? on the model instance.
+  def changing_recurrence?(attrs)
+    attrs.key?(:recurrence) && attrs[:recurrence].to_s != @task.recurrence.to_s
   end
 
   # Copy the raw quick-add string (which the parsed title already lost the

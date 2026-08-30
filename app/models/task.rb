@@ -43,7 +43,14 @@ class Task < ApplicationRecord
         destroy!
       else
         rule = Recurrence.parse(recurrence)
-        next_due = rule.next_from(due_at: due_at || Time.current, now: Time.current)
+        # When the next occurrence was rescheduled off the pattern, its true
+        # phase (date, time, all_day) sits in recurrence_anchor_*; step from
+        # that so the reschedule moved this one occurrence only. The anchor
+        # is cleared here on completion and in TasksController when an edit
+        # redefines the schedule -- no callback (single-user app).
+        anchor         = recurrence_anchor_at || due_at || Time.current
+        anchor_all_day = recurrence_anchor_at ? recurrence_anchor_all_day == true : all_day
+        next_due = rule.next_from(due_at: anchor, now: Time.current)
         # A rolling recurrence reschedules from the completion clock time, so
         # an all-day task's next occurrence would otherwise pick up whatever
         # time it happened to be completed at. all_day tasks have no time to
@@ -53,8 +60,9 @@ class Task < ApplicationRecord
         # instead (an all-day task recurring every N minutes makes no sense
         # as all-day in the first place).
         sub_day = rule.unit.in?(%i[hour minute])
-        next_due = next_due.beginning_of_day if all_day && !sub_day
-        update!(due_at: next_due, all_day: all_day && !sub_day)
+        next_due = next_due.beginning_of_day if anchor_all_day && !sub_day
+        update!(due_at: next_due, all_day: anchor_all_day && !sub_day,
+                recurrence_anchor_at: nil, recurrence_anchor_all_day: nil)
       end
       snapshot
     end

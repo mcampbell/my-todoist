@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_15_180002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_30_190419) do
   create_table "completed_occurrences", force: :cascade do |t|
     t.boolean "all_day", default: false, null: false
     t.datetime "completed_at", null: false
@@ -55,6 +55,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_180002) do
     t.integer "priority", default: 0, null: false
     t.integer "project_id"
     t.string "recurrence"
+    t.boolean "recurrence_anchor_all_day"
+    t.datetime "recurrence_anchor_at"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["project_id"], name: "index_tasks_on_project_id"
