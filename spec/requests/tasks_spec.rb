@@ -421,24 +421,151 @@ RSpec.describe "Tasks", type: :request do
         expect(task.due_at).to eq(Time.zone.local(2026, 2, 11).beginning_of_day)
       end
 
-      it "rejects rescheduling a recurring task, changing nothing" do
-        task = Task.create!(title: "t", recurrence: "every 3 days", due_at: Time.zone.local(2026, 8, 20).beginning_of_day)
-        patch task_path(task), params: {
-          task: { title: "t", recurrence: "every 3 days", due_date: "2026-08-20", due_time: "" },
-          reschedule_to: "tomorrow"
-        }
-        expect(response).to have_http_status(:unprocessable_content)
-        expect(task.reload.due_at).to eq(Time.zone.local(2026, 8, 20).beginning_of_day)
+      it "moves a recurring task's next occurrence only, stashing the phase anchor" do
+        travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
+          task = Task.create!(title: "t", recurrence: "every 3 days",
+                              due_at: Time.zone.local(2026, 8, 20).beginning_of_day, all_day: true)
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 3 days", due_date: "2026-08-20", due_time: "" },
+            reschedule_to: "tomorrow 3pm"
+          }
+          expect(response).to redirect_to(tasks_path)
+          task.reload
+          expect(task.recurrence).to eq("every 3 days")
+          expect(task.due_at).to eq(Time.zone.local(2026, 8, 18, 15, 0, 0))
+          expect(task.recurrence_anchor_at).to eq(Time.zone.local(2026, 8, 20).beginning_of_day)
+          expect(task.recurrence_anchor_all_day).to eq(true)
+        end
       end
 
-      it "rejects when a recurrence is being set in the same submit" do
-        task = Task.create!(title: "t")
+      it "keeps the first anchor when the next occurrence is rescheduled twice" do
+        travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
+          task = Task.create!(title: "t", recurrence: "every 3 days",
+                              due_at: Time.zone.local(2026, 8, 20).beginning_of_day, all_day: true)
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 3 days", due_date: "2026-08-20", due_time: "" },
+            reschedule_to: "tomorrow"
+          }
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 3 days", due_date: task.reload.due_date, due_time: "" },
+            reschedule_to: "in 2 days"
+          }
+          expect(task.reload.recurrence_anchor_at).to eq(Time.zone.local(2026, 8, 20).beginning_of_day)
+        end
+      end
+
+      it "clears the anchor when the recurrence string is later edited" do
+        travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
+          task = Task.create!(title: "t", recurrence: "every 3 days",
+                              due_at: Time.zone.local(2026, 8, 20).beginning_of_day, all_day: true)
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 3 days", due_date: "2026-08-20", due_time: "" },
+            reschedule_to: "tomorrow"
+          }
+          expect(task.reload.recurrence_anchor_at).to be_present
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 4 days", due_date: task.reload.due_date, due_time: "" }
+          }
+          expect(task.reload.recurrence_anchor_at).to be_nil
+        end
+      end
+
+      it "does not touch the anchor on an unrelated edit of a rescheduled recurring task" do
+        travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
+          task = Task.create!(title: "t", recurrence: "every 3 days",
+                              due_at: Time.zone.local(2026, 8, 20).beginning_of_day, all_day: true)
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 3 days", due_date: "2026-08-20", due_time: "" },
+            reschedule_to: "tomorrow"
+          }
+          patch task_path(task), params: {
+            task: { title: "renamed", recurrence: "every 3 days", due_date: task.reload.due_date, due_time: "" }
+          }
+          expect(task.reload.recurrence_anchor_at).to be_present
+        end
+      end
+
+      it "resumes the original schedule after the rescheduled occurrence is completed" do
+        travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
+          task = Task.create!(title: "meeting", recurrence: "every monday",
+                              due_at: Time.zone.local(2026, 8, 17, 9, 0, 0), all_day: false)
+          patch task_path(task), params: {
+            task: { title: "meeting", recurrence: "every monday", due_date: "2026-08-17", due_time: "09:00" },
+            reschedule_to: "wednesday 3pm"
+          }
+          expect(task.reload.due_at).to eq(Time.zone.local(2026, 8, 19, 15, 0, 0))
+        end
+        travel_to(Time.zone.local(2026, 8, 19, 16, 0, 0)) do
+          patch complete_task_path(Task.first)
+          task = Task.first
+          expect(task.due_at).to eq(Time.zone.local(2026, 8, 24, 9, 0, 0))
+          expect(task.recurrence_anchor_at).to be_nil
+        end
+      end
+
+      it "reschedules a rolling recurring task without disturbing its from-completion stepping" do
+        travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
+          task = Task.create!(title: "t", recurrence: "every! 2 days",
+                              due_at: Time.zone.local(2026, 8, 18, 9, 0, 0), all_day: false)
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every! 2 days", due_date: "2026-08-18", due_time: "09:00" },
+            reschedule_to: "in 5 days"
+          }
+          expect(task.reload.due_at.to_date).to eq(Date.new(2026, 8, 22))
+        end
+        travel_to(Time.zone.local(2026, 8, 22, 14, 0, 0)) do
+          patch complete_task_path(Task.first)
+          task = Task.first
+          expect(task.due_at).to eq(Time.zone.local(2026, 8, 24, 14, 0, 0))
+          expect(task.recurrence_anchor_at).to be_nil
+        end
+      end
+
+      it "moves only the next occurrence of an every-N-months task" do
+        travel_to(Time.zone.local(2026, 8, 10, 10, 0, 0)) do
+          task = Task.create!(title: "rent", recurrence: "every 2 months",
+                              due_at: Time.zone.local(2026, 9, 1).beginning_of_day, all_day: true)
+          patch task_path(task), params: {
+            task: { title: "rent", recurrence: "every 2 months", due_date: "2026-09-01", due_time: "" },
+            reschedule_to: "in 10 days"
+          }
+        end
+        travel_to(Time.zone.local(2026, 8, 21, 10, 0, 0)) do
+          patch complete_task_path(Task.first)
+          task = Task.first
+          expect(task.due_at).to eq(Time.zone.local(2026, 11, 1).beginning_of_day)
+          expect(task.all_day?).to eq(true)
+        end
+      end
+
+      it "clears the anchor when a later edit clears the due date" do
+        travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
+          task = Task.create!(title: "t", recurrence: "every 3 days",
+                              due_at: Time.zone.local(2026, 8, 20).beginning_of_day, all_day: true)
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 3 days", due_date: "2026-08-20", due_time: "" },
+            reschedule_to: "tomorrow"
+          }
+          expect(task.reload.recurrence_anchor_at).to be_present
+          patch task_path(task), params: {
+            task: { title: "t", recurrence: "every 3 days", due_date: "", due_time: "" }
+          }
+          task.reload
+          expect(task.recurrence_anchor_at).to be_nil
+          expect(task.recurrence_anchor_all_day).to be_nil
+        end
+      end
+
+      it "rejects changing the recurrence string in the same submit as a reschedule" do
+        task = Task.create!(title: "t", recurrence: "every 3 days",
+                            due_at: Time.zone.local(2026, 8, 20).beginning_of_day, all_day: true)
         patch task_path(task), params: {
-          task: { title: "t", recurrence: "every 3 days", due_date: "", due_time: "" },
+          task: { title: "t", recurrence: "every 4 days", due_date: "2026-08-20", due_time: "" },
           reschedule_to: "tomorrow"
         }
         expect(response).to have_http_status(:unprocessable_content)
-        expect(task.reload.recurrence).to be_nil
+        expect(task.reload.recurrence).to eq("every 3 days")
+        expect(task.recurrence_anchor_at).to be_nil
       end
 
       it "rejects when the date picker was also changed" do

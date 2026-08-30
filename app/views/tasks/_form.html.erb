@@ -52,7 +52,7 @@
       <div class="control">
         <%= text_field_tag :reschedule_to, @reschedule_to, class: "input", placeholder: "tomorrow / next friday 3pm / in 2 months" %>
       </div>
-      <p class="help">Sets the due date from free text. Don't also change the date pickers, and clear any recurrence first.</p>
+      <p class="help">Sets the due date from free text. For a recurring task it moves the next occurrence only. Don't also use the date pickers.</p>
     </div>
   <% end %>
 

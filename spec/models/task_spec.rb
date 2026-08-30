@@ -143,6 +143,43 @@ RSpec.describe Task, type: :model do
         expect(occurrence.completed_at).to be_present
       end
     end
+
+    context "when the next occurrence was rescheduled off the pattern" do
+      it "steps the pattern from recurrence_anchor_at, not the moved due_at" do
+        # every wednesday, real phase Wed 2026-01-28 12:00; the next occurrence
+        # was moved to Sat 2026-01-31; completing it must land back on Wednesday.
+        travel_to(Time.zone.local(2026, 1, 31, 12, 0, 0)) do
+          task = Task.create!(
+            title: "meeting", recurrence: "every wednesday",
+            due_at: Time.zone.local(2026, 1, 31, 15, 0, 0), all_day: false,
+            recurrence_anchor_at: Time.zone.local(2026, 1, 28, 12, 0, 0),
+            recurrence_anchor_all_day: false
+          )
+          task.complete!
+          task.reload
+          expect(task.due_at).to eq(Time.zone.local(2026, 2, 4, 12, 0, 0))
+          expect(task.recurrence_anchor_at).to be_nil
+          expect(task.recurrence_anchor_all_day).to be_nil
+        end
+      end
+
+      it "restores the pattern's all-day state from recurrence_anchor_all_day" do
+        # all-day weekly task whose next occurrence was rescheduled to a timed slot.
+        travel_to(Time.zone.local(2026, 2, 5, 12, 0, 0)) do
+          task = Task.create!(
+            title: "bins", recurrence: "every week",
+            due_at: Time.zone.local(2026, 2, 5, 15, 0, 0), all_day: false,
+            recurrence_anchor_at: Time.zone.local(2026, 2, 2).beginning_of_day,
+            recurrence_anchor_all_day: true
+          )
+          task.complete!
+          task.reload
+          expect(task.all_day?).to eq(true)
+          expect(task.due_at).to eq(Time.zone.local(2026, 2, 9).beginning_of_day)
+          expect(task.recurrence_anchor_at).to be_nil
+        end
+      end
+    end
   end
 
   describe "organization (slice 2)" do
