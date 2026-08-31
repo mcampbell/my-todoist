@@ -661,14 +661,35 @@ RSpec.describe "Tasks", type: :request do
       task = Task.create!(title: "do it")
       patch complete_task_path(task)
       get tasks_path
-      expect(response.body).not_to include("do it")
+      # The completion flash names the task, so check the list, not the whole page.
+      expect(Capybara.string(response.body)).to have_no_css("td", text: "do it")
     end
 
-    it "shows a confirmation flash after redirect" do
+    it "flashes a completion notice naming the task, with no next date for a one-off" do
       task = Task.create!(title: "do it")
       patch complete_task_path(task)
       follow_redirect!
-      expect(response.body).to include("Task completed")
+      expect(response.body).to include("“do it” completed.")
+      expect(response.body).not_to include("Next:")
+    end
+
+    it "flashes the next scheduled date and time when completing a timed recurring task" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "water plants", recurrence: "every 3 days",
+                            due_at: Time.zone.local(2026, 8, 15, 9, 0))
+        patch complete_task_path(task)
+        follow_redirect!
+        expect(response.body).to include("“water plants” completed. Next: Aug 18, 9:00 AM.")
+      end
+    end
+
+    it "flashes an all-day next date with no time for an all-day recurring task" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "bins", recurrence: "every 3 days", due_date: "2026-08-15")
+        patch complete_task_path(task)
+        follow_redirect!
+        expect(response.body).to include("“bins” completed. Next: Aug 18.")
+      end
     end
 
     it "redirects back to Today when referred from Today" do
