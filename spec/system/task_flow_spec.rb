@@ -5,14 +5,15 @@ require "rails_helper"
 RSpec.describe "Task flow", type: :system do
   before { driven_by(:rack_test) }
 
-  it "completes a task via the checkbox control" do
+  it "completes a task via the checkbox control and flashes a notice" do
     task = Task.create!(title: "complete-me")
     visit tasks_path
     find("button[aria-label='Complete #{task.title}']").click
 
     expect(Task.exists?(task.id)).to be(false)
     expect(CompletedOccurrence.last.task_title).to eq("complete-me")
-    expect(page).to have_no_content("complete-me")
+    expect(page).to have_css(".notification.is-success", text: "complete-me")
+    expect(page).to have_no_css("table td", text: "complete-me")
   end
 
   it "deletes a task via the trash icon button" do

@@ -127,7 +127,7 @@ class TasksController < ApplicationController
   def complete
     path = task_list_path(@task)
     @task.complete!
-    redirect_back_or_to path, notice: "Task completed."
+    redirect_back_or_to path, notice: completion_notice(@task)
   end
 
   def search
@@ -150,6 +150,14 @@ class TasksController < ApplicationController
 
   def set_task
     @task = Task.find(params[:id])
+  end
+
+  # After #complete!: a one-off task is destroyed; a recurring one survives
+  # with due_at advanced to its next occurrence, which the notice names.
+  def completion_notice(task)
+    return "“#{task.title}” completed." if task.destroyed?
+
+    "“#{task.title}” completed. Next: #{helpers.due_tag(task)}."
   end
 
   # Return to the task's own list: its project, or Inbox.
