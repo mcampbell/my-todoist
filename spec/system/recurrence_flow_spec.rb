@@ -103,13 +103,15 @@ RSpec.describe "Recurrence models", type: :system do
       click_button "Save"
     end
 
-    travel_to(Time.zone.local(2026, 8, 15, 15, 0, 0)) do
+    # Created mid-August: the first occurrence is the next 1st (Aug 1 has passed).
+    expect(Task.last.due_at).to eq(Time.zone.local(2026, 9, 1).beginning_of_day)
+
+    travel_to(Time.zone.local(2026, 9, 1, 15, 0, 0)) do
       visit tasks_path
       complete("Pay rent")
     end
 
-    task = Task.last
-    expect(task.due_at).to eq(Time.zone.local(2026, 9, 1).beginning_of_day)
+    expect(Task.last.due_at).to eq(Time.zone.local(2026, 10, 1).beginning_of_day)
   end
 
   it "seeds a real time-of-day anchor for sub-day recurrences so the task never renders as all-day" do

@@ -46,7 +46,7 @@ RSpec.describe QuickAdd, type: :model do
     it "returns nil due fields when no date or time token is present" do
       expect(described_class.parse("buy milk")).to eq(
         title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil, recurrence: nil,
-        due_error: nil
+        recurrence_start: nil, due_error: nil, starting_error: nil
       )
     end
   end
@@ -446,10 +446,11 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
-    it "coexists with a recurrence phrase in the same title" do
-      expect(parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "water plants every 3 days next week")).to include(
-        title: "water plants", recurrence: "every 3 days", due_date: "2026-09-06", due_time: nil
-      )
+    it "rejects a relative offset on a recurring title with no 'starting' keyword" do
+      result = parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "water plants every 3 days next week")
+      expect(result[:recurrence]).to eq("every 3 days")
+      expect(result[:due_date]).to be_nil
+      expect(result[:starting_error]).to eq("use 'starting' to set when a recurring task begins")
     end
 
     it "resolves 'a'/'an' to a count of 1" do
@@ -485,10 +486,73 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
-    it "coexists with recurrence grammar in the same title" do
-      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "every monday in 3 days clean desk")).to include(
-        title: "clean desk", recurrence: "every monday", due_date: "2026-08-18", due_time: nil
-      )
+    it "rejects a bare offset on a recurring title, keeping the recurrence and title" do
+      result = parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "every monday in 3 days clean desk")
+      expect(result).to include(title: "clean desk", recurrence: "every monday", due_date: nil)
+      expect(result[:starting_error]).to eq("use 'starting' to set when a recurring task begins")
+    end
+  end
+
+  describe "recurrence 'starting' suffix" do
+    def parse_at(time, text)
+      travel_to(time) { described_class.parse(text) }
+    end
+
+    # Tue 2026-09-01 12:00 for every case below.
+    let(:now) { Time.zone.local(2026, 9, 1, 12, 0, 0) }
+
+    it "extracts a relative-offset anchor as recurrence_start" do
+      result = parse_at(now, "do a thing every wednesday starting in 2 days")
+      expect(result).to include(title: "do a thing", recurrence: "every wednesday",
+                                recurrence_start: "2026-09-03", due_date: nil, starting_error: nil)
+    end
+
+    it "extracts a bare-date anchor (Chronic rolls it forward)" do
+      result = parse_at(now, "pay dues every monday starting feb 20")
+      expect(result).to include(recurrence: "every monday", recurrence_start: "2027-02-20", starting_error: nil)
+    end
+
+    it "extracts a weekday-word anchor after 'on'" do
+      result = parse_at(now, "review every 3 thursdays, starting on wed")
+      expect(result).to include(recurrence: "every 3 thursdays", recurrence_start: "2026-09-02", starting_error: nil)
+    end
+
+    it "drops a time carried by the anchor -- the anchor is a date only" do
+      result = parse_at(now, "stretch every monday starting in 3 hours")
+      expect(result).to include(recurrence: "every monday", recurrence_start: "2026-09-01",
+                                due_time: nil, starting_error: nil)
+    end
+
+    it "reports a parse error when the anchor phrase resolves to nothing" do
+      result = parse_at(now, "call vet every monday starting florb")
+      expect(result[:recurrence]).to eq("every monday")
+      expect(result[:starting_error]).to eq("couldn't read the starting date")
+      expect(result[:recurrence_start]).to be_nil
+    end
+
+    it "rejects a separate bare date sitting alongside a valid 'starting' clause" do
+      result = parse_at(now, "sync every monday tomorrow starting feb 20")
+      expect(result[:recurrence_start]).to eq("2027-02-20")
+      expect(result[:starting_error]).to eq("use 'starting' to set when a recurring task begins")
+      expect(result[:due_date]).to be_nil
+    end
+
+    it "takes a past-resolving anchor literally (no clamp)" do
+      result = parse_at(now, "audit every monday starting yesterday")
+      expect(result[:recurrence_start]).to eq("2026-08-31")
+      expect(result[:starting_error]).to be_nil
+    end
+
+    it "does not engage the 'starting' feature without a recurrence" do
+      # The word "starting" carries no meaning here; "monday" is still a plain
+      # date token, per QuickAdd's permissive default.
+      result = parse_at(now, "buy milk starting monday")
+      expect(result).to include(recurrence: nil, recurrence_start: nil, starting_error: nil)
+    end
+
+    it "strips the whole suffix, keeping a clean title" do
+      result = parse_at(now, "water the ferns every friday starting in 1 week")
+      expect(result[:title]).to eq("water the ferns")
     end
   end
 

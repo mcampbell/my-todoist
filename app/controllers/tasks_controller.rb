@@ -61,11 +61,11 @@ class TasksController < ApplicationController
       label_ids: qp[:label_ids] || []
     }
     if parsed[:recurrence].present?
-      apply_recurrence_anchors!(attrs, parsed[:recurrence], nil)
+      apply_recurrence_anchors!(attrs, parsed[:recurrence], nil, parsed[:recurrence_start])
     end
-    if parsed[:due_error].present?
+    if (parse_error = parsed[:due_error] || parsed[:starting_error]).present?
       failed = Task.new(attrs)
-      failed.errors.add(:due_at, parsed[:due_error])
+      failed.errors.add(:due_at, parse_error)
       preserve_quick_add_input!(failed)
       render :new, status: :unprocessable_content
       return
@@ -193,13 +193,13 @@ class TasksController < ApplicationController
     false
   end
 
-  # A recurring task defaults its anchor date to today when it has no date at
-  # all (fixed stepping needs a starting point; rolling ignores it anyway) —
-  # but only for the initial bootstrap, never overriding an explicit blank
-  # post from the edit form. A sub-day recurrence always needs a real time
-  # anchor so the task is not all_day (the slice-6 notifier skips all_day
-  # tasks and due_tag hides the time on them).
-  def apply_recurrence_anchors!(attrs, recurrence, existing_task)
+  # A recurring task with no date bootstraps to its first occurrence on or
+  # after an anchor: the "starting" clause's anchor when given, else today.
+  # Only for the initial bootstrap, never overriding an explicit blank post
+  # from the edit form. A sub-day recurrence always needs a real time anchor
+  # so the task is not all_day (the slice-6 notifier skips all_day tasks and
+  # due_tag hides the time on them).
+  def apply_recurrence_anchors!(attrs, recurrence, existing_task, start_anchor = nil)
     # Skip anchoring entirely for malformed recurrence text: the loose-prefix
     # checks below would otherwise seed due_date/due_time that persist on the
     # in-memory task once validation rightly rejects the recurrence.
@@ -211,19 +211,11 @@ class TasksController < ApplicationController
       attrs[:due_time] = Time.current.strftime("%H:%M")
     end
 
-    # Bootstrap today's date only when this edit assigns a recurrence to a
-    # task that had none (or creates one without a date). A repeated edit of a
-    # task the user already cleared must not silently re-add today.
     bootstrapping = existing_task.nil? ||
       (existing_task.recurrence.blank? && existing_task.due_at.blank?)
     if attrs[:due_date].blank? && bootstrapping
-      rule = Recurrence.parse(recurrence)
-      attrs[:due_date] =
-        if rule.unit == :anchored
-          rule.next_from(due_at: Time.current, now: Time.current).to_date.iso8601
-        else
-          Date.current.iso8601
-        end
+      anchor = start_anchor ? Date.iso8601(start_anchor) : Date.current
+      attrs[:due_date] = Recurrence.parse(recurrence).first_occurrence(on_or_after: anchor).iso8601
     end
   end
 

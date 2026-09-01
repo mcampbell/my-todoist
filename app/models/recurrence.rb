@@ -145,7 +145,51 @@ class Recurrence
     end
   end
 
+  # The first occurrence of this rule on or after `on_or_after` (a Date).
+  # Returns a Date. `count` and `rolling?` are ignored -- the first
+  # occurrence is never stepped. Used to seed a new recurring task's
+  # due_date from a "starting" anchor (and, with today as the anchor, for
+  # the plain bootstrap). Sub-day units (hour/minute) resolve to the anchor
+  # date; the caller adds the clock time.
+  def first_occurrence(on_or_after:)
+    date = on_or_after.to_date
+
+    if unit == :anchored
+      first_anchored_on_or_after(date)
+    elsif WEEKDAY_NAME_UNITS.include?(unit)
+      date + wday_delta(date.wday, WEEKDAYS.fetch(unit), inclusive: true)
+    elsif unit == :weekday
+      date += 1 while [ 0, 6 ].include?(date.wday)
+      date
+    elsif unit == :month
+      first = date.beginning_of_month
+      date.day == 1 ? first : first.next_month
+    else # interval day/week/year/hour/minute -- the anchor becomes the phase
+      date
+    end
+  end
+
   private
+
+  # Calendar days from `from_wday` to `target_wday`. `inclusive: true` keeps
+  # a same-day match at 0; `inclusive: false` bumps it to a full week (the
+  # "strictly after" rule that #next_from's stepping needs).
+  def wday_delta(from_wday, target_wday, inclusive:)
+    delta = (target_wday - from_wday) % 7
+    delta.zero? && !inclusive ? 7 : delta
+  end
+
+  # First `occurrence_in` date (no clock time) on or after `date`, walking
+  # years past any the target is absent from (Feb 29 in a common year).
+  def first_anchored_on_or_after(date)
+    year = date.year
+    loop do
+      occ = @day ? day_of_month(year) : MonthDay.nth_of(year, @month, @ordinal, @token)
+      return occ if occ && occ >= date
+
+      year += 1
+    end
+  end
 
   # Yearly-anchored: the target is the ordinal/last <token>, or the fixed
   # day-of-month, of <month>, carrying the anchor's clock time. Fixed counts
@@ -188,9 +232,7 @@ class Recurrence
   # Next calendar date `steps` occurrences of this recurrent weekday after
   # the anchor, preserving the anchor's clock time.
   def next_occurrence_of_weekday(anchor, steps)
-    target = WEEKDAYS.fetch(unit)
-    delta = (target - anchor.wday) % 7
-    delta = 7 if delta.zero?
+    delta = wday_delta(anchor.wday, WEEKDAYS.fetch(unit), inclusive: false)
     anchor + delta.days + (steps - 1) * 7.days
   end
 

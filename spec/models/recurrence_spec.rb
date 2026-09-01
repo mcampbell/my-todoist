@@ -262,4 +262,60 @@ RSpec.describe Recurrence do
       end
     end
   end
+
+  describe "#first_occurrence" do
+    # Sep 1 2026 is a Tuesday.
+    def first(rule, on)
+      Recurrence.parse(rule).first_occurrence(on_or_after: on)
+    end
+
+    it "returns the anchor itself when it already lands on the weekday (inclusive)" do
+      expect(first("every wednesday", Date.new(2026, 9, 2))).to eq(Date.new(2026, 9, 2))
+    end
+
+    it "rolls forward to the next matching weekday" do
+      expect(first("every wednesday", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 2))
+    end
+
+    it "ignores count -- the first occurrence is the first weekday, not the nth" do
+      expect(first("every 3 thursdays", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 3))
+    end
+
+    it "ignores the rolling marker" do
+      expect(first("every! monday", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 7))
+    end
+
+    it "returns the anchor for a business-day rule when the anchor is a weekday" do
+      expect(first("every weekday", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
+    end
+
+    it "rolls a business-day rule past the weekend" do
+      expect(first("every weekday", Date.new(2026, 9, 5))).to eq(Date.new(2026, 9, 7))
+    end
+
+    it "returns the anchor itself for an interval rule (it becomes the phase)" do
+      expect(first("every 3 days", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
+      expect(first("every 2 weeks", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
+    end
+
+    it "resolves a sub-day rule to the anchor date (the caller adds the clock time)" do
+      expect(first("every 10 minutes", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
+      expect(first("every 6 hours", Date.new(2026, 9, 3))).to eq(Date.new(2026, 9, 3))
+    end
+
+    it "lands a monthly rule on the 1st on or after the anchor" do
+      expect(first("every month", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
+      expect(first("every month", Date.new(2026, 9, 2))).to eq(Date.new(2026, 10, 1))
+      expect(first("every 2 months", Date.new(2026, 9, 2))).to eq(Date.new(2026, 10, 1))
+    end
+
+    it "resolves a day-of-month anchored rule to the occurrence on or after the anchor" do
+      expect(first("every sep 20", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 20))
+      expect(first("every sep 20", Date.new(2026, 9, 21))).to eq(Date.new(2027, 9, 20))
+    end
+
+    it "resolves an ordinal-weekday anchored rule, walking to a future year when this year's has passed" do
+      expect(first("every first monday in june", Date.new(2026, 9, 1))).to eq(Date.new(2027, 6, 7))
+    end
+  end
 end
