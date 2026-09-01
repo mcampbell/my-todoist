@@ -1,5 +1,7 @@
 <% edit_path = edit_task_path(task, return_to: request.path) %>
-<tr class="<%= "has-background-danger-light" if task.overdue? %>">
+<% tint = project_tint(task.project) unless task.overdue? %>
+<%= tag.tr class: ("has-background-danger-light" if task.overdue?),
+           style: ("background-color: #{tint}" if tint) do %>
   <td class="is-narrow">
     <%= button_to complete_task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Complete #{task.title}" do %>
       <span class="icon">
@@ -38,4 +40,4 @@
       </span>
     <% end %>
   </td>
-</tr>
+<% end %>
