@@ -858,6 +858,10 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "organization: Inbox + per-project views (slice 2)" do
+    def helper_tint(project)
+      ApplicationController.helpers.project_tint(project)
+    end
+
     it "Inbox shows only nil-project active tasks" do
       project = Project.create!(name: "Work")
       Task.create!(title: "inbox-task")
@@ -874,6 +878,48 @@ RSpec.describe "Tasks", type: :request do
       expect(Capybara.string(response.body)).to have_css(
         "tr.has-background-danger-light", text: "overdue-inbox-task"
       )
+    end
+
+    it "tints a project task's row with the project colour" do
+      project = Project.create!(name: "Work")
+      Task.create!(title: "work-task", project: project)
+      get project_tasks_path(project)
+      row = Capybara.string(response.body).find("tr", text: "work-task")
+      expect(row[:style]).to include("background-color: #{helper_tint(project)}")
+    end
+
+    it "tints rows by their own project in a mixed-project view" do
+      work = Project.create!(name: "Work")
+      home = Project.create!(name: "Home")
+      Task.create!(title: "work-now", project: work, due_at: 1.hour.from_now)
+      Task.create!(title: "home-now", project: home, due_at: 1.hour.from_now)
+      get today_tasks_path
+      page = Capybara.string(response.body)
+      expect(page.find("tr", text: "work-now")[:style]).to include(helper_tint(work))
+      expect(page.find("tr", text: "home-now")[:style]).to include(helper_tint(home))
+    end
+
+    it "does not tint an Inbox (nil-project) row" do
+      Task.create!(title: "inbox-task")
+      get tasks_path
+      row = Capybara.string(response.body).find("tr", text: "inbox-task")
+      expect(row[:style].to_s).not_to include("background-color")
+    end
+
+    it "keeps the danger background on an overdue project row, with no project tint" do
+      project = Project.create!(name: "Work")
+      Task.create!(title: "late-work", project: project, due_at: 1.day.ago)
+      get project_tasks_path(project)
+      row = Capybara.string(response.body).find("tr", text: "late-work")
+      expect(row[:class]).to include("has-background-danger-light")
+      expect(row[:style].to_s).not_to include("background-color")
+    end
+
+    it "tints the project links in the left nav" do
+      project = Project.create!(name: "Work")
+      get tasks_path
+      link = Capybara.string(response.body).find(".menu-list a", text: "Work")
+      expect(link[:style]).to include("background-color: #{helper_tint(project)}")
     end
 
     it "per-project view shows only that project's active tasks, headed by its name" do

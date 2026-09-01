@@ -8,7 +8,7 @@ class TasksController < ApplicationController
 
   def index
     @project = Project.find(params[:project_id]) if params[:project_id]
-    @tasks = Task.where(project: @project).ordered.includes(:labels)
+    @tasks = Task.where(project: @project).ordered.includes(:labels, :project)
   end
 
   def completed
@@ -16,16 +16,16 @@ class TasksController < ApplicationController
   end
 
   def today
-    @tasks = Task.due_today_or_undated.ordered.includes(:labels)
+    @tasks = Task.due_today_or_undated.ordered.includes(:labels, :project)
   end
 
   def overdue
-    @tasks = Task.overdue.ordered.includes(:labels)
+    @tasks = Task.overdue.ordered.includes(:labels, :project)
   end
 
   def upcoming
     range = 1.day.from_now.beginning_of_day..UPCOMING_DAYS.days.from_now.end_of_day
-    @groups = Task.due_between(range).ordered.includes(:labels)
+    @groups = Task.due_between(range).ordered.includes(:labels, :project)
                   .group_by { |t| t.due_at.to_date }
   end
 
@@ -136,7 +136,7 @@ class TasksController < ApplicationController
 
     if @query.present?
       pattern = "%#{escape_like(@query)}%"
-      @tasks = Task.where("title LIKE ? ESCAPE '\\'", pattern).ordered.includes(:labels)
+      @tasks = Task.where("title LIKE ? ESCAPE '\\'", pattern).ordered.includes(:labels, :project)
       @completed_occurrences = @include_completed ?
         CompletedOccurrence.where("task_title LIKE ? ESCAPE '\\'", pattern).order(completed_at: :desc) :
         CompletedOccurrence.none
