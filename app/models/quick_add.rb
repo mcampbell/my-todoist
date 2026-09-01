@@ -8,7 +8,7 @@ class QuickAdd
   # Recurrence grammar (specs/design.md): "every"/"every!" plus a day, unit,
   # weekday, or N-unit count; or the bare shorthand weekdays/workday. Runs
   # before chronic, which would otherwise parse "every weekday" as a one-off.
-  RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?:(?<count>#{Recurrence::COUNT_RE})\s+)?(?<unit>days?|weeks?|months?|years?|hours?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|workday)\b/i
+  RECURRENCE_RE = /\bevery(?<bang>!?)\s+(?:(?<count>#{Recurrence::COUNT_RE})\s+)?(?<unit>days?|weeks?|months?|years?|hours?|minutes?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|weekday|workday)\b/i
   # Yearly-anchored recurrence, e.g. "every! first monday in jun". Must be
   # tried before RECURRENCE_RE, which would otherwise read "every first monday"
   # as a weekly Monday and strand "in jun" in the title. Shares its ordinal/
@@ -36,6 +36,12 @@ class QuickAdd
   # Chronic's own "next <period>" returns the period's *middle* (next year ->
   # Jul 2). The `\b` after the unit keeps this off "weekday".
   NEXT_UNIT_RE = /\bnext\s+(?<unit>weeks?|months?|years?)\b/i
+  # "starting [on] <anchor>" suffix on a recurring task (see
+  # specs/recurrence-starting-design.md): where the first occurrence begins.
+  # Only honoured when a recurrence is also present.
+  STARTING_RE = /,?\s*\bstarting\s+(?:on\s+)?/i
+  NO_STARTING_MESSAGE = "use 'starting' to set when a recurring task begins"
+  BAD_STARTING_MESSAGE = "couldn't read the starting date"
 
   WORD_RE = /[^\s]+/
   NUMBER_RE = /\A\d+(?:st|nd|rd|th)?\z/i
@@ -65,6 +71,8 @@ class QuickAdd
     title = raw.dup
     priority = extract_priority!(title)
     recurrence, recurrence_time = extract_recurrence!(title)
+    recurrence_start = starting_error = nil
+    recurrence_start, starting_error = extract_recurrence_start!(title) if recurrence
     # Point-in-time runs after the "every"-prefixed recurrences (so those win)
     # but before the bare weekdays/workday shorthand (so "first workday in
     # september" is a one-off date, not an "every weekday" recurrence).
@@ -92,6 +100,14 @@ class QuickAdd
 
     due_time ||= recurrence_time
 
+    # A recurring task's first date comes only from the rule plus an optional
+    # "starting" clause. Any bare date/offset left in the title -- even
+    # alongside a valid "starting" -- is incomplete input.
+    if recurrence && due_date && starting_error.nil?
+      starting_error = NO_STARTING_MESSAGE
+      due_date = due_time = nil
+    end
+
     project_name = nil
     if (match = title.match(PROJECT_RE))
       name = classify(match[1])
@@ -108,9 +124,46 @@ class QuickAdd
       due_time: due_time,
       project_name: project_name,
       recurrence: recurrence,
-      due_error: due_error
+      recurrence_start: recurrence_start,
+      due_error: due_error,
+      starting_error: starting_error
     }
   end
+
+  # "starting [on] <anchor>" suffix. The caller runs this only when a
+  # recurrence is present. Resolves the anchor phrase with the same
+  # resolvers the main date path uses (the "in N unit" offset grammar, then
+  # Chronic via date_span). Returns [iso_date, nil] on success,
+  # [nil, message] when the phrase is present but unresolvable, [nil, nil]
+  # when absent. Strips the matched suffix from `title`.
+  def self.extract_recurrence_start!(title)
+    match = title.match(STARTING_RE)
+    return [ nil, nil ] unless match
+
+    tail = title[match.end(0)..]
+    date, consumed = resolve_start_anchor(tail)
+    return [ nil, BAD_STARTING_MESSAGE ] if date.nil?
+
+    title[match.begin(0)...(match.end(0) + consumed)] = ""
+    [ date, nil ]
+  end
+  private_class_method :extract_recurrence_start!
+
+  # [iso_date, chars consumed from the front of `tail`], or nil. Tries the
+  # "in N unit" offset grammar (only when it sits at the front of the tail),
+  # then Chronic via date_span.
+  def self.resolve_start_anchor(tail)
+    work = tail.dup
+    offset_date, = extract_due_offset!(work)
+    return [ offset_date, tail.length - work.length ] if offset_date && tail.end_with?(work)
+
+    if (span = date_span(tail))
+      return [ span[:parsed].to_date.iso8601, span[:end] ]
+    end
+
+    nil
+  end
+  private_class_method :resolve_start_anchor
 
   # Extracts and normalizes a recurrence phrase, removing it from the title.
   # Returns the canonical recurrence string, or nil when none is present.

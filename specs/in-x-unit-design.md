@@ -120,9 +120,12 @@ surprised a user. Now "next week" == "in 1 week", etc.
   no `in` prefix, must not match; regression guard for Q4 decision).
 - No accidental interaction with `RECURRENCE_RE`/`every` grammar in the same
   title.
-- Positive coexistence: both grammars present in one title (e.g.
+- ~~Positive coexistence: both grammars present in one title (e.g.
   `every monday in 3 days clean desk`) — both `recurrence` and `due_date`
-  are set correctly, title strips cleanly.
+  are set correctly.~~ **Retired 2026-09-01** by
+  `specs/recurrence-starting-design.md`: a recurring title with a bare
+  date/offset and no `starting` keyword is now a 422. Use
+  `every monday starting in 3 days`.
 
 ## Estimate
 

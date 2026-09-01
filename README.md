@@ -35,6 +35,56 @@ bin/rails server
 
 Open <http://localhost:3000>. The app is single-user and needs no login.
 
+## Quick add
+
+The quick-add box parses one line of free text into a task
+(`app/models/quick_add.rb`). Unrecognised words stay in the title, so you
+can always just type a plain title. Tokens may appear in any order.
+
+From simplest to most complex:
+
+| You type | Title | What else it sets |
+|---|---|---|
+| `Buy milk` | Buy milk | — |
+| `Submit report p1` | Submit report | priority (`p1` urgent … `p4` none) |
+| `Call plumber #home` | Call plumber | project `home` (created if new) |
+| `Pack bags 9am` | Pack bags | time today (rolls to tomorrow once 9am passes) |
+| `Dentist tomorrow` | Dentist | all-day date |
+| `Standup friday 9:30am` | Standup | date + time |
+| `Renew licence in 2 weeks` | Renew licence | date = today + 2 weeks (`in <n> days/weeks/months/years/hours/minutes`, or `in a week`) |
+| `Plan trip next month` | Plan trip | date = one month from today (`next week` / `next month` / `next year`) |
+| `Board meeting first monday in june` | Board meeting | the next such date (rolls a year if it has passed) |
+| `Taxes 3rd friday in april at 5pm` | Taxes | anchored date + time |
+| `File report #work p2 next tuesday 4pm` | File report | project, priority, date and time together |
+
+### Recurring tasks
+
+| You type | Recurrence | First occurrence |
+|---|---|---|
+| `Water plants every day` | `every day` | today |
+| `Bins every! day` | rolling — next is scheduled from when you complete it | today |
+| `Pay rent every month` | `every month` (always the 1st) | the next 1st |
+| `Team sync every monday` | `every monday` | the next Monday (on or after today) |
+| `Sprint demo every 2 fridays` | every second Friday | the next Friday |
+| `Payroll every weekday` | every business day (skips Sat/Sun) | the next business day |
+| `Newsletter every third thursday in june` | yearly, 3rd Thursday of June | the next such date |
+| `Anniversary every sep 20` | yearly on 20 September | the next 20 September |
+
+### Recurring tasks with a start date
+
+Add `starting [on] <date>` or `starting in <n> <unit>` to say when the
+series should begin. The first occurrence is the first date the rule
+allows **on or after** your start date; the rule itself is unchanged. A
+recurring task may only get its first date this way — a bare date with no
+`starting` is rejected.
+
+| You type | First occurrence |
+|---|---|
+| `Gym every monday starting in 2 days` | first Monday on or after today + 2 days |
+| `Book club every wednesday starting feb 20` | first Wednesday on or after 20 February |
+| `Review every 3 thursdays, starting on wed` | anchor = the next Wednesday; then the first Thursday on or after it; then every third Thursday |
+| `Standup every monday in 3 days` | rejected — write `starting in 3 days` |
+
 ## Recurrence
 
 Recurring tasks use a small text grammar, parsed by `Recurrence.parse`

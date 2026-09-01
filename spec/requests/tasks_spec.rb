@@ -195,6 +195,62 @@ RSpec.describe "Tasks", type: :request do
       end
     end
 
+    it "bootstraps a bare weekday recurrence to the first matching weekday on or after today" do
+      # Tue Sep 1 -> first Monday is Sep 7, not today.
+      travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) do
+        post tasks_path, params: { task: { title: "team sync every monday" } }
+        expect(Task.last.due_at).to eq(Time.zone.local(2026, 9, 7).beginning_of_day)
+      end
+    end
+
+    describe "'starting' suffix" do
+      it "rolls a relative-offset anchor to the first rule occurrence on or after it" do
+        travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "do a thing every wednesday starting in 2 days" } }
+          task = Task.last
+          expect(task.title).to eq("do a thing")
+          expect(task.recurrence).to eq("every wednesday")
+          # anchor Sep 3 (Thu) -> first Wednesday on/after = Sep 9
+          expect(task.due_at).to eq(Time.zone.local(2026, 9, 9).beginning_of_day)
+        end
+      end
+
+      it "rolls a bare-date anchor" do
+        travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "pay dues every monday starting feb 20" } }
+          # Chronic -> 2027-02-20 (Sat) -> first Monday on/after = 2027-02-22
+          expect(Task.last.due_at).to eq(Time.zone.local(2027, 2, 22).beginning_of_day)
+        end
+      end
+
+      it "handles a weekday-word anchor with count on the rule" do
+        travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "review every 3 thursdays, starting on wed" } }
+          task = Task.last
+          expect(task.recurrence).to eq("every 3 thursdays")
+          # anchor next Wed = Sep 2 -> first Thursday on/after = Sep 3 (count not applied)
+          expect(task.due_at).to eq(Time.zone.local(2026, 9, 3).beginning_of_day)
+        end
+      end
+
+      it "422s a recurring quick-add with a bare date and no 'starting'" do
+        expect {
+          post tasks_path, params: { task: { title: "clean desk every monday in 3 days" } }
+        }.not_to change(Task, :count)
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.body).to include("use &#39;starting&#39; to set when a recurring task begins")
+        expect(response.body).to include('value="clean desk every monday in 3 days"')
+      end
+
+      it "422s when the starting anchor cannot be read" do
+        expect {
+          post tasks_path, params: { task: { title: "call vet every monday starting florb" } }
+        }.not_to change(Task, :count)
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.body).to include("couldn&#39;t read the starting date")
+      end
+    end
+
     it "defaults a recurring task with no time to a real time anchor for sub-day recurrence" do
       travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
         post tasks_path, params: { task: { title: "water plants every 10 minutes" } }
@@ -303,6 +359,14 @@ RSpec.describe "Tasks", type: :request do
       patch task_path(task), params: { task: { recurrence: "every potatoes" } }
       expect(response).to have_http_status(:unprocessable_content)
       expect(task.reload.recurrence).to be_nil
+    end
+
+    it "bootstraps a weekday recurrence set via edit to the next matching weekday" do
+      travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) do # Tuesday
+        task = Task.create!(title: "sync")
+        patch task_path(task), params: { task: { recurrence: "every monday" } }
+        expect(task.reload.due_at).to eq(Time.zone.local(2026, 9, 7).beginning_of_day)
+      end
     end
 
     it "anchors a sub-day recurrence set via edit on a dateless task" do
