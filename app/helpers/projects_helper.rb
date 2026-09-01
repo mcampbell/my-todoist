@@ -5,10 +5,10 @@ module ProjectsHelper
   # hashing the name (CRC32 -- a bucket hash, stable across restarts, unlike
   # String#hash). Deterministic, so no colour is stored and no picker is
   # needed. nil project -> nil (Inbox rows stay untinted).
-  # Palette: the lightest shade of twelve well-spaced hues.
+  # Palette: a soft ~L92% shade of twelve well-spaced hues -- present, not loud.
   PROJECT_TINTS = %w[
-    #fef2f2 #fff7ed #fffbeb #f7fee7 #f0fdf4 #f0fdfa
-    #f0f9ff #eff6ff #eef2ff #f5f3ff #fdf4ff #fff1f2
+    #fee2e2 #ffedd5 #fef3c7 #ecfccb #dcfce7 #ccfbf1
+    #e0f2fe #dbeafe #e0e7ff #ede9fe #fae8ff #ffe4e6
   ].freeze
 
   def project_tint(project)
