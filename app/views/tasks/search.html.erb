@@ -14,7 +14,7 @@
   </div>
   <div class="field">
     <label class="checkbox">
-      <%= check_box_tag :include_completed, "1", @include_completed %>
+      <%= check_box_tag :include_completed, "1", @include_completed, onchange: "this.form.submit()" %>
       Include completed tasks
     </label>
   </div>
