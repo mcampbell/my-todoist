@@ -36,3 +36,7 @@
 # tokensave MCP local code-graph cache (agent tooling, not project source).
 /.tokensave/
 
+# Playwright MCP browser-testing scratch output (agent tooling, not project source).
+/.playwright-mcp/
+/search-page.png
+
