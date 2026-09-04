@@ -72,6 +72,14 @@ RSpec.describe "Tasks", type: :request do
       get tasks_path
       expect(response.body).not_to include("aria-label=\"Skip one-off to next occurrence\"")
     end
+
+    it "adds hover-text tooltips to the skip, edit, and delete buttons" do
+      Task.create!(title: "water plants", recurrence: "every day")
+      get tasks_path
+      expect(response.body).to include("title=\"Move forward\"")
+      expect(response.body).to include("title=\"Edit\"")
+      expect(response.body).to include("title=\"Delete\"")
+    end
   end
 
   describe "GET /tasks/new" do
