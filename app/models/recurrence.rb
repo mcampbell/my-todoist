@@ -8,6 +8,13 @@
 # the result reached now, preserving phase. Rolling (bang) schedules from now
 # in one shot. `every month`/`every N months` lands on the 1st of the target
 # month, discarding day-of-month (no short-month clamping drift).
+#
+# An explicit ordinal-one count on a weekday/business-day unit ("every first
+# wednesday", "every 1st weekday") is otherwise indistinguishable from no
+# count at all, so it is reinterpreted as month-anchored (:month_anchored) --
+# the ordinal weekday of every month -- rather than kept as degenerate
+# weekday-stepping. Higher ordinals ("every third monday") keep their
+# existing every-N-weeks meaning.
 class Recurrence
   class InvalidError < StandardError; end
 
@@ -57,8 +64,29 @@ class Recurrence
     unit = normalize_unit(match[:unit])
     raise InvalidError, "invalid recurrence: #{string.inspect}" if count < 1
 
+    if match[:count] && count == 1 && weekday_or_business_unit?(unit)
+      return build_month_anchored_from_count(unit, match[:bang].present?)
+    end
+
     new(unit: unit, count: count, rolling: match[:bang].present?)
   end
+
+  def self.weekday_or_business_unit?(unit)
+    WEEKDAY_NAME_UNITS.include?(unit) || unit == :weekday
+  end
+  private_class_method :weekday_or_business_unit?
+
+  # An explicit ordinal-one count on a weekday/business-day unit ("every
+  # first wednesday", "every 1st wednesday") is otherwise indistinguishable
+  # from no count at all -- both step to the very next occurrence -- so it is
+  # reinterpreted as "of the month" rather than kept as degenerate
+  # weekday-stepping. Higher ordinals ("every third monday") keep their
+  # existing every-N-weeks meaning.
+  def self.build_month_anchored_from_count(unit, rolling)
+    token = unit == :weekday ? :business : unit
+    new(unit: :month_anchored, rolling: rolling, ordinal: 1, token: token)
+  end
+  private_class_method :build_month_anchored_from_count
 
   # A yearly-anchored rule must be valid every year: reject an ordinal above
   # the month's guaranteed count (e.g. "every 5th monday in feb"), so
@@ -132,6 +160,8 @@ class Recurrence
 
     if unit == :anchored
       advance_anchored(due_at, now)
+    elsif unit == :month_anchored
+      advance_month_anchored(due_at, now)
     elsif WEEKDAY_NAME_UNITS.include?(unit)
       advance_weekday(due_at, now)
     elsif unit == :weekday
@@ -156,6 +186,8 @@ class Recurrence
 
     if unit == :anchored
       first_anchored_on_or_after(date)
+    elsif unit == :month_anchored
+      first_month_anchored_on_or_after(date)
     elsif WEEKDAY_NAME_UNITS.include?(unit)
       date + wday_delta(date.wday, WEEKDAYS.fetch(unit), inclusive: true)
     elsif unit == :weekday
@@ -205,6 +237,34 @@ class Recurrence
       return result if result && result > anchor && result >= now
 
       year += 1
+    end
+  end
+
+  # Month-anchored: the ordinal <token> of every month (e.g. "every first
+  # wednesday" -> the 1st Wednesday of every month, unlike the yearly-anchored
+  # grammar's single calendar slot). Mirrors advance_anchored but steps by
+  # month instead of year; a month can lack the target ordinal (a 5th
+  # weekday) so absent months are skipped.
+  def advance_month_anchored(due_at, now)
+    anchor = rolling? ? now : due_at
+    cursor = anchor.beginning_of_month
+    loop do
+      date = MonthDay.nth_of(cursor.year, cursor.month, @ordinal, @token)
+      if date
+        result = date.in_time_zone.change(hour: anchor.hour, min: anchor.min, sec: anchor.sec)
+        return result if result > anchor && result >= now
+      end
+      cursor = cursor.next_month
+    end
+  end
+
+  def first_month_anchored_on_or_after(date)
+    cursor = date.beginning_of_month
+    loop do
+      occ = MonthDay.nth_of(cursor.year, cursor.month, @ordinal, @token)
+      return occ if occ && occ >= date
+
+      cursor = cursor.next_month
     end
   end
 
