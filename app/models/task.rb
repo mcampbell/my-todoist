@@ -39,32 +39,19 @@ class Task < ApplicationRecord
         all_day: all_day,
         completed_at: Time.current
       )
-      if recurrence.blank?
-        destroy!
-      else
-        rule = Recurrence.parse(recurrence)
-        # When the next occurrence was rescheduled off the pattern, its true
-        # phase (date, time, all_day) sits in recurrence_anchor_*; step from
-        # that so the reschedule moved this one occurrence only. The anchor
-        # is cleared here on completion and in TasksController when an edit
-        # redefines the schedule -- no callback (single-user app).
-        anchor         = recurrence_anchor_at || due_at || Time.current
-        anchor_all_day = recurrence_anchor_at ? recurrence_anchor_all_day == true : all_day
-        next_due = rule.next_from(due_at: anchor, now: Time.current)
-        # A rolling recurrence reschedules from the completion clock time, so
-        # an all-day task's next occurrence would otherwise pick up whatever
-        # time it happened to be completed at. all_day tasks have no time to
-        # preserve, so floor to the date only and keep all_day as it was --
-        # unless the recurrence is sub-day (hour/minute): flooring that would
-        # stall the task at the same midnight forever, so let it become timed
-        # instead (an all-day task recurring every N minutes makes no sense
-        # as all-day in the first place).
-        sub_day = rule.unit.in?(%i[hour minute])
-        next_due = next_due.beginning_of_day if anchor_all_day && !sub_day
-        update!(due_at: next_due, all_day: anchor_all_day && !sub_day,
-                recurrence_anchor_at: nil, recurrence_anchor_all_day: nil)
-      end
+      recurrence.blank? ? destroy! : advance_to_next_occurrence!
       snapshot
+    end
+  end
+
+  # Move a recurring task in place to its next natural occurrence, without
+  # logging a CompletedOccurrence. Raises for a task with no recurrence.
+  def skip!
+    raise ArgumentError, "task has no recurrence to skip" if recurrence.blank?
+
+    with_lock do
+      reload
+      advance_to_next_occurrence!
     end
   end
 
@@ -86,6 +73,32 @@ class Task < ApplicationRecord
   before_validation :compose_due_at, if: -> { @due_date_assigned }
 
   private
+
+  # Steps due_at to the recurrence rule's next occurrence, in place. Shared by
+  # #complete! (recurring case) and #skip!.
+  def advance_to_next_occurrence!
+    rule = Recurrence.parse(recurrence)
+    # When the next occurrence was rescheduled off the pattern, its true
+    # phase (date, time, all_day) sits in recurrence_anchor_*; step from
+    # that so the reschedule moved this one occurrence only. The anchor
+    # is cleared here and in TasksController when an edit redefines the
+    # schedule -- no callback (single-user app).
+    anchor         = recurrence_anchor_at || due_at || Time.current
+    anchor_all_day = recurrence_anchor_at ? recurrence_anchor_all_day == true : all_day
+    next_due = rule.next_from(due_at: anchor, now: Time.current)
+    # A rolling recurrence reschedules from the completion clock time, so an
+    # all-day task's next occurrence would otherwise pick up whatever time it
+    # happened to be completed at. all_day tasks have no time to preserve, so
+    # floor to the date only and keep all_day as it was -- unless the
+    # recurrence is sub-day (hour/minute): flooring that would stall the task
+    # at the same midnight forever, so let it become timed instead (an
+    # all-day task recurring every N minutes makes no sense as all-day in the
+    # first place).
+    sub_day = rule.unit.in?(%i[hour minute])
+    next_due = next_due.beginning_of_day if anchor_all_day && !sub_day
+    update!(due_at: next_due, all_day: anchor_all_day && !sub_day,
+            recurrence_anchor_at: nil, recurrence_anchor_all_day: nil)
+  end
 
   def recurrence_must_be_parseable
     return if recurrence.blank?

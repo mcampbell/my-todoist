@@ -3,7 +3,7 @@ require "did_you_mean"
 class TasksController < ApplicationController
   UPCOMING_DAYS = 7
 
-  before_action :set_task, only: %i[edit update destroy complete]
+  before_action :set_task, only: %i[edit update destroy complete skip]
   helper_method :task_list_path, :safe_return_to
 
   def index
@@ -130,6 +130,12 @@ class TasksController < ApplicationController
     redirect_back_or_to path, notice: completion_notice(@task)
   end
 
+  def skip
+    path = task_list_path(@task)
+    @task.skip!
+    redirect_back_or_to path, notice: skip_notice(@task)
+  end
+
   def search
     @query = params[:q].to_s.strip
     @include_completed = ActiveModel::Type::Boolean.new.cast(params[:include_completed])
@@ -158,6 +164,10 @@ class TasksController < ApplicationController
     return "“#{task.title}” completed." if task.destroyed?
 
     "“#{task.title}” completed. Next: #{helpers.due_tag(task)}."
+  end
+
+  def skip_notice(task)
+    "“#{task.title}” skipped. Next: #{helpers.due_tag(task)}."
   end
 
   # Return to the task's own list: its project, or Inbox.

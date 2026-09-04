@@ -340,4 +340,35 @@ RSpec.describe Task, type: :model do
       end
     end
   end
+
+  describe "#skip! (advance to next occurrence without logging completion)" do
+    it "advances a recurring task's due_at without creating a CompletedOccurrence" do
+      travel_to(Time.zone.local(2026, 2, 7, 12, 0, 0)) do
+        task = Task.create!(title: "meeting", recurrence: "every wednesday",
+                            due_at: Time.zone.local(2026, 1, 28, 12, 0, 0))
+        expect { task.skip! }.not_to change(CompletedOccurrence, :count)
+        task.reload
+        expect(Task.count).to eq(1)
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 11, 12, 0, 0))
+      end
+    end
+
+    it "clears a stale reschedule anchor, same as completing" do
+      travel_to(Time.zone.local(2026, 2, 7, 12, 0, 0)) do
+        task = Task.create!(title: "meeting", recurrence: "every wednesday",
+                            due_at: Time.zone.local(2026, 2, 4, 12, 0, 0),
+                            recurrence_anchor_at: Time.zone.local(2026, 1, 28, 12, 0, 0),
+                            recurrence_anchor_all_day: false)
+        task.skip!
+        task.reload
+        expect(task.recurrence_anchor_at).to be_nil
+        expect(task.recurrence_anchor_all_day).to be_nil
+      end
+    end
+
+    it "raises for a task with no recurrence" do
+      task = Task.create!(title: "one-off")
+      expect { task.skip! }.to raise_error(ArgumentError)
+    end
+  end
 end

@@ -60,6 +60,18 @@ RSpec.describe "Tasks", type: :request do
         expect(response.body).to include("Jun 5, 2030, 2:30 PM")
       end
     end
+
+    it "shows a skip-to-next-occurrence button for a recurring task" do
+      Task.create!(title: "water plants", recurrence: "every day")
+      get tasks_path
+      expect(response.body).to include("aria-label=\"Skip water plants to next occurrence\"")
+    end
+
+    it "hides the skip-to-next-occurrence button for a point-in-time task" do
+      Task.create!(title: "one-off")
+      get tasks_path
+      expect(response.body).not_to include("aria-label=\"Skip one-off to next occurrence\"")
+    end
   end
 
   describe "GET /tasks/new" do
@@ -794,6 +806,36 @@ RSpec.describe "Tasks", type: :request do
       task = Task.create!(title: "do it")
       patch complete_task_path(task)
       expect(response).to redirect_to(tasks_path)
+    end
+  end
+
+  describe "PATCH /tasks/:id/skip" do
+    it "advances the task's due_at without creating a CompletedOccurrence" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "water plants", recurrence: "every 3 days",
+                            due_at: Time.zone.local(2026, 8, 15, 9, 0))
+        patch skip_task_path(task)
+        expect(response).to redirect_to(tasks_path)
+        task.reload
+        expect(task.due_at).to eq(Time.zone.local(2026, 8, 18, 9, 0))
+        expect(CompletedOccurrence.count).to eq(0)
+      end
+    end
+
+    it "flashes a skip notice naming the task and its next date" do
+      travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+        task = Task.create!(title: "water plants", recurrence: "every 3 days",
+                            due_at: Time.zone.local(2026, 8, 15, 9, 0))
+        patch skip_task_path(task)
+        follow_redirect!
+        expect(response.body).to include("“water plants” skipped. Next: Aug 18, 9:00 AM.")
+      end
+    end
+
+    it "redirects back to Today when referred from Today" do
+      task = Task.create!(title: "water plants", recurrence: "every day", due_at: Time.current)
+      patch skip_task_path(task), headers: { "HTTP_REFERER" => today_tasks_path }
+      expect(response).to redirect_to(today_tasks_path)
     end
   end
 

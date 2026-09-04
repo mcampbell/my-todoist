@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   resources :tasks, except: [ :show ] do
     member do
       patch :complete
+      patch :skip
     end
     collection do
       get :due_since
