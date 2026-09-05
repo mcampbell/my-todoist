@@ -40,11 +40,12 @@ completed_at). No live FK — an audit record nothing later modifies.
   - `every N days` / `every! N days` — every N days (e.g. `every 3 days`)
   - `every week` / `every! week` — weekly
   - `every N weeks` / `every! N weeks` — every N weeks
-  - `every month` / `every! month` — monthly, lands on the 1st of the
-    target month (not the anchor's day-of-month) — sidesteps day-of-month
-    clamping/anchor-drift on short months entirely.
-  - `every N months` / `every! N months` — every N months, same
-    1st-of-month landing rule
+  - `every month` / `every! month` — monthly, a flat 30-day interval from
+    the anchor (no calendar-month/1st-of-month anchoring).
+  - `every N months` / `every! N months` — every N months, flat N*30-day
+    interval, same rule
+  - `every quarter` / `every! quarter` — sugar for `every 3 months`;
+    `every N quarters` == `every N*3 months`
   - `every year` / `every! year` — yearly
   - `every N years` / `every! N years` — every N years
   - `every monday` … `every sunday` — specific weekday (rolling `every!

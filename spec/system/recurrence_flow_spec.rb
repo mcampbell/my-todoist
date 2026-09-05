@@ -96,22 +96,22 @@ RSpec.describe "Recurrence models", type: :system do
     expect(task.due_at).to eq(Time.zone.local(2026, 8, 31).beginning_of_day)
   end
 
-  it "lands a month recurrence on the 1st of the target month, discarding day-of-month" do
+  it "advances a month recurrence by a flat 30 days, preserving day-of-month" do
     travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
       visit new_task_path
       fill_in "Title", with: "Pay rent every month"
       click_button "Save"
     end
 
-    # Created mid-August: the first occurrence is the next 1st (Aug 1 has passed).
-    expect(Task.last.due_at).to eq(Time.zone.local(2026, 9, 1).beginning_of_day)
+    # No "starting" anchor: the first occurrence is the anchor date itself.
+    expect(Task.last.due_at).to eq(Time.zone.local(2026, 8, 15).beginning_of_day)
 
-    travel_to(Time.zone.local(2026, 9, 1, 15, 0, 0)) do
+    travel_to(Time.zone.local(2026, 9, 1, 9, 0, 0)) do
       visit tasks_path
       complete("Pay rent")
     end
 
-    expect(Task.last.due_at).to eq(Time.zone.local(2026, 10, 1).beginning_of_day)
+    expect(Task.last.due_at).to eq(Time.zone.local(2026, 8, 15).beginning_of_day + 30.days)
   end
 
   it "seeds a real time-of-day anchor for sub-day recurrences so the task never renders as all-day" do
