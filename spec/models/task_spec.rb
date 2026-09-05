@@ -108,7 +108,7 @@ RSpec.describe Task, type: :model do
         task.complete!
         task.reload
         expect(task.all_day?).to eq(true)
-        expect(task.due_at).to eq(Time.zone.local(2026, 3, 1).beginning_of_day)
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 1).beginning_of_day + 30.days)
       end
     end
 
@@ -119,7 +119,7 @@ RSpec.describe Task, type: :model do
         task.complete!
         task.reload
         expect(task.all_day?).to eq(true)
-        expect(task.due_at).to eq(Time.zone.local(2026, 3, 1).beginning_of_day)
+        expect(task.due_at).to eq(Time.zone.local(2026, 2, 10, 10, 0, 0).beginning_of_day + 30.days)
       end
     end
       it "advances a rolling recurring task from the completion time" do

@@ -97,9 +97,11 @@ every(!)? (count)? unit
 - `every` schedules the next occurrence from the original due date, in whole
   intervals, preserving phase (never resets to now). `every!` (rolling)
   schedules from the completion time instead.
-- `unit` is one of: `day(s)`, `week(s)`, `month(s)`, `year(s)`, `hour(s)`,
-  `minute(s)`; a weekday name (`monday`..`sunday`, plural accepted); or
-  `weekday`/`workday` (next business day, skipping Saturday/Sunday).
+- `unit` is one of: `day(s)`, `week(s)`, `month(s)`, `quarter(s)`,
+  `year(s)`, `hour(s)`, `minute(s)`; a weekday name (`monday`..`sunday`,
+  plural accepted); or `weekday`/`workday` (next business day, skipping
+  Saturday/Sunday). `quarter(s)` is sugar for 3 months (`every 2 quarters`
+  == `every 6 months`).
 - `count` is optional and defaults to 1. It accepts:
   - a plain number (`every 3 days`)
   - a digit-suffix ordinal (`every 2nd monday`, `every 21st day`)
@@ -108,8 +110,8 @@ every(!)? (count)? unit
 - On weekday-name and business-day units, `count` steps that many
   occurrences per advance (`every 3 monday` skips two Mondays each cycle;
   `every! other monday` lands on the second Monday from now).
-- `every month` / `every N months` lands on the 1st of the target month,
-  discarding day-of-month (no short-month clamping drift).
+- `every month` / `every N months` is a flat count*30-day interval from
+  the anchor, same as day/week/year units (no calendar-month anchoring).
 
 Examples: `every day`, `every 3 days`, `every other monday`,
 `every! third monday`, `every 2 weekday`, `every! month`.

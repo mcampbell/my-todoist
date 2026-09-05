@@ -648,7 +648,7 @@ RSpec.describe "Tasks", type: :request do
         travel_to(Time.zone.local(2026, 8, 21, 10, 0, 0)) do
           patch complete_task_path(Task.first)
           task = Task.first
-          expect(task.due_at).to eq(Time.zone.local(2026, 11, 1).beginning_of_day)
+          expect(task.due_at).to eq(Time.zone.local(2026, 9, 1).beginning_of_day + 60.days)
           expect(task.all_day?).to eq(true)
         end
       end

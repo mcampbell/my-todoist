@@ -6,8 +6,9 @@
 #
 # Fixed (no bang) marches from the original due_at in whole intervals until
 # the result reached now, preserving phase. Rolling (bang) schedules from now
-# in one shot. `every month`/`every N months` lands on the 1st of the target
-# month, discarding day-of-month (no short-month clamping drift).
+# in one shot. `every month`/`every N months` is a flat count*30-day interval
+# from the anchor, same as day/week/year (no calendar-month anchoring).
+# `every quarter` is a synonym for `every 3 months`.
 #
 # An explicit ordinal-one count on a weekday/business-day unit ("every first
 # wednesday", "every 1st weekday") is otherwise indistinguishable from no
@@ -32,7 +33,7 @@ class Recurrence
     "eighteenth" => 18, "nineteenth" => 19, "twentieth" => 20
   }.freeze
 
-  UNIT_RE = /days?|weeks?|months?|years?|hours?|minutes?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|weekdays?|workdays?/
+  UNIT_RE = /days?|weeks?|months?|quarters?|years?|hours?|minutes?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|weekdays?|workdays?/
   COUNT_RE = /\d+(?:'?(?:st|nd|rd|th))?|#{ORDINAL_WORDS.keys.join('|')}/
   GRAMMAR = /\Aevery(?<bang>!)?\s+(?:(?<count>#{COUNT_RE})\s+)?(?<unit>#{UNIT_RE})\z/i
   # Yearly-anchored form: "every[!] {ordinal/last} {day/weekday} in <month>".
@@ -62,6 +63,10 @@ class Recurrence
 
     count = match[:count] ? resolve_count(match[:count]) : 1
     unit = normalize_unit(match[:unit])
+    if unit == :quarter
+      unit = :month
+      count *= 3
+    end
     raise InvalidError, "invalid recurrence: #{string.inspect}" if count < 1
 
     if match[:count] && count == 1 && weekday_or_business_unit?(unit)
@@ -145,9 +150,12 @@ class Recurrence
     @rolling
   end
 
-  # Gap in duration for interval units (day/week/year/hour/minute); nil for
-  # weekday-name, business-day, and month units whose stepping is non-uniform.
+  # Gap in duration for interval units (day/week/year/hour/minute) and month
+  # (flat count*30 days -- no calendar-month/1st-of-month anchoring); nil for
+  # weekday-name and business-day units whose stepping is non-uniform.
   def interval
+    return count * 30.days if unit == :month
+
     return unless INTERVAL_UNITS.include?(unit)
 
     count.public_send("#{unit}s")
@@ -166,8 +174,6 @@ class Recurrence
       advance_weekday(due_at, now)
     elsif unit == :weekday
       advance_business_day(due_at, now)
-    elsif unit == :month
-      advance_month(due_at, now)
     elsif rolling?
       now + interval
     else
@@ -193,10 +199,7 @@ class Recurrence
     elsif unit == :weekday
       date += 1 while [ 0, 6 ].include?(date.wday)
       date
-    elsif unit == :month
-      first = date.beginning_of_month
-      date.day == 1 ? first : first.next_month
-    else # interval day/week/year/hour/minute -- the anchor becomes the phase
+    else # interval day/week/month/year/hour/minute -- the anchor becomes the phase
       date
     end
   end
@@ -312,20 +315,6 @@ class Recurrence
       candidate += 1.day while [ 0, 6 ].include?(candidate.wday)
     end
     candidate
-  end
-
-  # Month/N-months lands on the 1st of the target month. Fixed: take the 1st
-  # of the anchor's month, then advance N calendar months until now is
-  # reached. Rolling: the 1st of the month N months from now.
-  def advance_month(due_at, now)
-    first_of_anchor_month = due_at.change(day: 1)
-    if rolling?
-      count.months.since(now).beginning_of_month
-    else
-      result = count.months.since(first_of_anchor_month)
-      result = count.months.since(result) while result < now
-      result
-    end
   end
 
   # Fixed interval stepping: `next = original due_at + interval`, then keep

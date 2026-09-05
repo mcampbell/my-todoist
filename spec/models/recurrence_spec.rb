@@ -27,6 +27,26 @@ RSpec.describe Recurrence do
       expect(Recurrence.parse("every hour")).not_to be_nil
     end
 
+    it "parses quarter as 3 months" do
+      rule = Recurrence.parse("every quarter")
+      expect(rule.count).to eq(3)
+      expect(rule.unit).to eq(:month)
+      expect(rule).not_to be_rolling
+    end
+
+    it "parses a count of quarters as count*3 months" do
+      rule = Recurrence.parse("every 2 quarters")
+      expect(rule.count).to eq(6)
+      expect(rule.unit).to eq(:month)
+    end
+
+    it "marks a bang'd quarter as rolling" do
+      rule = Recurrence.parse("every! quarter")
+      expect(rule).to be_rolling
+      expect(rule.count).to eq(3)
+      expect(rule.unit).to eq(:month)
+    end
+
     it "parses a count with a plural unit" do
       rule = Recurrence.parse("every 3 days")
       expect(rule.interval).to eq(3.days)
@@ -154,16 +174,28 @@ RSpec.describe Recurrence do
         expect(result).to eq(Time.zone.local(2028, 1, 1))
       end
 
-      it "lands monthly as N months from the 1st, discarding day-of-month" do
+      it "advances monthly by a flat 30 days, preserving day-of-month" do
         rule = Recurrence.parse("every month")
-        result = rule.next_from(due_at: Time.zone.local(2026, 1, 31, 12, 0), now: Time.current)
-        expect(result).to eq(Time.zone.local(2026, 3, 1, 12, 0))
+        result = rule.next_from(due_at: Time.zone.local(2026, 1, 31, 12, 0), now: Time.zone.local(2026, 1, 31, 12, 0))
+        expect(result).to eq(Time.zone.local(2026, 1, 31, 12, 0) + 30.days)
       end
 
-      it "lands N-months from the 1st of the anchor's month" do
+      it "advances N months by a flat N*30 days from the anchor" do
         rule = Recurrence.parse("every 2 months")
-        result = rule.next_from(due_at: Time.zone.local(2026, 1, 15), now: Time.current)
-        expect(result).to eq(Time.zone.local(2026, 3, 1, 0, 0))
+        result = rule.next_from(due_at: Time.zone.local(2026, 1, 15), now: Time.zone.local(2026, 1, 15))
+        expect(result).to eq(Time.zone.local(2026, 1, 15) + 60.days)
+      end
+
+      it "advances a quarterly recurrence by a flat 90 days from the anchor" do
+        rule = Recurrence.parse("every quarter")
+        result = rule.next_from(due_at: Time.zone.local(2026, 1, 15), now: Time.zone.local(2026, 1, 15))
+        expect(result).to eq(Time.zone.local(2026, 1, 15) + 90.days)
+      end
+
+      it "advances every 3 weeks by a flat 21 days, no week-start anchoring" do
+        rule = Recurrence.parse("every 3 weeks")
+        result = rule.next_from(due_at: Time.zone.local(2026, 2, 9, 9, 0), now: Time.zone.local(2026, 2, 9, 9, 0))
+        expect(result).to eq(Time.zone.local(2026, 2, 9, 9, 0) + 21.days)
       end
 
       it "advances a weekday-name recurrence by one week from the anchor" do
@@ -223,16 +255,22 @@ RSpec.describe Recurrence do
         expect(result).to eq(2.years.since(Time.current))
       end
 
-      it "schedules N months from now on the 1st" do
+      it "schedules a flat N*30 days from now for an N-months recurrence" do
         rule = Recurrence.parse("every! 3 months")
         result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
-        expect(result).to eq(3.months.since(Time.current).beginning_of_month)
+        expect(result).to eq(90.days.since(Time.current))
       end
 
-      it "schedules on the 1st of next month for a monthly recurrence" do
+      it "schedules a flat 30 days from now for a monthly recurrence" do
         rule = Recurrence.parse("every! month")
         result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
-        expect(result).to eq(1.month.since(Time.current).beginning_of_month)
+        expect(result).to eq(30.days.since(Time.current))
+      end
+
+      it "schedules a flat 90 days from now for a quarterly recurrence" do
+        rule = Recurrence.parse("every! quarter")
+        result = rule.next_from(due_at: Time.zone.local(2020, 1, 1), now: Time.current)
+        expect(result).to eq(90.days.since(Time.current))
       end
 
       it "reschedules a weekday-name recurrence from the completion date" do
@@ -298,15 +336,14 @@ RSpec.describe Recurrence do
       expect(first("every 2 weeks", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
     end
 
+    it "returns the anchor itself for a monthly rule, no 1st-of-month snapping" do
+      expect(first("every month", Date.new(2026, 9, 2))).to eq(Date.new(2026, 9, 2))
+      expect(first("every 2 months", Date.new(2026, 9, 2))).to eq(Date.new(2026, 9, 2))
+    end
+
     it "resolves a sub-day rule to the anchor date (the caller adds the clock time)" do
       expect(first("every 10 minutes", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
       expect(first("every 6 hours", Date.new(2026, 9, 3))).to eq(Date.new(2026, 9, 3))
-    end
-
-    it "lands a monthly rule on the 1st on or after the anchor" do
-      expect(first("every month", Date.new(2026, 9, 1))).to eq(Date.new(2026, 9, 1))
-      expect(first("every month", Date.new(2026, 9, 2))).to eq(Date.new(2026, 10, 1))
-      expect(first("every 2 months", Date.new(2026, 9, 2))).to eq(Date.new(2026, 10, 1))
     end
 
     it "resolves a day-of-month anchored rule to the occurrence on or after the anchor" do
