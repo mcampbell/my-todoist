@@ -133,6 +133,22 @@ RSpec.describe "Tasks", type: :request do
       get edit_task_path(task)
       expect(response.body).to include('name="reschedule_to"')
     end
+
+    it "pairs project+priority on one row and due date+due time on another" do
+      task = Task.create!(title: "edit me")
+      get edit_task_path(task)
+      doc = Nokogiri::HTML(response.body)
+
+      project_row = doc.at_css("#task_project_id").ancestors(".columns").first
+      priority_row = doc.at_css("#task_priority").ancestors(".columns").first
+      expect(project_row).not_to be_nil
+      expect(project_row).to eq(priority_row)
+
+      due_date_row = doc.at_css("#task_due_date").ancestors(".columns").first
+      due_time_row = doc.at_css("#task_due_time").ancestors(".columns").first
+      expect(due_date_row).not_to be_nil
+      expect(due_date_row).to eq(due_time_row)
+    end
   end
 
   describe "edit link carries return_to back to the originating view" do
@@ -1136,6 +1152,12 @@ RSpec.describe "Tasks", type: :request do
       get search_tasks_path
       expect(response).to have_http_status(:ok)
       expect(response.body).not_to include("<table")
+    end
+
+    it "points the New task link's return_to at Today, not the search page" do
+      get search_tasks_path, params: { q: "milk" }
+      link = Capybara.string(response.body).find_link("New task", class: "button")
+      expect(link[:href]).to eq(new_task_path(return_to: today_tasks_path))
     end
 
     it "matches a task title case-insensitively by substring" do

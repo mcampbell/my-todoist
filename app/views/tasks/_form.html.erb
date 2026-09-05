@@ -26,24 +26,26 @@
     </div>
   </div>
 
-  <div class="field">
-    <%= f.label :due_date, "Due date", class: "label" %>
-    <div class="control">
-      <%= f.date_field :due_date, class: "input" %>
+  <div class="columns">
+    <div class="column field">
+      <%= f.label :due_date, "Due date", class: "label" %>
+      <div class="control">
+        <%= f.date_field :due_date, class: "input" %>
+      </div>
     </div>
-  </div>
 
-  <div class="field">
-    <%= f.label :due_time, "Due time (optional)", class: "label" %>
-    <div class="field has-addons">
-      <div class="control">
-        <%= f.time_field :due_time, class: "input" %>
+    <div class="column field">
+      <%= f.label :due_time, "Due time (optional)", class: "label" %>
+      <div class="field has-addons">
+        <div class="control">
+          <%= f.time_field :due_time, class: "input" %>
+        </div>
+        <div class="control">
+          <button type="button" id="clear-due-time" class="button is-light">Clear time</button>
+        </div>
       </div>
-      <div class="control">
-        <button type="button" id="clear-due-time" class="button is-light">Clear time</button>
-      </div>
+      <p class="help">Clear the time to make this an all-day task.</p>
     </div>
-    <p class="help">Clear the time to make this an all-day task.</p>
   </div>
 
   <% if task.persisted? %>
@@ -63,20 +65,22 @@
     </div>
   </div>
 
-  <div class="field">
-    <%= f.label :project_id, "Project", class: "label" %>
-    <div class="control">
-      <div class="select">
-        <%= f.collection_select :project_id, Project.order(:name), :id, :name, include_blank: "Inbox" %>
+  <div class="columns">
+    <div class="column field">
+      <%= f.label :project_id, "Project", class: "label" %>
+      <div class="control">
+        <div class="select">
+          <%= f.collection_select :project_id, Project.order(:name), :id, :name, include_blank: "Inbox" %>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="field">
-    <%= f.label :priority, class: "label" %>
-    <div class="control">
-      <div class="select">
-        <%= f.select :priority, priority_select_options %>
+    <div class="column field">
+      <%= f.label :priority, class: "label" %>
+      <div class="control">
+        <div class="select">
+          <%= f.select :priority, priority_select_options %>
+        </div>
       </div>
     </div>
   </div>
