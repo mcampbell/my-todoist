@@ -263,6 +263,18 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
+    it "parses a numeric dash date as US-ordered MM-DD-YYYY (9-15-2027)" do
+      expect(parse_at(Time.zone.local(2026, 8, 1, 10, 0, 0), "Call dentist 9-15-2027")).to include(
+        title: "Call dentist", due_date: "2027-09-15", due_time: nil
+      )
+    end
+
+    it "parses a numeric dash date without a year, defaulting to current year (9-15)" do
+      expect(parse_at(Time.zone.local(2026, 8, 1, 10, 0, 0), "Call dentist 9-15")).to include(
+        title: "Call dentist", due_date: "2026-09-15", due_time: nil
+      )
+    end
+
     it "parses a compact dash date placed mid-title, stripping cleanly" do
       expect(parse_at(Time.zone.local(2026, 8, 1, 10, 0, 0), "Call dentist 15-aug-2026 about braces")).to include(
         title: "Call dentist about braces", due_date: "2026-08-15", due_time: nil

@@ -531,6 +531,14 @@ RSpec.describe "Tasks", type: :request do
         end
       end
 
+      it "sets a date from a numeric dash phrase (US-ordered MM-DD-YYYY)" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "t")
+          patch task_path(task), params: { task: { title: "t", due_date: "", due_time: "" }, reschedule_to: "9-15-2027" }
+          expect(task.reload.due_at.to_date).to eq(Date.new(2027, 9, 15))
+        end
+      end
+
       it "removes the time when the phrase is date-only, keeping the pickers unchanged" do
         task = Task.create!(title: "t", due_at: Time.zone.local(2026, 2, 20, 9, 15))
         travel_to(Time.zone.local(2026, 2, 10, 12, 0, 0)) do
