@@ -49,6 +49,9 @@ class QuickAdd
   DATE_WORD_RE = /\A(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|tomorrow|today|yesterday|next|last|weekday|workday|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|weeks?|months?|years?)\z/i
   # Compact dash/slash date token, e.g. "15-aug-2026", "15-aug", "15/aug/2026".
   COMPACT_DATE_RE = /\A\d{1,2}[-\/](?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)(?:[-\/]\d{2,4})?\z/i
+  # Numeric slash date, US-ordered MM/DD[/YYYY], e.g. "9/15/2027", "9/15".
+  # Chronic already reads this format natively (no month name, no tr needed).
+  NUMERIC_DATE_RE = /\A\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\z/
   # Bare ordinal day-of-month, e.g. "24th" in "the 24th".
   ORDINAL_DAY_RE = /\A\d{1,2}(?:st|nd|rd|th)\z/i
   # Explicit time forms (digit and word) plus their standalone am/pm markers.
@@ -340,7 +343,7 @@ class QuickAdd
   private_class_method :chronic_word
 
   def self.date_word?(word)
-    DATE_WORD_RE.match?(word) || COMPACT_DATE_RE.match?(word)
+    DATE_WORD_RE.match?(word) || COMPACT_DATE_RE.match?(word) || NUMERIC_DATE_RE.match?(word)
   end
   private_class_method :date_word?
 
