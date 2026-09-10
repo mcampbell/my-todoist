@@ -127,4 +127,20 @@ RSpec.describe "Task display", type: :system do
 
     expect(page).to have_content("Nothing due in the next 7 days.")
   end
+
+  it "shows the first line of a task's notes under the title, marked when cut" do
+    Task.create!(title: "Plumbing", notes: "Call the plumber\nAsk about the sink")
+    Task.create!(title: "Groceries", notes: "Milk and eggs")
+    Task.create!(title: "Bare", notes: "")
+
+    visit tasks_path
+
+    within("tr", text: "Plumbing") do
+      expect(page).to have_css(".task-notes.is-size-7", text: "Call the plumber...")
+    end
+    within("tr", text: "Groceries") do
+      expect(page).to have_css(".task-notes", text: "Milk and eggs")
+    end
+    within("tr", text: "Bare") { expect(page).to have_no_css(".task-notes") }
+  end
 end

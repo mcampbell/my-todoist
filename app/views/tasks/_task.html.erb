@@ -23,6 +23,9 @@
     <% task.labels.sort_by(&:name).each do |label| %>
       <span class="tag is-light"><%= label.name %></span>
     <% end %>
+    <% if (preview = notes_preview(task)) %>
+      <p class="task-notes is-size-7 has-text-grey"><%= preview %></p>
+    <% end %>
   </td>
   <td class="is-narrow">
     <% if task.recurrence.present? %>
