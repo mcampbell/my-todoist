@@ -72,7 +72,9 @@ RSpec.describe "Task flow", type: :system do
     task = Task.last
     expect(task.project.name).to eq("Work")
     expect(task.title).to eq("Call dentist")
-    expect(page).to have_current_path(project_tasks_path(task.project), ignore_query: true)
+    expect(page).to have_current_path(today_tasks_path, ignore_query: true)
+
+    visit project_tasks_path(task.project)
     expect(page).to have_content("Call dentist")
   end
 
@@ -90,7 +92,9 @@ RSpec.describe "Task flow", type: :system do
     expect(task.priority).to eq(2)
     expect(task.due_at).to eq(Time.zone.local(2026, 8, 19, 15, 0))
     expect(task.all_day?).to eq(false)
-    expect(page).to have_current_path(project_tasks_path(task.project), ignore_query: true)
+    expect(page).to have_current_path(today_tasks_path, ignore_query: true)
+
+    visit project_tasks_path(task.project)
     expect(page).to have_content("Call dentist")
   end
 
