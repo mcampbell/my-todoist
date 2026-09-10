@@ -85,7 +85,9 @@ class TasksController < ApplicationController
     end
     @task = Task.new(attrs)
     if @task.save
-      redirect_to safe_return_to || task_list_path(@task)
+      # Every add lands on Today, whatever view it came from: a new task is
+      # the thing you just decided to do, so Today is where you check it.
+      redirect_to today_tasks_path
     else
       # On recurrence-validation failure the parsed title has already lost the
       # recurrence span; rebuild from the raw quick-add string so the edit

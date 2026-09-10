@@ -200,7 +200,7 @@ RSpec.describe "Tasks", type: :request do
       expect {
         post tasks_path, params: { task: { title: "new", notes: "keep me" } }
       }.to change(Task, :count).by(1)
-      expect(response).to redirect_to(tasks_path)
+      expect(response).to redirect_to(today_tasks_path)
       expect(Task.last.notes).to be_nil
     end
 
@@ -333,19 +333,25 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include("Title can&#39;t be blank")
     end
 
-    it "redirects back to return_to when present, instead of task_list_path" do
-      post tasks_path, params: { task: { title: "t" }, return_to: today_tasks_path }
+    it "redirects to today" do
+      post tasks_path, params: { task: { title: "t" } }
       expect(response).to redirect_to(today_tasks_path)
     end
 
-    it "ignores a protocol-relative return_to and falls back to task_list_path" do
-      post tasks_path, params: { task: { title: "t" }, return_to: "//evil.com" }
-      expect(response).to redirect_to(tasks_path)
+    it "redirects to today even when return_to names another view" do
+      post tasks_path, params: { task: { title: "t" }, return_to: overdue_tasks_path }
+      expect(response).to redirect_to(today_tasks_path)
     end
 
-    it "falls back to task_list_path when return_to is absent" do
-      post tasks_path, params: { task: { title: "t" } }
-      expect(response).to redirect_to(tasks_path)
+    it "redirects to today for a task added to a project" do
+      Project.create!(name: "Work")
+      post tasks_path, params: { task: { title: "Call #Work dentist" } }
+      expect(response).to redirect_to(today_tasks_path)
+    end
+
+    it "redirects to today for a task with a future due date" do
+      post tasks_path, params: { task: { title: "Call dentist next month" } }
+      expect(response).to redirect_to(today_tasks_path)
     end
   end
 
