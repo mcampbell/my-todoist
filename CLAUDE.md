@@ -53,12 +53,20 @@ class and computes independently of ActiveRecord:
   which runs `if !due_date`). To add a grammar: define a regex constant,
   write a `private_class_method` extractor, wire it into `self.parse`,
   and document the wiring point inline.
+  Chronic already parses numeric US dates (`MM/DD/YYYY`, `MM-DD-YYYY`) —
+  `NUMERIC_DATE_RE` is the gate, not Chronic. New separator/format support
+  means extending that regex (it uses a backreference to enforce one
+  separator per token, blocking ambiguous input like `9/15-2027`).
+  Reschedule and quick-add both call `QuickAdd.parse`, so one regex change
+  covers both — no separate reschedule-side fix needed.
 - **`app/models/recurrence.rb`** (`Recurrence.parse` / `#next_from`):
   parses the `every(!)? (count)? unit` grammar (see README for examples).
   Fixed recurrence steps forward in whole intervals from the original due
-  date, preserving phase. Rolling recurrence (`!`) steps from completion
-  time. Treat this as pure computation — no DB, no state; `Task#complete!`
-  calls it.
+  date, preserving phase. `:month`/`:quarter` advance by flat day-count
+  (30/90-day multiples) — not calendar-month arithmetic, not 1st-of-month
+  snapping (that anchoring was removed Sep 2026). Rolling recurrence (`!`)
+  steps from completion time. Treat this as pure computation — no DB, no
+  state; `Task#complete!` calls it.
 - Reach for Chronic (the gem) only inside `quick_add.rb`'s `date_span`, for
   free-text date/time phrases ("next monday", "3pm"). Give the recurrence
   and `in X unit` grammars their own regex and duration math instead —
@@ -69,6 +77,13 @@ Route all due-date writes through `Task` (`app/models/task.rb`): set
 (`before_validation`) combine them into `due_at` and derive `all_day`
 (true when no time was given). Check `due_time` for `nil` to detect an
 all-day due date — midnight is a valid clock time, not a signal by itself.
+
+`return_to` (used to redirect back to the originating view after task
+create/reschedule) is not inherited automatically — each view must pass it
+explicitly through its create/reschedule form as a hidden field (see the
+search view for the pattern). A view that omits it falls back to Inbox,
+silently, not an error — check for this first if a redirect lands on the
+wrong view.
 
 Read `specs/` (not `spec/`, the RSpec suite) for design docs, slice plans,
 and grill Q&A before changing a grammar; each new grammar gets its own
