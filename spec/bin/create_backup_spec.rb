@@ -56,4 +56,22 @@ RSpec.describe "bin/create-backup.sh" do
     expect(status).not_to be_success
     expect(Dir.glob(File.join(backups_dir, "no_such_env-*"))).to be_empty
   end
+
+  it "prunes the directory down to the 5 most recent backups after a run" do
+    FileUtils.mkdir_p(backups_dir)
+    oldest_two = [ "stale-1", "stale-2" ]
+    kept_stale = [ "stale-3", "stale-4", "stale-5", "stale-6" ]
+    (oldest_two + kept_stale).each_with_index do |name, i|
+      path = File.join(backups_dir, "#{name}.sqlite3")
+      FileUtils.touch(path)
+      File.utime(Time.now - (10 - i), Time.now - (10 - i), path)
+    end
+
+    run_script("test") # the 7th file; the 2 oldest must be pruned
+
+    remaining = Dir.children(backups_dir).sort
+    expect(remaining.size).to eq(5)
+    expect(remaining).not_to include("stale-1.sqlite3", "stale-2.sqlite3")
+    expect(remaining).to include(*kept_stale.map { |n| "#{n}.sqlite3" })
+  end
 end

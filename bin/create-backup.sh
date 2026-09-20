@@ -26,4 +26,7 @@ trap 'rm -f "$tmp_path"' EXIT
 sqlite3 "$db_path" ".backup '$tmp_path'"
 mv "$tmp_path" "$backup_path"
 
+# Keep only the 5 most recent backups in the directory (across all envs).
+ls -t "$backups_dir"/*.sqlite3 | tail -n +6 | xargs -r rm -f
+
 echo "Backed up $db_path -> $backup_path"
