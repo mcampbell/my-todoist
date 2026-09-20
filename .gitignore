@@ -33,6 +33,9 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Ignore local database backups (bin/create-backup.sh).
+/backups/
+
 # tokensave MCP local code-graph cache (agent tooling, not project source).
 /.tokensave/
 
