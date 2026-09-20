@@ -80,6 +80,13 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include("title=\"Edit\"")
       expect(response.body).to include("title=\"Delete\"")
     end
+
+    it "shows a schedule-tomorrow button on every task" do
+      Task.create!(title: "buy milk")
+      get tasks_path
+      expect(response.body).to include("aria-label=\"Schedule buy milk for tomorrow\"")
+      expect(response.body).to include("title=\"Schedule tomorrow\"")
+    end
   end
 
   describe "GET /tasks/new" do
@@ -487,6 +494,20 @@ RSpec.describe "Tasks", type: :request do
       task = Task.create!(title: "old")
       patch task_path(task), params: { task: { title: "new" } }
       expect(response).to redirect_to(tasks_path)
+    end
+
+    describe "schedule-tomorrow button" do
+      it "reschedules the task to tomorrow, carrying the task's current picker values as the button does" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "t", due_date: "2026-08-20")
+          patch task_path(task), params: {
+            task: { due_date: task.due_date, due_time: task.due_time },
+            reschedule_to: "tomorrow"
+          }
+          expect(response).to redirect_to(tasks_path)
+          expect(task.reload.due_at).to eq(Time.zone.local(2026, 8, 16).beginning_of_day)
+        end
+      end
     end
 
     describe "reschedule_to freeform field" do
