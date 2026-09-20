@@ -40,6 +40,9 @@
     <%= button_to task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Schedule #{task.title} for tomorrow", title: "Schedule tomorrow", params: { task: { due_date: task.due_date, due_time: task.due_time }, reschedule_to: "tomorrow", return_to: request.path } do %>
       <span class="icon has-text-weight-bold">T</span>
     <% end %>
+    <%= button_to task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Schedule #{task.title} for next week", title: "Schedule next week", params: { task: { due_date: task.due_date, due_time: task.due_time }, reschedule_to: "next week", return_to: request.path } do %>
+      <span class="icon has-text-weight-bold">W</span>
+    <% end %>
     <%= link_to edit_path, class: "button is-small is-white", "aria-label": "Edit #{task.title}", title: "Edit" do %>
       <span class="icon">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

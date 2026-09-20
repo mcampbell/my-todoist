@@ -87,6 +87,16 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include("aria-label=\"Schedule buy milk for tomorrow\"")
       expect(response.body).to include("title=\"Schedule tomorrow\"")
     end
+
+    it "shows a schedule-next-week button on every task, after the schedule-tomorrow button" do
+      Task.create!(title: "buy milk")
+      get tasks_path
+      expect(response.body).to include("aria-label=\"Schedule buy milk for next week\"")
+      expect(response.body).to include("title=\"Schedule next week\"")
+      tomorrow_index = response.body.index("title=\"Schedule tomorrow\"")
+      next_week_index = response.body.index("title=\"Schedule next week\"")
+      expect(next_week_index).to be > tomorrow_index
+    end
   end
 
   describe "GET /tasks/new" do
@@ -555,6 +565,20 @@ RSpec.describe "Tasks", type: :request do
           }
           expect(response).to redirect_to(tasks_path)
           expect(task.reload.due_at).to eq(Time.zone.local(2026, 8, 16).beginning_of_day)
+        end
+      end
+    end
+
+    describe "schedule-next-week button" do
+      it "reschedules the task to next week, carrying the task's current picker values as the button does" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "t", due_date: "2026-08-20")
+          patch task_path(task), params: {
+            task: { due_date: task.due_date, due_time: task.due_time },
+            reschedule_to: "next week"
+          }
+          expect(response).to redirect_to(tasks_path)
+          expect(task.reload.due_at).to eq(Time.zone.local(2026, 8, 22).beginning_of_day)
         end
       end
     end
