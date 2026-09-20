@@ -217,6 +217,55 @@ RSpec.describe "Tasks", type: :request do
       expect(Task.last.title).to eq("call dentist")
     end
 
+    describe "creation flash notice" do
+      it "flashes just the title for an undated task" do
+        post tasks_path, params: { task: { title: "buy milk" } }
+        follow_redirect!
+        expect(response.body).to include("“buy milk” added.")
+        expect(response.body).not_to include("Due")
+      end
+
+      it "says 'today' for a same-day due date, however it was entered" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "call dentist 8/15/2026" } }
+          follow_redirect!
+          expect(response.body).to include("“call dentist” added. Due today.")
+        end
+      end
+
+      it "says 'tomorrow' for a next-day due date, however it was entered" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "call dentist 8/16/2026" } }
+          follow_redirect!
+          expect(response.body).to include("“call dentist” added. Due tomorrow.")
+        end
+      end
+
+      it "adds the time of day for a timed due-today task" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "call dentist 3pm" } }
+          follow_redirect!
+          expect(response.body).to include("“call dentist” added. Due today at 3:00 PM.")
+        end
+      end
+
+      it "falls back to the absolute date beyond today/tomorrow" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "call dentist 8/20/2026" } }
+          follow_redirect!
+          expect(response.body).to include("“call dentist” added. Due Aug 20.")
+        end
+      end
+
+      it "flashes the first occurrence's day for a bootstrapped recurring task" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          post tasks_path, params: { task: { title: "water plants every day" } }
+          follow_redirect!
+          expect(response.body).to include("“water plants” added. Due today.")
+        end
+      end
+    end
+
     it "sets due_at from a quick-add date token" do
       travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
         post tasks_path, params: { task: { title: "Call dentist tomorrow" } }
