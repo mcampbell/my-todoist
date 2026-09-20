@@ -8,7 +8,13 @@ module TasksHelper
 
   def format_time(time)
     return unless time
-    time.strftime("%b %-d#{year_suffix(time)}, %-l:%M %p")
+    "#{time.strftime("%b %-d#{year_suffix(time)}")}, #{time_of_day(time)}"
+  end
+
+  # Clock time only, no date -- shared by format_time and the creation flash's
+  # today/tomorrow phrasing.
+  def time_of_day(time)
+    time.strftime("%-l:%M %p")
   end
 
   def due_tag(task)

@@ -87,7 +87,7 @@ class TasksController < ApplicationController
     if @task.save
       # Every add lands on Today, whatever view it came from: a new task is
       # the thing you just decided to do, so Today is where you check it.
-      redirect_to today_tasks_path
+      redirect_to today_tasks_path, notice: creation_notice(@task)
     else
       # On recurrence-validation failure the parsed title has already lost the
       # recurrence span; rebuild from the raw quick-add string so the edit
@@ -170,6 +170,31 @@ class TasksController < ApplicationController
 
   def skip_notice(task)
     "“#{task.title}” skipped. Next: #{helpers.due_tag(task)}."
+  end
+
+  def creation_notice(task)
+    return "“#{task.title}” added." unless task.due_at
+
+    "“#{task.title}” added. Due #{relative_due_phrase(task)}."
+  end
+
+  # "today"/"tomorrow" (plus a time of day, if timed) when the due date lands
+  # on one of those, even when the user typed an explicit date -- otherwise
+  # due_tag's absolute format. Reused nowhere else, so it stays private here
+  # rather than joining due_tag in the helper.
+  def relative_due_phrase(task)
+    date = task.due_at.to_date
+    day_word =
+      if date == Date.current
+        "today"
+      elsif date == Date.current + 1
+        "tomorrow"
+      end
+
+    return helpers.due_tag(task) unless day_word
+    return day_word if task.all_day?
+
+    "#{day_word} at #{helpers.time_of_day(task.due_at)}"
   end
 
   # Return to the task's own list: its project, or Inbox.
