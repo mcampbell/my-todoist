@@ -583,6 +583,51 @@ RSpec.describe "Tasks", type: :request do
       end
     end
 
+    describe "reschedule flash notice" do
+      it "says 'tomorrow' when the schedule-tomorrow button is used" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "call dentist", due_date: "2026-08-20")
+          patch task_path(task), params: {
+            task: { due_date: task.due_date, due_time: task.due_time },
+            reschedule_to: "tomorrow"
+          }
+          follow_redirect!
+          expect(response.body).to include("“call dentist” rescheduled. Due tomorrow.")
+        end
+      end
+
+      it "falls back to the absolute date when the schedule-next-week button is used" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "call dentist", due_date: "2026-08-20")
+          patch task_path(task), params: {
+            task: { due_date: task.due_date, due_time: task.due_time },
+            reschedule_to: "next week"
+          }
+          follow_redirect!
+          expect(response.body).to include("“call dentist” rescheduled. Due Aug 22.")
+        end
+      end
+
+      it "adds the time of day for a timed reschedule" do
+        travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
+          task = Task.create!(title: "call dentist", due_date: "2026-08-20")
+          patch task_path(task), params: {
+            task: { due_date: task.due_date, due_time: task.due_time },
+            reschedule_to: "tomorrow 3pm"
+          }
+          follow_redirect!
+          expect(response.body).to include("“call dentist” rescheduled. Due tomorrow at 3:00 PM.")
+        end
+      end
+
+      it "does not flash a reschedule notice for a plain edit-form save" do
+        task = Task.create!(title: "call dentist", due_date: "2026-08-20")
+        patch task_path(task), params: { task: { title: "call dentist", due_date: "2026-08-21", due_time: "" } }
+        follow_redirect!
+        expect(response.body).not_to include("rescheduled")
+      end
+    end
+
     describe "reschedule_to freeform field" do
       it "sets a date on an undated task from a relative phrase" do
         travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
