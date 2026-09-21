@@ -113,6 +113,21 @@ RSpec.describe QuickAdd, type: :model do
       )
     end
 
+    it "absorbs a preposition that introduces the phrase" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "call mom at 3pm")).to include(
+        title: "call mom", due_date: "2026-08-15", due_time: "15:00"
+      )
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "call mom on wed")).to include(
+        title: "call mom", due_date: "2026-08-19", due_time: nil
+      )
+    end
+
+    it "keeps a preposition that is not part of the phrase" do
+      expect(parse_at(Time.zone.local(2026, 8, 15, 10, 0, 0), "put the cat out tomorrow")).to include(
+        title: "put the cat out", due_date: "2026-08-16"
+      )
+    end
+
     it "honors an explicit date over the bare-time roll" do
       expect(parse_at(Time.zone.local(2026, 8, 15, 16, 0, 0), "Call dentist wed noon")).to include(
         title: "Call dentist", due_date: "2026-08-19", due_time: "12:00"
@@ -307,6 +322,32 @@ RSpec.describe QuickAdd, type: :model do
   end
 
   describe "recurrence extraction" do
+    def parse_at(time, text)
+      travel_to(time) { described_class.parse(text) }
+    end
+
+    it "reads a bare time after a recurrence as the rule's clock time" do
+      result = parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "prune images every monday 9:15am")
+      expect(result).to include(
+        title: "prune images", recurrence: "every monday", due_date: nil, due_time: "09:15"
+      )
+      expect(result[:starting_error]).to be_nil
+    end
+
+    it "reads an 'at <time>' suffix after a recurrence as the rule's clock time" do
+      result = parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "standup every weekday at 9am")
+      expect(result).to include(
+        title: "standup", recurrence: "every weekday", due_date: nil, due_time: "09:00"
+      )
+      expect(result[:starting_error]).to be_nil
+    end
+
+    it "still rejects a dated time phrase on a recurring title" do
+      result = parse_at(Time.zone.local(2026, 8, 30, 12, 0, 0), "sync every monday tomorrow 9am")
+      expect(result).to include(recurrence: "every monday", due_date: nil, due_time: nil)
+      expect(result[:starting_error]).to eq("use 'starting' to set when a recurring task begins")
+    end
+
     it "extracts every <weekday> phrases" do
       expect(described_class.parse("Call dentist every wednesday")).to include(
         title: "Call dentist", recurrence: "every wednesday"

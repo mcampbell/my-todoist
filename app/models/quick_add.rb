@@ -58,6 +58,9 @@ class QuickAdd
   # Explicit time forms (digit and word) plus their standalone am/pm markers.
   TIME_ANCHOR_RE = /\A(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2}|noon|midnight|o'clock|am|pm)\z/i
   TRAILING_PUNCTUATION_RE = /[.,;!?]+\z/
+  # Preposition introducing a date/time phrase ("call mom at 3pm", "... on
+  # wed"): part of the phrase for stripping, not part of what chronic parses.
+  PREPOSITION_RE = /\b(?:at|on)\s+\z/i
 
   # Returns { title:, priority:, due_date:, due_time:, project_name:,
   # recurrence: }.
@@ -94,8 +97,13 @@ class QuickAdd
       parsed = span[:parsed]
       if span[:time_anchor]
         due_time = parsed.strftime("%H:%M")
-        due_date = span[:date_anchor] ? parsed : roll_bare_time(parsed)
-        due_date = due_date.to_date.iso8601
+        # A bare time on a recurring title is the rule's clock time, not a
+        # one-off date (specs/recurrence-starting-design.md, decision 3) --
+        # the first date comes from the rule plus any "starting" clause.
+        unless recurrence && !span[:date_anchor]
+          due_date = span[:date_anchor] ? parsed : roll_bare_time(parsed)
+          due_date = due_date.to_date.iso8601
+        end
       else
         due_date = parsed.to_date.iso8601
       end
@@ -315,7 +323,7 @@ class QuickAdd
       span_texts = attempt.map { |w| classify(w[0]) }
       return {
         parsed: parsed,
-        start: attempt.first.begin(0),
+        start: absorb_preposition(text, attempt.first.begin(0)),
         end: attempt.last.end(0),
         time_anchor: span_texts.any? { |w| time_anchor?(w) },
         date_anchor: span_texts.any? { |w| date_word?(w) }
@@ -324,6 +332,15 @@ class QuickAdd
     nil
   end
   private_class_method :date_span
+
+  # Chronic parses "3pm", not "at 3pm", so the preposition that introduces a
+  # phrase sits outside the parsed span -- and would otherwise be left behind
+  # in the title ("call mom at"). Widen the strip span, never the parse.
+  def self.absorb_preposition(text, start)
+    match = text[0...start].match(PREPOSITION_RE)
+    match ? match.begin(0) : start
+  end
+  private_class_method :absorb_preposition
 
   def self.anchor_word?(word)
     bare = classify(word)
