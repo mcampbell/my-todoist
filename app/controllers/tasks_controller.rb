@@ -115,7 +115,7 @@ class TasksController < ApplicationController
     end
 
     if @task.update(attrs)
-      redirect_to safe_return_to || task_list_path(@task)
+      redirect_to safe_return_to || task_list_path(@task), notice: (reschedule_notice(@task) if rescheduling)
     else
       render :edit, status: :unprocessable_content
     end
@@ -176,6 +176,10 @@ class TasksController < ApplicationController
     return "“#{task.title}” added." unless task.due_at
 
     "“#{task.title}” added. Due #{relative_due_phrase(task)}."
+  end
+
+  def reschedule_notice(task)
+    "“#{task.title}” rescheduled. Due #{relative_due_phrase(task)}."
   end
 
   # "today"/"tomorrow" (plus a time of day, if timed) when the due date lands
