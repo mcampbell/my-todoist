@@ -7,7 +7,7 @@ class Task < ApplicationRecord
   validates :priority, inclusion: { in: 0..3 }
   validate :recurrence_must_be_parseable
 
-  scope :ordered, -> { order(Arel.sql("due_at ASC NULLS LAST, created_at DESC")) }
+  scope :ordered, -> { order(Arel.sql("in_progress DESC, due_at ASC NULLS LAST, created_at DESC")) }
   scope :due_today_or_undated, -> { where("due_at <= ? OR due_at IS NULL", Time.current.end_of_day) }
   scope :due_between, ->(range) { where(due_at: range) }
   # A timed task is overdue once its time passes; an all-day task only once
@@ -39,6 +39,8 @@ class Task < ApplicationRecord
         all_day: all_day,
         completed_at: Time.current
       )
+      # The next occurrence starts fresh; advance's update! saves this too.
+      self.in_progress = false
       recurrence.blank? ? destroy! : advance_to_next_occurrence!
       snapshot
     end

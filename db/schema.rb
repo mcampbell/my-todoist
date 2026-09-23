@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_30_190419) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_145410) do
   create_table "completed_occurrences", force: :cascade do |t|
     t.boolean "all_day", default: false, null: false
     t.datetime "completed_at", null: false
@@ -51,6 +51,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_190419) do
     t.boolean "all_day", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "due_at"
+    t.boolean "in_progress", default: false, null: false
     t.text "notes"
     t.integer "priority", default: 0, null: false
     t.integer "project_id"
