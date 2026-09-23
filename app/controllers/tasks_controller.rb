@@ -209,7 +209,7 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, label_ids: [])
+    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, :in_progress, label_ids: [])
   end
 
   # % and _ are LIKE wildcards; escape them (and the escape char itself)

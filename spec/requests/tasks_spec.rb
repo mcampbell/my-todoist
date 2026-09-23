@@ -81,6 +81,18 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).to include("title=\"Delete\"")
     end
 
+    it "shows an in-progress toggle that marks, and a grey row that shows, in-progress tasks" do
+      Task.create!(title: "idle")
+      Task.create!(title: "busy", in_progress: true, due_at: 1.day.ago)
+      get tasks_path
+      page = Capybara.string(response.body)
+      expect(page).to have_css("tr.task-in-progress", text: "busy")
+      expect(page).not_to have_css("tr.has-background-danger-light", text: "busy")
+      expect(page).not_to have_css("tr.task-in-progress", text: "idle")
+      expect(page).to have_css(%(button[aria-label="Mark idle in progress"][aria-pressed="false"]), text: "P")
+      expect(page).to have_css(%(button[aria-label="Clear in progress on busy"][aria-pressed="true"]), text: "P")
+    end
+
     it "shows a schedule-tomorrow button on every task" do
       Task.create!(title: "buy milk")
       get tasks_path
@@ -543,6 +555,18 @@ RSpec.describe "Tasks", type: :request do
       task = Task.create!(title: "old")
       patch task_path(task), params: { task: { title: "new" } }
       expect(response).to redirect_to(tasks_path)
+    end
+
+    describe "in-progress toggle" do
+      it "sets and clears the flag, returning to the originating view" do
+        task = Task.create!(title: "t", due_at: Time.current)
+        patch task_path(task), params: { task: { in_progress: "true" }, return_to: today_tasks_path }
+        expect(response).to redirect_to(today_tasks_path)
+        expect(task.reload.in_progress).to be(true)
+
+        patch task_path(task), params: { task: { in_progress: "false" }, return_to: today_tasks_path }
+        expect(task.reload.in_progress).to be(false)
+      end
     end
 
     describe "schedule-tomorrow button" do
