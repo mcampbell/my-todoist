@@ -5,6 +5,20 @@ RSpec.describe Task, type: :model do
     expect(Task.new(title: nil)).not_to be_valid
   end
 
+  describe "in progress" do
+    it "sorts in-progress tasks ahead of everything else in .ordered" do
+      soon = Task.create!(title: "soon", due_at: 1.hour.from_now)
+      busy = Task.create!(title: "busy", in_progress: true)
+      expect(Task.ordered).to eq([ busy, soon ])
+    end
+
+    it "clears the flag when a recurring task completes to its next occurrence" do
+      task = Task.create!(title: "t", recurrence: "every day", due_at: Time.current, in_progress: true)
+      task.complete!
+      expect(task.reload.in_progress).to be(false)
+    end
+  end
+
   describe "#complete! (occurrence-log completion)" do
     it "destroys the task and creates a matching CompletedOccurrence" do
       project = Project.create!(name: "Work")

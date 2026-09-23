@@ -1,6 +1,8 @@
 <% edit_path = edit_task_path(task, return_to: request.path) %>
-<% tint = project_tint(task.project) unless task.overdue? %>
-<%= tag.tr class: ("has-background-danger-light" if task.overdue?),
+<%# In progress wins over the overdue and project backgrounds. %>
+<% row_class = task.in_progress? ? "task-in-progress" : ("has-background-danger-light" if task.overdue?) %>
+<% tint = project_tint(task.project) unless row_class %>
+<%= tag.tr class: row_class,
            style: ("background-color: #{tint}" if tint) do %>
   <td class="is-narrow">
     <%= button_to complete_task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Complete #{task.title}" do %>
@@ -36,6 +38,12 @@
           </svg>
         </span>
       <% end %>
+    <% end %>
+    <%= button_to task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block",
+          "aria-label": task.in_progress? ? "Clear in progress on #{task.title}" : "Mark #{task.title} in progress",
+          "aria-pressed": task.in_progress?, title: task.in_progress? ? "Clear in progress" : "Mark in progress",
+          params: { task: { in_progress: !task.in_progress? }, return_to: request.path } do %>
+      <span class="icon has-text-weight-bold">P</span>
     <% end %>
     <%= button_to task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Schedule #{task.title} for tomorrow", title: "Schedule tomorrow", params: { task: { due_date: task.due_date, due_time: task.due_time }, reschedule_to: "tomorrow", return_to: request.path } do %>
       <span class="icon has-text-weight-bold">T</span>

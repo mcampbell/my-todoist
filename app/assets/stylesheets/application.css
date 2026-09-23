@@ -22,6 +22,11 @@
   text-decoration: underline;
 }
 
+/* Translucent grey reads as grey on both light and dark backgrounds. */
+.task-in-progress {
+  background-color: rgb(128 128 128 / 25%);
+}
+
 #toast-container {
   position: fixed;
   top: 1rem;
