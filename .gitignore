@@ -43,3 +43,7 @@
 /.playwright-mcp/
 /search-page.png
 
+
+# Local tool output
+/.serena/
+/out
