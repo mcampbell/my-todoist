@@ -1,6 +1,7 @@
 # Update Log
 
 ## 2026-10-10
+* **Sync**: [Scope decision](decisions/single-user-scope.md) names the `user:modify` password-change task.
 * **Sync**: Reversed [scope decision](decisions/single-user-scope.md) - app now internet-facing behind nginx + login wall; updated [my-todoist](architecture/my-todoist-app.md) and the decisions index.
 
 ## 2026-09-01

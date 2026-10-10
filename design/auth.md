@@ -13,7 +13,7 @@ Request: add authentication so app can deploy on internet without bad actors get
 ## Decisions
 
 1. Gate layer: in-app auth (Rails). Network gate (Tailscale/Cloudflare Access) rejected by user.
-2. Identity: Rails 8 auth generator (User email+password, Session table, login rate limit). Remove password reset + mailer. Create the one user via rake task/console. Reset password via console.
+2. Identity: Rails 8 auth generator (User email+password, Session table, login rate limit). Remove password reset + mailer. Create the one user via rake task/console. Reset password via console. (2026-10-10: superseded by `bin/rails user:modify EMAIL=... PASSWORD=...`, which also ends every login.)
 3. TLS: nginx terminates TLS in front of Rails. Production sets `config.assume_ssl = true` + `config.force_ssl = true` (secure cookies, HSTS). nginx must send `X-Forwarded-Proto https`.
 4. Scope: all routes require login (generator `Authentication` concern in ApplicationController). Only login page public. `OsNotifier` no-op on Linux server - no change.
 5. Session TTL: generator default (permanent signed cookie, Session row until logout). Revoke by deleting Session rows.
