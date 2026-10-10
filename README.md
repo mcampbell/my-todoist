@@ -58,7 +58,8 @@ bin/rails server            # http://localhost:3000
 ### Production behind nginx at `{HOST}/todo`
 
 The app runs with `rails s -p 3500` in a tmux session on the host. nginx
-(already serving `{HOST}` over HTTPS) forwards `{HOST}/todo` to port 3500. Replace `{HOST}` with your
+(already serving `{HOST}` over HTTPS) gets new `/todo` locations that
+forward to port 3500. Replace `{HOST}` with your
 host name (for example `unixgeek.com`) everywhere below.
 
 **1. Environment file.** Create `/etc/my-todoist.env` (`chmod 600`, owned
@@ -114,12 +115,12 @@ survive a reboot: start it again after one.
   - block the port: `sudo ufw deny 3500` (or your firewall's equivalent)
   - or listen on loopback only: `rails s -p 3500 -b 127.0.0.1`
 
-**4. nginx changes.** Your nginx already forwards `{HOST}/todo` to port 3500.
-Check that block, add a login rate limit, then reload.
+**4. nginx changes.** You already have a `server { ... }` block for `{HOST}`
+(the one with `listen 443 ssl`). Add the `/todo` locations to it, add a
+login rate limit, then reload. Nothing else in that block changes.
 
-a. **Check the existing `/todo` location** (inside the `server { ... }`
-   block for `{HOST}`, the one with `listen 443 ssl`). It must look like
-   this; change any line that differs:
+a. **Add the `/todo` locations** inside the `{HOST}` `server { ... }` block,
+   next to its other `location` blocks:
 
    ```nginx
    location = /todo { return 301 /todo/; }
@@ -147,7 +148,8 @@ b. **Add the login rate limit** (optional, recommended). The zone must be
    limit_req_zone $binary_remote_addr zone=todo_login:10m rate=5r/m;
    ```
 
-   Then add this next to the `/todo/` location from step a:
+   Then add this in the same `server` block, next to the `/todo/` location
+   from step a. nginx picks the exact match (`=`) for the login POST:
 
    ```nginx
    # Login form POST: slow down password guessing.
