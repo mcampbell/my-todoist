@@ -51,6 +51,13 @@ RSpec.describe "Authentication", type: :request, signed_out: true do
     expect(response).to have_http_status(:ok)
   end
 
+  # A generic "session_id" would clash with other apps on the same host.
+  it "uses an app-specific login cookie name" do
+    log_in
+    expect(cookies[:todo_session_id]).to be_present
+    expect(cookies[:session_id]).to be_nil
+  end
+
   it "rejects a wrong password" do
     log_in(password: "wrong")
     expect(response).to redirect_to(new_session_path)
