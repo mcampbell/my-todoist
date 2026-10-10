@@ -40,6 +40,38 @@ Create the one login user (12+ character password), then open
  bin/rails user:create EMAIL=you@example.com PASSWORD='...'
 ```
 
+To deploy on the internet behind nginx, follow `design/deploy-nginx.md`.
+
+## Features
+
+- **Login.** Every page needs a login, except the sign-in form. One user,
+  created with `user:create`. The navbar has a "Log out" button. To reset
+  the password, use `bin/rails runner`; there is no email reset. Login
+  tries are rate-limited.
+- **Views** (navbar): Inbox, Today, Overdue, Upcoming, Completed, Search,
+  and one view per project. Overdue rows show red. A new task always
+  lands on Today.
+- **Task row buttons:**
+  - checkbox: complete (a recurring task moves to its next date)
+  - skip: skip this occurrence
+  - **P**: mark in progress (grey row, sorted to the top); press again to clear
+  - **T**: schedule tomorrow
+  - **W**: schedule next week
+  - edit, delete
+- **Edit form:** "Reschedule to" takes the same phrases as quick add
+  (`tomorrow`, `next wed`, `in 2 months`, ...).
+- **Projects and labels:** create, rename, and delete them from "Manage
+  projects" and "Manage labels". `#name` in quick add creates a project.
+  If the name is close to an existing one, the app asks "Did you mean ...?".
+- **Completed:** lists finished occurrences, each with a details page.
+- **Keyboard:** `q` new task, `/` search, `Esc` cancel (on the new-task
+  and search pages).
+- **Due reminders:** an open tab checks every 30 seconds. A due task shows
+  an in-page toast with a beep. The app also tries an OS notification on
+  macOS or WSL, and does nothing elsewhere (for example, a Linux server).
+  You get no reminder unless a tab is open.
+- **Midnight refresh:** the page reloads at midnight, so date views roll over.
+
 ## Quick add
 
 The quick-add box parses one line of free text into a task
@@ -58,6 +90,9 @@ From simplest to most complex:
 | `Standup friday 9:30am` | Standup | date + time |
 | `Renew licence in 2 weeks` | Renew licence | date = today + 2 weeks (`in <n> days/weeks/months/years/hours/minutes`, or `in a week`) |
 | `Plan trip next month` | Plan trip | date = one month from today (`next week` / `next month` / `next year`) |
+| `Ship 10/15/2026` | Ship | date (`MM/DD/YYYY` or `MM-DD-YYYY`, one separator per date) |
+| `Ship 15-aug-2026` | Ship | date (day-month-year with a month name) |
+| `Pay rent the 24th` | Pay rent | the next 24th of a month |
 | `Board meeting first monday in june` | Board meeting | the next such date (rolls a year if it has passed) |
 | `Taxes 3rd friday in april at 5pm` | Taxes | anchored date + time |
 | `File report #work p2 next tuesday 4pm` | File report | project, priority, date and time together |
@@ -68,7 +103,7 @@ From simplest to most complex:
 |---|---|---|
 | `Water plants every day` | `every day` | today |
 | `Bins every! day` | rolling — next is scheduled from when you complete it | today |
-| `Pay rent every month` | `every month` (always the 1st) | the next 1st |
+| `Pay rent every month` | `every month` (every 30 days, not the calendar 1st) | today |
 | `Team sync every monday` | `every monday` | the next Monday (on or after today) |
 | `Sprint demo every 2 fridays` | every second Friday | the next Friday |
 | `Payroll every weekday` | every business day (skips Sat/Sun) | the next business day |
