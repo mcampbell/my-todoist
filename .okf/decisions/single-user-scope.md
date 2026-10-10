@@ -1,23 +1,26 @@
 ---
 type: Decision
-title: No-auth, single-user scope
-description: Auth/authz and multi-user concerns are explicitly out of scope for this app.
+title: Single-user scope, login required
+description: One user, internet-facing behind nginx and a login wall; multi-user and authorization stay out of scope.
 tags: [scope, security]
-timestamp: 2026-08-22T00:00:00Z
+timestamp: 2026-10-10T00:00:00Z
 ---
 
 # Decision
 
-Treat authentication/authorization work as out of scope. The app runs on
-a single machine for a single user, with no network exposure.
+Serve one user. The app may face the internet behind nginx (TLS) and a
+login wall (Rails 8 authentication generator, no password reset).
+Authentication and security work is in scope. Multi-user support and
+authorization (per-user data isolation) stay out of scope.
 
 # Rationale
 
-Stated directly in the repo's `CLAUDE.md`. Removes an entire category of
-design questions (session handling, per-user data isolation, CSRF
-threat model beyond the default Rails protections) from every feature
-built on top of this app.
+Changed 2026-10-10. The earlier decision (2026-08-22) kept all auth out of
+scope because the app ran on one machine with no network exposure. The
+owner now deploys it on the internet, so a login wall is required. One
+user still means no per-user data, so authorization stays out.
 
 # Citations
 
 [1] [CLAUDE.md](../../CLAUDE.md)
+[2] [design/auth.md](../../design/auth.md)

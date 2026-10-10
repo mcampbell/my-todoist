@@ -2,14 +2,14 @@
 
 My LLM coded clone of todoist.
 
-Local single-user Todoist clone. Rails 8, SQLite, builtin ERB views, RSpec.
+Single-user Todoist clone. Rails 8, SQLite, builtin ERB views, RSpec.
 See `specs/` for the design, estimates, and per-slice implementation plans.
 
 ## Scope
 
-This app runs on one machine, for one user, and never faces the network.
-No authentication, no authorization, and no other security controls are
-required. Do not add them. Keep the framework surface small: the app loads
+This app serves one user. It can face the internet behind nginx (TLS) and
+a login wall; see `design/deploy-nginx.md`. Multi-user support and
+authorization are out of scope. Keep the framework surface small: the app loads
 only Active Record, Action Controller, Action View, and Active Model. Do not
 add Active Job, Solid Queue, Active Storage, Action Mailer, Action Cable, or a
 deployment stack unless a real feature needs it. Slice 6's due reminders are
@@ -33,7 +33,12 @@ Start the app:
 bin/rails server
 ```
 
-Open <http://localhost:3000>. The app is single-user and needs no login.
+Create the one login user (12+ character password), then open
+<http://localhost:3000> and sign in:
+
+```
+ bin/rails user:create EMAIL=you@example.com PASSWORD='...'
+```
 
 ## Quick add
 

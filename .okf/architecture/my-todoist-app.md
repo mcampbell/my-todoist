@@ -1,19 +1,20 @@
 ---
 type: Service
 title: my-todoist
-description: Local single-user Todoist clone — Rails 8.1, Ruby 3.4, SQLite, ERB, RSpec.
+description: Single-user Todoist clone — Rails 8.1, Ruby 3.4, SQLite, ERB, RSpec.
 resource: file:///home/mcampbell/dev/my-todoist
-tags: [rails, sqlite, local-app, todo]
+tags: [rails, sqlite, single-user, todo]
 timestamp: 2026-08-22T00:00:00Z
 ---
 
 # Overview
 
-A local, single-machine, single-user task manager modeled on Todoist.
+A single-user task manager modeled on Todoist, served behind nginx and a
+login wall.
 Wholly LLM-coded; `CLAUDE.md` at the repo root and `specs/` are the style
-reference for any change. Scope is deliberately narrow: no auth/authz, no
-network exposure, no multi-user concerns — see
-[No-auth, single-user scope](/decisions/single-user-scope.md).
+reference for any change. Scope is deliberately narrow: one user, login required, no
+multi-user or authorization concerns — see
+[Single-user scope, login required](/decisions/single-user-scope.md).
 
 Loads only Active Record, Action Controller, Action View, and Active
 Model. Other Rails frameworks (Active Job, Solid Queue, Active Storage,

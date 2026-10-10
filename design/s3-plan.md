@@ -56,3 +56,10 @@ CLAUDE.md, specs/tech.md, README.md,
 ## Done when
 No doc says "no auth" or "out of scope" for security; docs name the
 login concern, spec helper, and rake task as built in S1.
+
+## Progress
+- [x] 1 CLAUDE.md (lines 8, 15, 17 + auth architecture note + user:create row)
+- [x] 2 specs/tech.md
+- [x] 3 README.md
+- [x] 4 .okf bundle (+ log.md entry; okf:validate conformant)
+- [x] 5 verify (stale-premise grep clean; only hit is dated history in the decision rationale)

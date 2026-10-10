@@ -18,7 +18,9 @@ place decisions land when they're a standing rule, not a one-slice detail.
   custom parser (PORO), no gem.
 - Fuzzy string matching (slice 4, `#project` typo detection): Ruby's bundled
   `did_you_mean` gem (`DidYouMean::SpellChecker`) — no new dependency.
-- No auth. Single user. Local `bin/dev`.
+- Auth: Rails 8 generator (email + password, DB-backed sessions), no
+  password reset. Single user. Deployed behind nginx; see
+  design/deploy-nginx.md.
 
 ## Standing rules
 
