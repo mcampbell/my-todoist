@@ -33,7 +33,9 @@ Branch from latest `main`. No dev/test behavior change.
    - First run: `bundle config set without "development test"`,
      `bundle install` (Bundler 4 removed `--without`),
      `bin/rails db:prepare`, `bin/rails assets:precompile`,
-     `bin/rails user:create EMAIL=... PASSWORD=...` (needs S1).
+     ` bin/rails user:create EMAIL=... PASSWORD=...` (needs S1; leading
+     space + `HISTCONTROL=ignorespace` keeps the password out of shell
+     history; password min 12 chars).
    - Puma bound to `127.0.0.1:3000` only (never public). `config/puma.rb`
      `port` binds all interfaces, so the systemd unit binds explicitly.
    - systemd unit for Puma: `ExecStart=bin/rails server -b 127.0.0.1 -p 3000`,

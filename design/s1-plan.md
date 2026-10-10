@@ -64,11 +64,10 @@ TDD: write each failing spec before its code.
    - Result: existing request/system specs need no edits (shrinks R1).
      `authentication_spec.rb` / `login_flow_spec.rb` tag `:signed_out`.
 
-8. **JS polls** - no change. Signed out, `fetch("/tasks/due_since.json")`
-   follows the redirect to HTML; `response.json()` throws; existing
-   `catch` logs it. `notifyOs` already ignores failures.
-   ponytail: noisy console when signed out; add JSON 401 in
-   `request_authentication` if it bothers.
+8. **JS polls** - no JS change. Review found the signed-out poll on the
+   login page overwrote the post-login return URL with the JSON URL.
+   Fix: `request_authentication` answers JSON with 401 (poll's
+   `!response.ok` returns quietly) and stores the return URL only for GET.
 
 9. **Verify** - `bin/rspec`, `bin/rubocop`, `bin/brakeman`.
    Manual: `bin/rails user:create EMAIL=... PASSWORD=...`, `bin/rails s`,
@@ -90,3 +89,14 @@ no mailer code remains.
 
 ## Unresolved
 - Hide navbar on login page, or show it? (plan: hide)
+
+## Progress
+- [x] 1 failing specs
+- [x] 2 generator
+- [x] 3 remove password reset
+- [x] 4 login page
+- [x] 5 log out
+- [x] 6 rake task
+- [x] 7 spec helper + global hooks
+- [x] 8 JS polls (no change)
+- [x] 9 verify + review (2 code-reviewer rounds; C1 poll-redirect, M1 helper split, M2 min password fixed)

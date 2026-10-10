@@ -18,4 +18,8 @@
     <li><%= link_to "Manage projects", projects_path %></li>
     <li><%= link_to "Manage labels", labels_path %></li>
   </ul>
+
+  <ul class="menu-list">
+    <li><%= button_to "Log out", session_path, method: :delete, class: "button is-small is-light" %></li>
+  </ul>
 </aside>
