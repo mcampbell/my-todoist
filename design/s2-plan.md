@@ -71,3 +71,10 @@ deploy doc lets a fresh server reach a working login page.
 ## Unresolved
 - Server OS / process manager - assumed Linux + systemd. Confirm.
 - Off-host backup target - none chosen.
+
+## Progress
+- [x] 1 failing spec
+- [x] 2 production.rb (+ HSTS subdomains: false - review add)
+- [x] 3 secret key (doc only)
+- [x] 4 deploy-nginx.md
+- [x] 5 verify + review (runner: good host 200, bad host 403, no APP_HOST -> KeyError, HSTS no subdomains, secure cookie)
