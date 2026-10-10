@@ -19,7 +19,8 @@ place decisions land when they're a standing rule, not a one-slice detail.
 - Fuzzy string matching (slice 4, `#project` typo detection): Ruby's bundled
   `did_you_mean` gem (`DidYouMean::SpellChecker`) — no new dependency.
 - Auth: Rails 8 generator (email + password, DB-backed sessions), no
-  password reset. Single user. Deployed behind nginx; see
+  email password reset; `user:create` / `user:modify` rake tasks set the
+  password. Single user. Deployed behind nginx; see
   design/deploy-nginx.md.
 
 ## Standing rules

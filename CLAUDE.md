@@ -30,6 +30,7 @@ Serve assets via Propshaft + Importmap; this project has no Node tooling.
 | `bundle install && bin/rails db:prepare` | first-time setup |
 | `bin/rails server` | run app (localhost:3000) |
 | ` bin/rails user:create EMAIL=... PASSWORD=...` | create the login user (leading space: keep password out of shell history) |
+| ` bin/rails user:modify EMAIL=... PASSWORD=...` | change the password; ends every login |
 | `bin/rspec` | full suite |
 | `bin/rspec spec/lib/quick_add_spec.rb` | single file |
 | `bin/rspec spec/lib/quick_add_spec.rb:42` | single example |
@@ -76,7 +77,8 @@ class and computes independently of ActiveRecord:
 
 Every controller requires login through the `Authentication` concern
 (`app/controllers/concerns/authentication.rb`, Rails 8 generator, no
-password reset). Opt a public action out with
+email password reset; `lib/tasks/user.rake` creates the user and changes
+the password). Opt a public action out with
 `allow_unauthenticated_access`. JSON requests get 401, not a login
 redirect, so the reminder poll never becomes the post-login destination.
 The app may be served under a sub-path (`RAILS_RELATIVE_URL_ROOT=/todo`,

@@ -49,8 +49,8 @@ bin/rails assets:precompile
 
 The leading space on the last line keeps the password out of shell history
 when `HISTCONTROL=ignorespace` (bash default on Debian/Ubuntu). Password
-minimum: 12 characters. To reset it later:
-`bin/rails runner 'User.first.update!(password: ENV.fetch("PASSWORD"))'`.
+minimum: 12 characters. To change it later (also ends every login):
+` bin/rails user:modify EMAIL=you@example.com PASSWORD='...'`.
 
 ## 4. Puma under systemd
 

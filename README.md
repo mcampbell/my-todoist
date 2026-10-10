@@ -188,8 +188,9 @@ Then open `https://{HOST}/todo/` and sign in.
 - HTTP to HTTPS redirects are nginx's job. Rails assumes every request
   arrived over HTTPS.
 - Login lasts until you log out. There is no email password reset. To
-  reset: `bin/rails runner 'User.first.update!(password: ENV.fetch("PASSWORD"))'`
-  with the env file loaded and `PASSWORD` set.
+  change the password (with the env file loaded):
+  ` bin/rails user:modify EMAIL=you@example.com PASSWORD='new 12+ chars'`.
+  This also logs out every browser.
 
 **Update to a new version:**
 
@@ -205,8 +206,8 @@ rails s -p 3500
 ## Features
 
 - **Login.** Every page needs a login, except the sign-in form. One user,
-  created with `user:create`. The navbar has a "Log out" button. To reset
-  the password, use `bin/rails runner`; there is no email reset. Login
+  created with `user:create`. The navbar has a "Log out" button. To change
+  the password, use `user:modify`; there is no email reset. Login
   tries are rate-limited.
 - **Views** (navbar): Inbox, Today, Overdue, Upcoming, Completed, Search,
   and one view per project. Overdue rows show red. A new task always

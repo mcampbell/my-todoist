@@ -9,7 +9,8 @@ timestamp: 2026-10-10T00:00:00Z
 # Decision
 
 Serve one user. The app may face the internet behind nginx (TLS) and a
-login wall (Rails 8 authentication generator, no password reset).
+login wall (Rails 8 authentication generator, no email password reset;
+rake tasks `user:create` and `user:modify` set the password).
 Authentication and security work is in scope. Multi-user support and
 authorization (per-user data isolation) stay out of scope.
 
