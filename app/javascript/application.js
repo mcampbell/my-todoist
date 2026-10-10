@@ -1,6 +1,7 @@
 // Configure your import map in config/importmap.rb. Read more: https://github.com/rails/importmap-rails
 import "@hotwired/turbo-rails"
 import "notifications"
+import { appPath } from "app_path"
 
 // Reload the page at the server's next midnight so date-based views (Today,
 // Overdue, Upcoming) roll over without a manual refresh. The layout renders
@@ -22,7 +23,7 @@ document.addEventListener("keydown", (event) => {
   if (event.target.isContentEditable) return
 
   event.preventDefault()
-  Turbo.visit("/tasks/new")
+  Turbo.visit(appPath("/tasks/new"))
 })
 
 document.addEventListener("keydown", (event) => {
@@ -34,12 +35,12 @@ document.addEventListener("keydown", (event) => {
   if (event.target.isContentEditable) return
 
   event.preventDefault()
-  Turbo.visit("/tasks/search")
+  Turbo.visit(appPath("/tasks/search"))
 })
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return
-  if (![ "/tasks/new", "/tasks/search" ].includes(window.location.pathname)) return
+  if (![ appPath("/tasks/new"), appPath("/tasks/search") ].includes(window.location.pathname)) return
 
   const cancelLink = document.getElementById("cancel-link")
   if (!cancelLink) return

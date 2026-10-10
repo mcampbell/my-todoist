@@ -1,5 +1,8 @@
 # Update Log
 
+## 2026-10-10
+* **Sync**: Reversed [scope decision](decisions/single-user-scope.md) - app now internet-facing behind nginx + login wall; updated [my-todoist](architecture/my-todoist-app.md) and the decisions index.
+
 ## 2026-09-01
 * **Sync**: Added [Project tints](features/project-tints.md) (deterministic CRC32-HSL project colour, eager-loaded `:project` on task indexes), captured PR #34.
 

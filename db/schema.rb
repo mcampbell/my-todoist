@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_145410) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_10_220555) do
   create_table "completed_occurrences", force: :cascade do |t|
     t.boolean "all_day", default: false, null: false
     t.datetime "completed_at", null: false
@@ -35,6 +35,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_145410) do
     t.string "name", null: false, collation: "NOCASE"
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_projects_on_name", unique: true
+  end
+
+  create_table "sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "ip_address"
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.integer "user_id", null: false
+    t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
   create_table "task_labels", force: :cascade do |t|
@@ -64,6 +73,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_145410) do
     t.check_constraint "priority BETWEEN 0 AND 3", name: "priority_range"
   end
 
+  create_table "users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email_address", null: false
+    t.string "password_digest", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email_address"], name: "index_users_on_email_address", unique: true
+  end
+
+  add_foreign_key "sessions", "users"
   add_foreign_key "task_labels", "labels"
   add_foreign_key "task_labels", "tasks"
   add_foreign_key "tasks", "projects", on_delete: :nullify

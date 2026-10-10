@@ -5,18 +5,19 @@ Goal: work in this Rails app the way its existing patterns already work.
 Success means:
 - `bin/rspec` and `bin/rubocop` pass on every change
 - New grammars follow the `extract_*!` pattern in `quick_add.rb`
-- Scope stays local-only: single machine, single user
+- Scope stays single-user: one server, internet-facing behind nginx + login
 
 Stop when: tests are green, lint is clean, and the change fits the patterns
 below.
 
 ## App
 
-Local single-user Todoist clone. Rails 8.1, Ruby 3.4, SQLite, ERB, RSpec.
+Single-user Todoist clone. Rails 8.1, Ruby 3.4, SQLite, ERB, RSpec.
 Wholly LLM-coded — follow this file and `specs/` as the style reference.
-Single machine, single user, no network exposure: treat auth/authz/security
-work as out of scope for this app. Load only Active Record, Action
-Controller, Action View, and Active Model; add another Rails framework
+Single user, served on the internet behind nginx (TLS) and a login wall:
+authentication and security work is in scope; multi-user and authorization
+stay out of scope. Deploy steps: `design/deploy-nginx.md`. Load only
+Active Record, Action Controller, Action View, and Active Model; add another Rails framework
 (Active Job, Solid Queue, Active Storage, Action Mailer, Action Cable) only
 when a specific feature needs it. Keep due reminders client-side (a JS
 poll shows in-page toasts) unless a feature requires a background job.
@@ -28,6 +29,7 @@ Serve assets via Propshaft + Importmap; this project has no Node tooling.
 |---|---|
 | `bundle install && bin/rails db:prepare` | first-time setup |
 | `bin/rails server` | run app (localhost:3000) |
+| ` bin/rails user:create EMAIL=... PASSWORD=...` | create the login user (leading space: keep password out of shell history) |
 | `bin/rspec` | full suite |
 | `bin/rspec spec/lib/quick_add_spec.rb` | single file |
 | `bin/rspec spec/lib/quick_add_spec.rb:42` | single example |
@@ -71,6 +73,19 @@ class and computes independently of ActiveRecord:
   free-text date/time phrases ("next monday", "3pm"). Give the recurrence
   and `in X unit` grammars their own regex and duration math instead —
   see `specs/in-x-unit-design.md` for the reasoning.
+
+Every controller requires login through the `Authentication` concern
+(`app/controllers/concerns/authentication.rb`, Rails 8 generator, no
+password reset). Opt a public action out with
+`allow_unauthenticated_access`. JSON requests get 401, not a login
+redirect, so the reminder poll never becomes the post-login destination.
+The app may be served under a sub-path (`RAILS_RELATIVE_URL_ROOT=/todo`,
+mounted in `config.ru`). Build URLs with route helpers in Ruby and
+`appPath("/...")` (`app/javascript/app_path.js`) in JS — never a bare
+`"/..."` literal.
+Request and system specs sign in by default
+(`spec/support/authentication_helpers.rb`); tag a group `signed_out: true`
+to opt out.
 
 Route all due-date writes through `Task` (`app/models/task.rb`): set
 `due_date=`/`due_time=` (virtual setters), and let `compose_due_at`
