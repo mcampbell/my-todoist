@@ -79,6 +79,10 @@ Every controller requires login through the `Authentication` concern
 password reset). Opt a public action out with
 `allow_unauthenticated_access`. JSON requests get 401, not a login
 redirect, so the reminder poll never becomes the post-login destination.
+The app may be served under a sub-path (`RAILS_RELATIVE_URL_ROOT=/todo`,
+mounted in `config.ru`). Build URLs with route helpers in Ruby and
+`appPath("/...")` (`app/javascript/app_path.js`) in JS — never a bare
+`"/..."` literal.
 Request and system specs sign in by default
 (`spec/support/authentication_helpers.rb`); tag a group `signed_out: true`
 to opt out.

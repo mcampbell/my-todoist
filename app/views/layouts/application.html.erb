@@ -9,13 +9,14 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <meta name="seconds-until-midnight" content="<%= seconds_until_midnight %>">
+    <meta name="script-name" content="<%= request.script_name %>">
 
 
     <%= yield :head %>
 
-    <link rel="icon" href="/icon.png" type="image/png">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="icon" href="<%= request.script_name %>/icon.png" type="image/png">
+    <link rel="icon" href="<%= request.script_name %>/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<%= request.script_name %>/icon.png">
 
     <%= stylesheet_link_tag "bulma.min", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>

@@ -3,6 +3,9 @@
 Single server, Linux + systemd. nginx terminates TLS for `unixgeek.com` and
 proxies to Puma on loopback. Parent design: design/auth.md.
 
+This doc serves the app at the domain root under systemd. For a sub-path
+(`{HOST}/todo`) under tmux, follow README "Deployment" instead.
+
 Commands assume app checkout at `/srv/my-todoist`, owned by user `todoist`.
 Change paths to suit.
 

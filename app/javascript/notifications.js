@@ -2,6 +2,8 @@
 // toasts timed tasks that crossed their due_at since the last poll. No job
 // stack: the server only answers a query; dedup is this per-session anchor.
 
+import { appPath } from "app_path";
+
 let anchor = Date.now(); // page-load time; tasks already overdue never toast
 const INTERVAL = 30_000;
 let started = false; // Turbo cache restores must not double-start the interval
@@ -29,7 +31,7 @@ async function poll({ silent = false } = {}) {
   inFlight = true;
   ensureContainer();
   try {
-    const url = "/tasks/due_since.json?since=" +
+    const url = appPath("/tasks/due_since.json") + "?since=" +
       encodeURIComponent(new Date(anchor).toISOString());
     const response = await fetch(url);
     if (!response.ok) return; // leave the anchor: never widen the gap on error
@@ -76,7 +78,7 @@ function beep() {
 // in-page one, never worth failing or retrying over.
 function notifyOs(task) {
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-  fetch("/os_notification", {
+  fetch(appPath("/os_notification"), {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
     body: JSON.stringify({ title: "Task due", message: task.title }),
@@ -103,7 +105,7 @@ function toast(task) {
   // Navigate on the wrapper click: an <a> body would navigate even when the
   // close button is clicked (stopPropagation cannot cancel its default).
   notification.addEventListener("click", () => {
-    Turbo.visit("/tasks/" + task.id + "/edit");
+    Turbo.visit(appPath("/tasks/" + task.id + "/edit"));
   });
 
   container.appendChild(notification);

@@ -40,7 +40,165 @@ Create the one login user (12+ character password), then open
  bin/rails user:create EMAIL=you@example.com PASSWORD='...'
 ```
 
-To deploy on the internet behind nginx, follow `design/deploy-nginx.md`.
+To put it on the internet, see [Deployment](#deployment).
+
+## Deployment
+
+### Development (your own machine)
+
+No environment variables needed. Runs at the root path, plain HTTP:
+
+```
+bundle install
+bin/rails db:prepare
+ bin/rails user:create EMAIL=you@example.com PASSWORD='12+ chars'
+bin/rails server            # http://localhost:3000
+```
+
+### Production behind nginx at `{HOST}/todo`
+
+The app runs with `rails s -p 3500` in a tmux session on the host. nginx
+(already serving `{HOST}` over HTTPS) forwards `{HOST}/todo` to port 3500. Replace `{HOST}` with your
+host name (for example `unixgeek.com`) everywhere below.
+
+**1. Environment file.** Create `/etc/my-todoist.env` (`chmod 600`, owned
+by the user that runs the app):
+
+```sh
+RAILS_ENV=production
+APP_HOST={HOST}
+RAILS_RELATIVE_URL_ROOT=/todo
+SECRET_KEY_BASE=<output of: bin/rails secret>
+```
+
+- `APP_HOST` must equal the host name browsers use. Rails answers 403
+  to any other `Host` header, and refuses to boot when it is unset.
+- `RAILS_RELATIVE_URL_ROOT=/todo` makes every link, form, asset, and JS
+  request start with `/todo`. Without it, the app serves `/` and nothing
+  under `/todo` works.
+- `SECRET_KEY_BASE` signs the login cookie. Keep it stable: a new value
+  logs you out.
+
+**2. First-time setup** (in the app directory):
+
+```sh
+set -a; . /etc/my-todoist.env; set +a
+bundle config set without "development test"
+bundle install
+bin/rails db:prepare
+bin/rails assets:precompile
+ bin/rails user:create EMAIL=you@example.com PASSWORD='12+ chars'
+```
+
+The leading space keeps the password out of shell history (bash with
+`HISTCONTROL=ignorespace`).
+
+**3. Start the app in tmux:**
+
+```sh
+tmux new -s todo
+cd /path/to/my-todoist
+set -a; . /etc/my-todoist.env; set +a    # RAILS_ENV=production etc.
+rails s -p 3500
+```
+
+Detach with `Ctrl-b d`. Reattach with `tmux attach -t todo`. tmux does not
+survive a reboot: start it again after one.
+
+- Load the env file first. Without `RAILS_ENV=production`, `rails s`
+  starts in development, which rejects the `{HOST}` host name.
+- **Close port 3500 to the internet.** In production, `rails s` listens on
+  every network interface, so anyone can reach `http://{HOST}:3500`
+  directly. That skips TLS (the password crosses the network in clear
+  text) and skips nginx's login limit. Do one of these:
+  - block the port: `sudo ufw deny 3500` (or your firewall's equivalent)
+  - or listen on loopback only: `rails s -p 3500 -b 127.0.0.1`
+
+**4. nginx changes.** Your nginx already forwards `{HOST}/todo` to port 3500.
+Check that block, add a login rate limit, then reload.
+
+a. **Check the existing `/todo` location** (inside the `server { ... }`
+   block for `{HOST}`, the one with `listen 443 ssl`). It must look like
+   this; change any line that differs:
+
+   ```nginx
+   location = /todo { return 301 /todo/; }
+
+   location /todo/ {
+       proxy_pass http://127.0.0.1:3500;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+   }
+   ```
+
+   | Line | Why | Symptom when wrong |
+   |---|---|---|
+   | `proxy_pass http://127.0.0.1:3500;` — **no** path after the port | nginx passes `/todo/...` unchanged; the app expects the prefix | trailing `/` (or `/todo/`) strips the prefix: 404s or links without `/todo` |
+   | `proxy_set_header Host $host;` | Rails accepts only `APP_HOST` | 403 "Blocked hosts: 127.0.0.1" in the Rails log |
+   | `X-Forwarded-For` | real client IP for Rails' login limit | every client shares one limit (nginx's IP) |
+   | `X-Forwarded-Proto` | tells Rails the request was HTTPS | harmless today (Rails assumes HTTPS); keep it |
+
+b. **Add the login rate limit** (optional, recommended). The zone must be
+   in the `http` context, so put it in its own file,
+   `/etc/nginx/conf.d/my-todoist.conf`:
+
+   ```nginx
+   limit_req_zone $binary_remote_addr zone=todo_login:10m rate=5r/m;
+   ```
+
+   Then add this next to the `/todo/` location from step a:
+
+   ```nginx
+   # Login form POST: slow down password guessing.
+   location = /todo/session {
+       limit_req zone=todo_login burst=5 nodelay;
+       proxy_pass http://127.0.0.1:3500;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+   }
+   ```
+
+   Rails also limits logins (10 tries per 3 minutes per IP); this stops
+   floods before they reach Rails.
+
+c. Test and reload:
+
+   ```sh
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+**5. Check:**
+
+```sh
+curl -sI https://{HOST}/todo/ | grep -i -E '^HTTP|^location'
+# HTTP/2 302, location: https://{HOST}/todo/session/new
+```
+
+Then open `https://{HOST}/todo/` and sign in.
+
+**Good to know:**
+
+- The app sends HSTS for `{HOST}` (browsers then use HTTPS only for that
+  host, for 2 years). Subdomains are not affected. Every site on `{HOST}`
+  itself must already be HTTPS-only.
+- HTTP to HTTPS redirects are nginx's job. Rails assumes every request
+  arrived over HTTPS.
+- Login lasts until you log out. There is no email password reset. To
+  reset: `bin/rails runner 'User.first.update!(password: ENV.fetch("PASSWORD"))'`
+  with the env file loaded and `PASSWORD` set.
+
+**Update to a new version:**
+
+```sh
+tmux attach -t todo        # Ctrl-c to stop the server
+git pull
+bundle install
+bin/rails db:migrate
+bin/rails assets:precompile
+rails s -p 3500
+```
 
 ## Features
 
