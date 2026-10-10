@@ -27,7 +27,7 @@ Own decisions (not asked):
 
 ## Slices
 
-Sliced: 3 slices. S1 and S2 run in parallel; S3 after S1.
+Sliced: 3 slices. S1 and S2 run in parallel; S3 after both.
 
 ### S1 - Login wall (app)
 - `bin/rails generate authentication`; uncomment `bcrypt`.
@@ -39,16 +39,16 @@ Sliced: 3 slices. S1 and S2 run in parallel; S3 after S1.
 
 ### S2 - Production hardening + deploy doc
 - `config/environments/production.rb`: `assume_ssl`, `force_ssl`, `config.hosts = [ ENV.fetch("APP_HOST") ]`.
-- `design/deploy-nginx.md`: nginx server block (TLS, `X-Forwarded-Proto`, `X-Forwarded-For`, `limit_req` on `POST /session`), `RAILS_MASTER_KEY`, `db:prepare`, `bin/create-backup.sh` cron.
+- `design/deploy-nginx.md`: nginx server block (TLS, `X-Forwarded-Proto`, `X-Forwarded-For`, `limit_req` on `POST /session`), `SECRET_KEY_BASE` (no `config/master.key` exists, so `RAILS_MASTER_KEY` has nothing to decrypt), `db:prepare`, `bin/create-backup.sh` cron.
 - Value: correct HTTPS behind nginx. Deployable alone (no code paths change in dev/test).
 
 ### S3 - Docs premise
-- CLAUDE.md + specs/tech.md text per decision 7.
-- After S1 so docs match the code.
+- CLAUDE.md, specs/tech.md, README.md, and `.okf/` (single-user-scope decision, decisions index, architecture) per decision 7. Details: design/s3-plan.md.
+- After S1 and S2 so docs match the code and `design/deploy-nginx.md` exists.
 
 ## Conflicts / rework
 - C1: S1 + S2 both touch `config/` (S1: routes; S2: production.rb). Different files - no textual conflict. 0.
-- R1: S1 edits every existing request spec to add `sign_in_as` - rework of earlier specs. easy, 1 point.
+- R1: S1 changes sign-in for every existing request/system spec. A global `before` hook in rails_helper covers them, so no per-file edits. trivial, 0.5 point.
 - C2: S1 and any in-flight branch (e.g. `schedule-next-week-button`) both edit request specs - merge conflict on spec setup lines. trivial, 0.5.
 
 Deferred edge cases: password reset by email, session idle expiry, multi-user, 2FA.

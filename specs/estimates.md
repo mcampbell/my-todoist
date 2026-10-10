@@ -79,6 +79,6 @@ See design/auth.md. Conflict/rework costs only.
 
 | # | Item | Cost | Points |
 |---|---|---|---|
-| R1 | S1 adds `sign_in_as` to every existing request/system spec | easy | 1 |
+| R1 | S1 signs in every existing request/system spec via one global hook | trivial | 0.5 |
 | C2 | S1 vs in-flight branches editing request spec setup | trivial | 0.5 |
-| | **Subtotal** | | **1.5** |
+| | **Subtotal** | | **1** |
