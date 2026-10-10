@@ -72,3 +72,13 @@ No rework: neither slice touches code from an earlier feature.
 Single slice, trivial (0.5 points): one keydown listener in
 `application.js`, no new deps, no schema/controller change. See
 specs/q-shortcut-design.md. No conflict, no rework.
+
+## Authentication for internet deploy
+
+See design/auth.md. Conflict/rework costs only.
+
+| # | Item | Cost | Points |
+|---|---|---|---|
+| R1 | S1 adds `sign_in_as` to every existing request/system spec | easy | 1 |
+| C2 | S1 vs in-flight branches editing request spec setup | trivial | 0.5 |
+| | **Subtotal** | | **1.5** |
