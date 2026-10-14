@@ -162,25 +162,30 @@ class TasksController < ApplicationController
 
   # After #complete!: a one-off task is destroyed; a recurring one survives
   # with due_at advanced to its next occurrence, which the notice names.
+  # The layout renders notices through sanitize (to keep the creation
+  # notice's link), so every notice escapes the user-typed title itself.
   def completion_notice(task)
-    return "“#{task.title}” completed." if task.destroyed?
+    return "“#{h(task.title)}” completed." if task.destroyed?
 
-    "“#{task.title}” completed. Next: #{helpers.due_tag(task)}."
+    "“#{h(task.title)}” completed. Next: #{helpers.due_tag(task)}."
   end
 
   def skip_notice(task)
-    "“#{task.title}” skipped. Next: #{helpers.due_tag(task)}."
+    "“#{h(task.title)}” skipped. Next: #{helpers.due_tag(task)}."
   end
 
   def creation_notice(task)
-    return "“#{task.title}” added." unless task.due_at
+    link = helpers.link_to(task.title, edit_task_path(task))
+    return "“#{link}” added." unless task.due_at
 
-    "“#{task.title}” added. Due #{relative_due_phrase(task)}."
+    "“#{link}” added. Due #{relative_due_phrase(task)}."
   end
 
   def reschedule_notice(task)
-    "“#{task.title}” rescheduled. Due #{relative_due_phrase(task)}."
+    "“#{h(task.title)}” rescheduled. Due #{relative_due_phrase(task)}."
   end
+
+  def h(text) = ERB::Util.html_escape(text)
 
   # "today"/"tomorrow" (plus a time of day, if timed) when the due date lands
   # on one of those, even when the user typed an explicit date -- otherwise

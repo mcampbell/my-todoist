@@ -240,18 +240,35 @@ RSpec.describe "Tasks", type: :request do
     end
 
     describe "creation flash notice" do
+      def notice_text = response.parsed_body.at_css(".notification").text
+
+      it "links the title to the new task's edit page" do
+        post tasks_path, params: { task: { title: "buy milk" } }
+        follow_redirect!
+        link = response.parsed_body.at_css(".notification a")
+        expect(link.text).to eq("buy milk")
+        expect(link["href"]).to eq(edit_task_path(Task.last))
+      end
+
+      it "escapes markup in the linked title" do
+        post tasks_path, params: { task: { title: "<script>x</script> milk" } }
+        follow_redirect!
+        expect(response.parsed_body.at_css(".notification script")).to be_nil
+        expect(notice_text).to include("“<script>x</script> milk” added.")
+      end
+
       it "flashes just the title for an undated task" do
         post tasks_path, params: { task: { title: "buy milk" } }
         follow_redirect!
-        expect(response.body).to include("“buy milk” added.")
-        expect(response.body).not_to include("Due")
+        expect(notice_text).to include("“buy milk” added.")
+        expect(notice_text).not_to include("Due")
       end
 
       it "says 'today' for a same-day due date, however it was entered" do
         travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
           post tasks_path, params: { task: { title: "call dentist 8/15/2026" } }
           follow_redirect!
-          expect(response.body).to include("“call dentist” added. Due today.")
+          expect(notice_text).to include("“call dentist” added. Due today.")
         end
       end
 
@@ -259,7 +276,7 @@ RSpec.describe "Tasks", type: :request do
         travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
           post tasks_path, params: { task: { title: "call dentist 8/16/2026" } }
           follow_redirect!
-          expect(response.body).to include("“call dentist” added. Due tomorrow.")
+          expect(notice_text).to include("“call dentist” added. Due tomorrow.")
         end
       end
 
@@ -267,7 +284,7 @@ RSpec.describe "Tasks", type: :request do
         travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
           post tasks_path, params: { task: { title: "call dentist 3pm" } }
           follow_redirect!
-          expect(response.body).to include("“call dentist” added. Due today at 3:00 PM.")
+          expect(notice_text).to include("“call dentist” added. Due today at 3:00 PM.")
         end
       end
 
@@ -275,7 +292,7 @@ RSpec.describe "Tasks", type: :request do
         travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
           post tasks_path, params: { task: { title: "call dentist 8/20/2026" } }
           follow_redirect!
-          expect(response.body).to include("“call dentist” added. Due Aug 20.")
+          expect(notice_text).to include("“call dentist” added. Due Aug 20.")
         end
       end
 
@@ -283,7 +300,7 @@ RSpec.describe "Tasks", type: :request do
         travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
           post tasks_path, params: { task: { title: "water plants every day" } }
           follow_redirect!
-          expect(response.body).to include("“water plants” added. Due today.")
+          expect(notice_text).to include("“water plants” added. Due today.")
         end
       end
     end
@@ -956,6 +973,13 @@ RSpec.describe "Tasks", type: :request do
       follow_redirect!
       expect(response.body).to include("“do it” completed.")
       expect(response.body).not_to include("Next:")
+    end
+
+    it "shows markup in a completed task's title as literal text" do
+      task = Task.create!(title: "<b>do</b> it")
+      patch complete_task_path(task)
+      follow_redirect!
+      expect(response.parsed_body.at_css(".notification").text).to include("“<b>do</b> it” completed.")
     end
 
     it "flashes the next scheduled date and time when completing a timed recurring task" do
