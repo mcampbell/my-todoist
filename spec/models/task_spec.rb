@@ -51,6 +51,18 @@ RSpec.describe Task, type: :model do
       expect(CompletedOccurrence.order(:id).last.all_day?).to eq(false)
     end
 
+    it "snapshots the notes when completing" do
+      Task.create!(title: "t", notes: "Call the plumber\nAsk about the sink").complete!
+      expect(CompletedOccurrence.last.notes).to eq("Call the plumber\nAsk about the sink")
+    end
+
+    it "snapshots the notes and keeps them on a recurring task" do
+      task = Task.create!(title: "t", notes: "Bring the key", recurrence: "every day", due_at: Time.current)
+      task.complete!
+      expect(CompletedOccurrence.last.notes).to eq("Bring the key")
+      expect(task.reload.notes).to eq("Bring the key")
+    end
+
     it "raises RecordNotFound when the same id is completed a second time" do
       task = Task.create!(title: "t")
       task.complete!
