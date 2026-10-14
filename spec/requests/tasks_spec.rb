@@ -117,6 +117,11 @@ RSpec.describe "Tasks", type: :request do
       expect(response).to have_http_status(:ok)
     end
 
+    it "has a notes text box" do
+      get new_task_path
+      expect(response.parsed_body.at_css("textarea[name='task[notes]']")).to be_present
+    end
+
     it "carries return_to through as a hidden field when present" do
       get new_task_path(return_to: today_tasks_path)
       expect(response.body).to include(%(value="#{today_tasks_path}"))
@@ -129,9 +134,8 @@ RSpec.describe "Tasks", type: :request do
       end
     end
 
-    it "renders only the quick-add title field on create (no structured controls)" do
+    it "renders no structured date, project, or priority controls on create" do
       get new_task_path
-      expect(response.body).not_to include('name="task[notes]"')
       expect(response.body).not_to include('name="task[due_date]"')
       expect(response.body).not_to include('name="task[due_time]"')
       expect(response.body).not_to include('name="task[project_id]"')
@@ -225,12 +229,20 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "POST /tasks" do
-    it "creates a task from the quick-add field, ignoring structured notes" do
+    it "creates a task from the quick-add field, keeping notes as typed" do
       expect {
-        post tasks_path, params: { task: { title: "new", notes: "keep me" } }
+        post tasks_path, params: { task: { title: "new", notes: "p1 tomorrow #Work" } }
       }.to change(Task, :count).by(1)
       expect(response).to redirect_to(today_tasks_path)
-      expect(Task.last.notes).to be_nil
+      expect(Task.last.notes).to eq("p1 tomorrow #Work")
+      expect(Task.last.priority).to eq(0)
+      expect(Task.last.due_at).to be_nil
+    end
+
+    it "keeps typed notes when the form re-renders on error" do
+      post tasks_path, params: { task: { title: "", notes: "keep me" } }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body.at_css("textarea[name='task[notes]']").text.strip).to eq("keep me")
     end
 
     it "parses priority from quick-add text" do
