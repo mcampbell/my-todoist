@@ -38,7 +38,7 @@
         <div class="column nav-main">
           <% flash.each do |type, message| %>
             <div class="notification is-<%= type == "alert" ? "danger" : "success" %>">
-              <%= message %>
+              <%= sanitize(message, tags: %w[a], attributes: %w[href]) %>
             </div>
           <% end %>
           <%= yield %>
