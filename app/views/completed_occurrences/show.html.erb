@@ -3,6 +3,7 @@
 <table class="table is-fullwidth">
   <tbody>
     <tr><th>Title</th><td><%= @occurrence.task_title %></td></tr>
+    <tr><th>Notes</th><td><%= @occurrence.notes.present? ? simple_format(h(@occurrence.notes)) : "-" %></td></tr>
     <tr><th>Project</th><td><%= @occurrence.project_name.presence || "Inbox" %></td></tr>
     <tr><th>Priority</th><td>P<%= priority_label(@occurrence.priority) || @occurrence.priority %></td></tr>
     <tr><th>Labels</th><td><%= @occurrence.label_names.presence || "-" %></td></tr>

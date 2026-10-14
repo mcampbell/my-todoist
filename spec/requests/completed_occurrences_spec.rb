@@ -17,6 +17,25 @@ RSpec.describe "CompletedOccurrences", type: :request do
       expect(response.body).to include("chore, urgent")
     end
 
+    it "renders the notes with line breaks, escaping HTML" do
+      occurrence = CompletedOccurrence.create!(
+        task_title: "Plumbing", priority: 0, completed_at: Time.current,
+        notes: "Call the plumber\nAsk about <b>the sink</b>"
+      )
+
+      get completed_occurrence_path(occurrence)
+
+      expect(response.body).to include("Call the plumber\n<br />Ask about &lt;b&gt;the sink&lt;/b&gt;")
+    end
+
+    it "renders a dash when the occurrence has no notes" do
+      occurrence = CompletedOccurrence.create!(task_title: "Bare", priority: 0, completed_at: Time.current)
+
+      get completed_occurrence_path(occurrence)
+
+      expect(response.body).to match(%r{<th>Notes</th><td>-</td>})
+    end
+
     it "renders an all-day occurrence's due date without a phantom midnight time" do
       travel_to(Time.zone.local(2030, 1, 1)) do
         occurrence = CompletedOccurrence.create!(

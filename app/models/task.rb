@@ -32,6 +32,7 @@ class Task < ApplicationRecord
       reload
       snapshot = CompletedOccurrence.create!(
         task_title: title,
+        notes: notes,
         project_name: project&.name,
         priority: priority,
         label_names: labels.pluck(:name).sort_by { |n| n.downcase }.join(", "),
