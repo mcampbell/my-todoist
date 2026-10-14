@@ -58,6 +58,7 @@ class TasksController < ApplicationController
       due_date: parsed[:due_date],
       due_time: parsed[:due_time],
       recurrence: parsed[:recurrence],
+      notes: qp[:notes],
       label_ids: qp[:label_ids] || []
     }
     if parsed[:recurrence].present?
@@ -355,7 +356,7 @@ class TasksController < ApplicationController
   # Create accepts only the quick-add field and labels; priority, due date,
   # and project come from the parsed text (slice 4d).
   def quick_add_params
-    params.require(:task).permit(:title, label_ids: [])
+    params.require(:task).permit(:title, :notes, label_ids: [])
   end
 
   # Only accept internal, non-protocol-relative paths (blocks "//evil.com" open redirects).

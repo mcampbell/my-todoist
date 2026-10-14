@@ -30,6 +30,13 @@
     <p class="help">Priority <code>p1</code>–<code>p4</code>, dates and times, and <code>#project</code> parse from this line.</p>
   </div>
 
+  <div class="field">
+    <%= f.label :notes, class: "label" %>
+    <div class="control">
+      <%= f.text_area :notes, class: "textarea" %>
+    </div>
+  </div>
+
   <% if Label.exists? %>
     <div class="field">
       <label class="label">Labels</label>
