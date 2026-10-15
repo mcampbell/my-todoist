@@ -5,6 +5,7 @@ Rails.application.routes.draw do
   resources :tasks, except: [ :show ] do
     member do
       patch :complete
+      get :complete_with_notes
       patch :skip
     end
     collection do

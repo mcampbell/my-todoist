@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_14_143020) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_15_002246) do
   create_table "completed_occurrences", force: :cascade do |t|
     t.boolean "all_day", default: false, null: false
     t.datetime "completed_at", null: false
+    t.text "completion_notes"
     t.datetime "created_at", null: false
     t.datetime "due_at"
     t.string "label_names"

@@ -27,12 +27,13 @@ class Task < ApplicationRecord
     super(value.presence)
   end
 
-  def complete!
+  def complete!(completion_notes: nil)
     with_lock do
       reload
       snapshot = CompletedOccurrence.create!(
         task_title: title,
         notes: notes,
+        completion_notes: completion_notes.presence,
         project_name: project&.name,
         priority: priority,
         label_names: labels.pluck(:name).sort_by { |n| n.downcase }.join(", "),

@@ -63,6 +63,18 @@ RSpec.describe Task, type: :model do
       expect(task.reload.notes).to eq("Bring the key")
     end
 
+    it "keeps completion notes on the occurrence, not the task" do
+      task = Task.create!(title: "t", recurrence: "every day", due_at: Time.current)
+      task.complete!(completion_notes: "Done early")
+      expect(CompletedOccurrence.last.completion_notes).to eq("Done early")
+      expect(task.reload.notes).to be_nil
+    end
+
+    it "stores blank completion notes as nil" do
+      Task.create!(title: "t").complete!(completion_notes: "  ")
+      expect(CompletedOccurrence.last.completion_notes).to be_nil
+    end
+
     it "raises RecordNotFound when the same id is completed a second time" do
       task = Task.create!(title: "t")
       task.complete!
