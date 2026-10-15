@@ -970,6 +970,14 @@ RSpec.describe "Tasks", type: :request do
       expect(link["href"]).to eq(complete_with_notes_task_path(task, return_to: tasks_path))
     end
 
+    it "gives both complete checkboxes hover text" do
+      Task.create!(title: "do it")
+      get tasks_path
+      page = response.parsed_body
+      expect(page.at_css("button[aria-label='Complete do it']")["title"]).to eq("Complete")
+      expect(page.at_css("a[aria-label='Complete do it with notes']")["title"]).to eq("Complete with notes")
+    end
+
     it "renders a completion-notes form that completes the task" do
       task = Task.create!(title: "do it")
       get complete_with_notes_task_path(task, return_to: today_tasks_path)

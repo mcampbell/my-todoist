@@ -5,7 +5,7 @@
 <%= tag.tr class: row_class,
            style: ("background-color: #{tint}" if tint) do %>
   <td class="is-narrow">
-    <%= button_to complete_task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Complete #{task.title}" do %>
+    <%= button_to complete_task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Complete #{task.title}", title: "Complete" do %>
       <span class="icon">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
           <rect x="4" y="4" width="16" height="16" rx="4"/>
