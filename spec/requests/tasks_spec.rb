@@ -1128,6 +1128,19 @@ RSpec.describe "Tasks", type: :request do
       expect(response.body).not_to include("active-one")
     end
 
+    it "previews each occurrence's completion notes under its title" do
+      CompletedOccurrence.create!(task_title: "done-one", priority: 0, completed_at: Time.current,
+                                  completion_notes: "Fixed it\nUsed tape")
+      get completed_tasks_path
+      expect(response.parsed_body.at_css("td .task-notes").text).to eq("Fixed it...")
+    end
+
+    it "renders no preview for an occurrence without completion notes" do
+      CompletedOccurrence.create!(task_title: "done-one", priority: 0, completed_at: Time.current, notes: "task note")
+      get completed_tasks_path
+      expect(response.parsed_body.at_css(".task-notes")).to be_nil
+    end
+
     it "orders most-recently-completed first" do
       CompletedOccurrence.create!(task_title: "older", priority: 0, completed_at: 2.hours.ago)
       CompletedOccurrence.create!(task_title: "newer", priority: 0, completed_at: 1.minute.ago)

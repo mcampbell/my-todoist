@@ -35,10 +35,10 @@ module TasksHelper
     cls && tag.span("P#{priority_label(task.priority)}", class: "tag #{cls}")
   end
 
-  # First line of a task's notes for list rows, with "..." when more text
-  # follows. Blank notes render nothing.
-  def notes_preview(task)
-    notes = task.notes.to_s.strip
+  # First line of notes for list rows, with "..." when more text follows.
+  # Blank notes render nothing.
+  def notes_preview(text)
+    notes = text.to_s.strip
     return if notes.empty?
     first, rest = notes.split("\n", 2)
     "#{first.rstrip}#{'...' if rest.present?}"

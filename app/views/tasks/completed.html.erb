@@ -8,7 +8,11 @@
       <% @occurrences.each do |occurrence| %>
         <tr>
           <td><s><%= occurrence.task_title %></s>
-            <%= link_to "Details", completed_occurrence_path(occurrence), class: "has-text-grey" %></td>
+            <%= link_to "Details", completed_occurrence_path(occurrence), class: "has-text-grey" %>
+            <% if (preview = notes_preview(occurrence.completion_notes)) %>
+              <p class="task-notes is-size-7 has-text-grey"><%= preview %></p>
+            <% end %>
+          </td>
           <td class="has-text-right has-text-grey">
             <%= format_time(occurrence.completed_at) %>
           </td>
