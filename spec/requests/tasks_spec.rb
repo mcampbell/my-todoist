@@ -962,6 +962,49 @@ RSpec.describe "Tasks", type: :request do
     end
   end
 
+  describe "complete with notes" do
+    it "links each task row to the completion-notes page" do
+      task = Task.create!(title: "do it")
+      get tasks_path
+      link = response.parsed_body.at_css("a[aria-label='Complete do it with notes']")
+      expect(link["href"]).to eq(complete_with_notes_task_path(task, return_to: tasks_path))
+    end
+
+    it "gives both complete checkboxes hover text" do
+      Task.create!(title: "do it")
+      get tasks_path
+      page = response.parsed_body
+      expect(page.at_css("button[aria-label='Complete do it']")["title"]).to eq("Complete")
+      expect(page.at_css("a[aria-label='Complete do it with notes']")["title"]).to eq("Complete with notes")
+    end
+
+    it "renders a completion-notes form that completes the task" do
+      task = Task.create!(title: "do it")
+      get complete_with_notes_task_path(task, return_to: today_tasks_path)
+      form = response.parsed_body.at_css("form[action='#{complete_task_path(task)}']")
+      expect(form.at_css("textarea[name='completion_notes']")).to be_present
+      expect(form.at_css("input[name='return_to']")["value"]).to eq(today_tasks_path)
+    end
+
+    it "saves the notes on the occurrence and returns to the originating view" do
+      task = Task.create!(title: "do it")
+      patch complete_task_path(task), params: { completion_notes: "Done early", return_to: today_tasks_path }
+      expect(response).to redirect_to(today_tasks_path)
+      expect(CompletedOccurrence.last.completion_notes).to eq("Done early")
+    end
+
+    it "stores nothing when the notes box is blank" do
+      task = Task.create!(title: "do it")
+      patch complete_task_path(task), params: { completion_notes: "" }
+      expect(CompletedOccurrence.last.completion_notes).to be_nil
+    end
+
+    it "returns 404 for a missing task" do
+      get complete_with_notes_task_path(id: 0)
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "PATCH /tasks/:id/complete" do
     it "completes the task and creates an occurrence" do
       task = Task.create!(title: "do it")
@@ -1091,6 +1134,19 @@ RSpec.describe "Tasks", type: :request do
       get completed_tasks_path
       expect(response.body).to include("done-one")
       expect(response.body).not_to include("active-one")
+    end
+
+    it "previews each occurrence's completion notes under its title" do
+      CompletedOccurrence.create!(task_title: "done-one", priority: 0, completed_at: Time.current,
+                                  completion_notes: "Fixed it\nUsed tape")
+      get completed_tasks_path
+      expect(response.parsed_body.at_css("td .task-notes").text).to eq("Fixed it...")
+    end
+
+    it "renders no preview for an occurrence without completion notes" do
+      CompletedOccurrence.create!(task_title: "done-one", priority: 0, completed_at: Time.current, notes: "task note")
+      get completed_tasks_path
+      expect(response.parsed_body.at_css(".task-notes")).to be_nil
     end
 
     it "orders most-recently-completed first" do

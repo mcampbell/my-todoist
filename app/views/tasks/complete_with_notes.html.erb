@@ -1,0 +1,14 @@
+<h1 class="title">Complete “<%= @task.title %>”</h1>
+<%= form_with url: complete_task_path(@task), method: :patch do |f| %>
+  <%= hidden_field_tag :return_to, safe_return_to || task_list_path(@task) %>
+  <div class="field">
+    <%= f.label :completion_notes, "Completion notes", class: "label" %>
+    <div class="control">
+      <%= f.text_area :completion_notes, class: "textarea", autofocus: true %>
+    </div>
+  </div>
+  <div class="control">
+    <%= f.submit "Complete", class: "button is-primary" %>
+    <%= link_to "Cancel", safe_return_to || task_list_path(@task), id: "cancel-link", class: "button is-light" %>
+  </div>
+<% end %>

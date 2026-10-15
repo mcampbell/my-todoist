@@ -34,6 +34,18 @@ RSpec.describe "CompletedOccurrences", type: :request do
       get completed_occurrence_path(occurrence)
 
       expect(response.body).to match(%r{<th>Notes</th><td>-</td>})
+      expect(response.body).to match(%r{<th>Completion notes</th><td>-</td>})
+    end
+
+    it "renders the completion notes with line breaks, escaping HTML" do
+      occurrence = CompletedOccurrence.create!(
+        task_title: "Plumbing", priority: 0, completed_at: Time.current,
+        completion_notes: "Fixed it\nUsed <b>tape</b>"
+      )
+
+      get completed_occurrence_path(occurrence)
+
+      expect(response.body).to include("Fixed it\n<br />Used &lt;b&gt;tape&lt;/b&gt;")
     end
 
     it "renders an all-day occurrence's due date without a phantom midnight time" do

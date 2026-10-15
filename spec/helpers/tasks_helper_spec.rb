@@ -72,34 +72,30 @@ RSpec.describe TasksHelper, type: :helper do
   end
 
   describe "#notes_preview" do
-    it "returns nil when the task has no notes" do
-      expect(helper.notes_preview(Task.new(title: "t"))).to be_nil
+    it "returns nil when there are no notes" do
+      expect(helper.notes_preview(nil)).to be_nil
     end
 
     it "returns nil when the notes are blank" do
-      expect(helper.notes_preview(Task.new(title: "t", notes: "   \n "))).to be_nil
+      expect(helper.notes_preview("   \n ")).to be_nil
     end
 
     it "returns a single-line note unchanged" do
-      task = Task.new(title: "t", notes: "Call the plumber")
-      expect(helper.notes_preview(task)).to eq("Call the plumber")
+      expect(helper.notes_preview("Call the plumber")).to eq("Call the plumber")
     end
 
     it "keeps only the first line and marks the cut with an ellipsis" do
-      task = Task.new(title: "t", notes: "Call the plumber\nAsk about the sink")
-      expect(helper.notes_preview(task)).to eq("Call the plumber...")
+      expect(helper.notes_preview("Call the plumber\nAsk about the sink")).to eq("Call the plumber...")
     end
 
     # A browser submits a textarea with CRLF line endings, so the parser must
     # not leave a stray carriage return at the end of the preview.
     it "handles the CRLF line endings a browser submits" do
-      task = Task.new(title: "t", notes: "Call the plumber\r\nAsk about the sink")
-      expect(helper.notes_preview(task)).to eq("Call the plumber...")
+      expect(helper.notes_preview("Call the plumber\r\nAsk about the sink")).to eq("Call the plumber...")
     end
 
     it "ignores trailing blank lines when deciding to add an ellipsis" do
-      task = Task.new(title: "t", notes: "Call the plumber\n\n  ")
-      expect(helper.notes_preview(task)).to eq("Call the plumber")
+      expect(helper.notes_preview("Call the plumber\n\n  ")).to eq("Call the plumber")
     end
   end
 end

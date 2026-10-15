@@ -3,7 +3,7 @@ require "did_you_mean"
 class TasksController < ApplicationController
   UPCOMING_DAYS = 7
 
-  before_action :set_task, only: %i[edit update destroy complete skip]
+  before_action :set_task, only: %i[edit update destroy complete complete_with_notes skip]
   helper_method :task_list_path, :safe_return_to
 
   def index
@@ -129,9 +129,17 @@ class TasksController < ApplicationController
 
   def complete
     path = task_list_path(@task)
-    @task.complete!
-    redirect_back_or_to path, notice: completion_notice(@task)
+    @task.complete!(completion_notes: params[:completion_notes])
+    # The notes page passes return_to: going "back" would land on that page,
+    # which 404s once a one-off task is gone.
+    if safe_return_to
+      redirect_to safe_return_to, notice: completion_notice(@task)
+    else
+      redirect_back_or_to path, notice: completion_notice(@task)
+    end
   end
+
+  def complete_with_notes; end
 
   def skip
     path = task_list_path(@task)

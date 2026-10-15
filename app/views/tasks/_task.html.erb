@@ -5,10 +5,20 @@
 <%= tag.tr class: row_class,
            style: ("background-color: #{tint}" if tint) do %>
   <td class="is-narrow">
-    <%= button_to complete_task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Complete #{task.title}" do %>
+    <%= button_to complete_task_path(task), method: :patch, class: "button is-small is-white", form_class: "is-inline-block", "aria-label": "Complete #{task.title}", title: "Complete" do %>
       <span class="icon">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
           <rect x="4" y="4" width="16" height="16" rx="4"/>
+        </svg>
+      </span>
+    <% end %>
+  </td>
+  <td class="is-narrow">
+    <%= link_to complete_with_notes_task_path(task, return_to: request.path), class: "button is-small is-white", "aria-label": "Complete #{task.title} with notes", title: "Complete with notes" do %>
+      <span class="icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <rect x="4" y="4" width="16" height="16" rx="4"/>
+          <path d="M8 10h8M8 14h5"/>
         </svg>
       </span>
     <% end %>
@@ -25,7 +35,7 @@
     <% task.labels.sort_by(&:name).each do |label| %>
       <span class="tag is-light"><%= label.name %></span>
     <% end %>
-    <% if (preview = notes_preview(task)) %>
+    <% if (preview = notes_preview(task.notes)) %>
       <p class="task-notes is-size-7 has-text-grey"><%= preview %></p>
     <% end %>
   </td>
