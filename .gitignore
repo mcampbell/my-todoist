@@ -47,3 +47,4 @@
 # Local tool output
 /.serena/
 /out
+/coverage/
