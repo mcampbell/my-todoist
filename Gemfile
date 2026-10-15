@@ -48,3 +48,9 @@ group :development, :test do
   gem "rspec-rails"
   gem "capybara"
 end
+
+group :test do
+  # Coverage as LCOV, so polycrap can score CRAP with real coverage.
+  gem "simplecov", require: false
+  gem "simplecov-lcov", require: false
+end
