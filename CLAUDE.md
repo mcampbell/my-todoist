@@ -38,6 +38,7 @@ Serve assets via Propshaft + Importmap; this project has no Node tooling.
 | `bin/rubocop -A` | lint + autocorrect |
 | `bin/brakeman` | security scan |
 | `bin/bundler-audit` | dependency vuln scan |
+| `polycrap --path . --exclude 'spec/**' --exclude 'vendor/**' --exclude 'db/**' --exclude 'config/**' --lcov coverage/lcov.info` | CRAP scores; run `bin/rspec` first for `coverage/lcov.info`. Keep `--path .`: LCOV paths start with `./` and do not match `--path app`. JS has no coverage, so it scores as 0% |
 
 Run `bin/rubocop` and `bin/rspec` locally before finishing — `.github/` has
 only `dependabot.yml`, so no CI runs them for you.
