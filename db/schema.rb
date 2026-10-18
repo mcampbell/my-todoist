@@ -12,17 +12,17 @@
 
 ActiveRecord::Schema[8.1].define(version: 2026_10_15_002246) do
   create_table "completed_occurrences", force: :cascade do |t|
-    t.boolean "all_day", default: false, null: false
-    t.datetime "completed_at", null: false
-    t.text "completion_notes"
-    t.datetime "created_at", null: false
-    t.datetime "due_at"
-    t.string "label_names"
-    t.text "notes"
-    t.integer "priority", null: false
-    t.string "project_name"
     t.string "task_title", null: false
+    t.string "project_name"
+    t.integer "priority", null: false
+    t.string "label_names"
+    t.datetime "due_at"
+    t.datetime "completed_at", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "all_day", default: false, null: false
+    t.text "notes"
+    t.text "completion_notes"
   end
 
   create_table "labels", force: :cascade do |t|
@@ -40,11 +40,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_002246) do
   end
 
   create_table "sessions", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "ip_address"
-    t.datetime "updated_at", null: false
-    t.string "user_agent"
     t.integer "user_id", null: false
+    t.string "ip_address"
+    t.string "user_agent"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
@@ -59,26 +59,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_002246) do
   end
 
   create_table "tasks", force: :cascade do |t|
-    t.boolean "all_day", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "due_at"
-    t.boolean "in_progress", default: false, null: false
     t.text "notes"
     t.integer "priority", default: 0, null: false
     t.integer "project_id"
-    t.string "recurrence"
-    t.boolean "recurrence_anchor_all_day"
-    t.datetime "recurrence_anchor_at"
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.boolean "all_day", default: false, null: false
+    t.string "recurrence"
+    t.datetime "recurrence_anchor_at"
+    t.boolean "recurrence_anchor_all_day"
+    t.boolean "in_progress", default: false, null: false
     t.index ["project_id"], name: "index_tasks_on_project_id"
     t.check_constraint "priority BETWEEN 0 AND 3", name: "priority_range"
   end
 
   create_table "users", force: :cascade do |t|
-    t.datetime "created_at", null: false
     t.string "email_address", null: false
     t.string "password_digest", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
