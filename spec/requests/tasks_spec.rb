@@ -1479,6 +1479,14 @@ RSpec.describe "Tasks", type: :request do
       )
     end
 
+    it "marks a task overdue by over a month with the darkest danger shade" do
+      Task.create!(title: "ancient-task", due_at: 2.months.ago)
+      get tasks_path
+      expect(Capybara.string(response.body)).to have_css(
+        "tr.has-background-danger-80", text: "ancient-task"
+      )
+    end
+
     it "tints a project task's row with the project colour" do
       project = Project.create!(name: "Work")
       Task.create!(title: "work-task", project: project)

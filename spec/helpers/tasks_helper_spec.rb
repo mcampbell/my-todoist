@@ -1,6 +1,39 @@
 require "rails_helper"
 
 RSpec.describe TasksHelper, type: :helper do
+  describe "#overdue_class" do
+    let(:now) { Time.zone.local(2030, 3, 15, 12, 0) }
+
+    def class_for(due_at, all_day: false)
+      travel_to(now) { helper.overdue_class(Task.new(title: "t", due_at: due_at, all_day: all_day)) }
+    end
+
+    it "returns nil for a task that is not overdue" do
+      expect(class_for(1.hour.since(now))).to be_nil
+      expect(class_for(nil)).to be_nil
+    end
+
+    it "uses the light shade when overdue by under a week" do
+      expect(class_for(1.minute.until(now))).to eq("has-background-danger-light")
+      expect(class_for(1.second.since(1.week.until(now)))).to eq("has-background-danger-light")
+    end
+
+    it "uses the middle shade from one week up to one month" do
+      expect(class_for(1.week.until(now))).to eq("has-background-danger-85")
+      expect(class_for(1.second.since(1.month.until(now)))).to eq("has-background-danger-85")
+    end
+
+    it "uses the darkest shade from one month on" do
+      expect(class_for(1.month.until(now))).to eq("has-background-danger-80")
+      expect(class_for(1.year.until(now))).to eq("has-background-danger-80")
+    end
+
+    it "ages an all-day task from its due date's midnight" do
+      due = 1.week.until(now).beginning_of_day
+      expect(class_for(due, all_day: true)).to eq("has-background-danger-85")
+    end
+  end
+
   describe "#format_time" do
     it "omits the year when the time is in the current year" do
       travel_to(Time.zone.local(2030, 1, 1)) do

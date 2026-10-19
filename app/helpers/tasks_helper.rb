@@ -49,6 +49,15 @@ module TasksHelper
     cls && tag.span("P#{priority_label(task.priority)}", class: "tag #{cls}")
   end
 
+  # Overdue rows redden with age so the oldest stand out. Nil when not overdue.
+  def overdue_class(task)
+    return unless task.overdue?
+    if task.due_at > 1.week.ago then "has-background-danger-light"
+    elsif task.due_at > 1.month.ago then "has-background-danger-85"
+    else "has-background-danger-80"
+    end
+  end
+
   # First line of notes for list rows, with "..." when more text follows.
   # Blank notes render nothing.
   def notes_preview(text)

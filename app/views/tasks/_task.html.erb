@@ -1,6 +1,6 @@
 <% edit_path = edit_task_path(task, return_to: request.path) %>
 <%# In progress wins over the overdue and project backgrounds. %>
-<% row_class = task.in_progress? ? "task-in-progress" : ("has-background-danger-light" if task.overdue?) %>
+<% row_class = task.in_progress? ? "task-in-progress" : overdue_class(task) %>
 <% tint = project_tint(task.project) unless row_class %>
 <%= tag.tr class: row_class,
            style: ("background-color: #{tint}" if tint) do %>
