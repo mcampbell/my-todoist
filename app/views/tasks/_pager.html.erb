@@ -1,0 +1,19 @@
+<nav class="pagination is-small" role="navigation" aria-label="pagination">
+  <% if page > 1 %>
+    <%= link_to "First", completed_tasks_path(page: 1), class: "pagination-previous" %>
+    <%= link_to "Previous", completed_tasks_path(page: page - 1), class: "pagination-previous" %>
+  <% end %>
+  <% if page < last_page %>
+    <%= link_to "Next", completed_tasks_path(page: page + 1), class: "pagination-next" %>
+    <%= link_to "Last", completed_tasks_path(page: last_page), class: "pagination-next" %>
+  <% end %>
+  <ul class="pagination-list">
+    <% ([ page - 2, 1 ].max..[ page + 2, last_page ].min).each do |n| %>
+      <li><%= link_to n, completed_tasks_path(page: n), class: [ "pagination-link", ("is-current" if n == page) ], "aria-current": ("page" if n == page) %></li>
+    <% end %>
+  </ul>
+  <%= form_with url: completed_tasks_path, method: :get, class: "field has-addons" do |f| %>
+    <div class="control"><%= f.number_field :page, min: 1, max: last_page, value: page, id: nil, class: "input is-small", "aria-label": "Go to page" %></div>
+    <div class="control"><%= f.button "Go", name: nil, class: "button is-small" %></div>
+  <% end %>
+</nav>

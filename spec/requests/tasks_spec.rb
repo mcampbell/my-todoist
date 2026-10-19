@@ -1155,6 +1155,89 @@ RSpec.describe "Tasks", type: :request do
       get completed_tasks_path
       expect(response.body.index("newer")).to be < response.body.index("older")
     end
+
+    describe "pagination" do
+      before { stub_const("TasksController::COMPLETED_PER_PAGE", 2) }
+
+      # done-1 is the newest, so it lands first on page 1.
+      def complete_tasks(count)
+        (1..count).each { |i| CompletedOccurrence.create!(task_title: "done-#{i}-", priority: 0, completed_at: i.minutes.ago) }
+      end
+
+      def titles = response.parsed_body.css("td s").map(&:text)
+      def pager_links = response.parsed_body.css("nav.pagination a").to_h { |a| [ a.text.strip, a["href"] ] }
+
+      it "shows one page of rows at a time, newest first" do
+        complete_tasks(5)
+        get completed_tasks_path(page: 2)
+        expect(titles).to eq([ "done-3-", "done-4-" ])
+      end
+
+      it "puts the pager above and below the list, without duplicate ids" do
+        complete_tasks(5)
+        get completed_tasks_path
+        body = response.parsed_body
+        expect(body.css("nav.pagination + table, table + nav.pagination").size).to eq(2)
+        expect(body.css("nav.pagination input[id]")).to be_empty
+      end
+
+      it "hides the pager when everything fits on one page" do
+        complete_tasks(2)
+        get completed_tasks_path
+        expect(response.parsed_body.at_css("nav.pagination")).to be_nil
+      end
+
+      it "links Next and Last from page 1, but not First or Previous" do
+        complete_tasks(5)
+        get completed_tasks_path
+        expect(pager_links).to include("Next" => completed_tasks_path(page: 2), "Last" => completed_tasks_path(page: 3))
+        expect(pager_links.keys).not_to include("First", "Previous")
+      end
+
+      it "links First and Previous from the last page, but not Next or Last" do
+        complete_tasks(5)
+        get completed_tasks_path(page: 3)
+        expect(pager_links).to include("First" => completed_tasks_path(page: 1), "Previous" => completed_tasks_path(page: 2))
+        expect(pager_links.keys).not_to include("Next", "Last")
+      end
+
+      it "links the pages two either side of the current one and marks the current page" do
+        complete_tasks(20)
+        get completed_tasks_path(page: 5)
+        numbers = response.parsed_body.at_css("nav.pagination").css("ul.pagination-list a").map { |a| a.text.strip }
+        expect(numbers).to eq(%w[3 4 5 6 7])
+        expect(response.parsed_body.at_css("a[aria-current=page]").text.strip).to eq("5")
+      end
+
+      it "clamps a page past the end to the last page" do
+        complete_tasks(5)
+        get completed_tasks_path(page: 99)
+        expect(titles).to eq([ "done-5-" ])
+      end
+
+      it "treats a non-numeric page as page 1" do
+        complete_tasks(3)
+        get completed_tasks_path(page: "abc")
+        expect(titles).to eq([ "done-1-", "done-2-" ])
+      end
+
+      it "keeps rows with the same completion time on a stable page" do
+        at = Time.current
+        (1..3).each { |i| CompletedOccurrence.create!(task_title: "tie-#{i}-", priority: 0, completed_at: at) }
+        get completed_tasks_path(page: 2)
+        expect(titles).to eq([ "tie-1-" ]) # newest id first, so the oldest id is alone on page 2
+      end
+
+      it "offers a GET box to jump to a page, bounded by the last page" do
+        complete_tasks(5)
+        get completed_tasks_path
+        form = response.parsed_body.at_css("nav.pagination form")
+        expect(form["method"]).to eq("get")
+        expect(form["action"]).to eq(completed_tasks_path)
+        expect(form.at_css("input[name=page]").to_h).to include("min" => "1", "max" => "3")
+        expect(form.at_css("button[type=submit]")).to be_present # phone number pads have no Enter key
+      end
+    end
   end
 
   describe "organization: form fields (slice 2)" do
