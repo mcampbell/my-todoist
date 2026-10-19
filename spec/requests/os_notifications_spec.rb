@@ -1,10 +1,13 @@
 require "rails_helper"
 
+# The browser shows due notifications itself; the server no longer pops one.
 RSpec.describe "POST /os_notification", type: :request do
-  it "delegates to OsNotifier with the given title and message" do
-    expect(OsNotifier).to receive(:notify).with(title: "Task due", message: "Buy milk")
+  it "is no longer routed" do
+    expect { Rails.application.routes.recognize_path("/os_notification", method: :post) }
+      .to raise_error(ActionController::RoutingError)
+  end
 
-    post os_notification_path, params: { title: "Task due", message: "Buy milk" }, as: :json
-    expect(response).to have_http_status(:no_content)
+  it "has no route helper" do
+    expect(Rails.application.routes.url_helpers).not_to respond_to(:os_notification_path)
   end
 end

@@ -74,15 +74,22 @@ function beep() {
   }
 }
 
-// Fire-and-forget: an OS-level toast is a nice-to-have on top of the
-// in-page one, never worth failing or retrying over.
+// The browser's own OS-level toast, on the device you look at: a nice-to-have
+// on top of the in-page one, so a missing API or denied permission skips it.
 function notifyOs(task) {
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-  fetch(appPath("/os_notification"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-    body: JSON.stringify({ title: "Task due", message: task.title }),
-  }).catch((error) => console.error("os notification failed:", error));
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    new Notification("Task due", { body: task.title });
+  } catch (error) {
+    console.error("os notification failed:", error); // e.g. Android Chrome needs a service worker
+  }
+}
+
+// Safari and Firefox ask only from a user gesture, so ask on a click, not on load.
+function requestNotificationPermission() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
 }
 
 function toast(task) {
@@ -123,6 +130,7 @@ function start() {
   if (started) return;
   started = true;
   document.addEventListener("visibilitychange", onVisibilityChange);
+  document.addEventListener("click", requestNotificationPermission, { once: true });
   setInterval(() => poll(), INTERVAL);
   poll(); // first check shortly after load, then every INTERVAL
 }

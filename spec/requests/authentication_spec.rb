@@ -18,12 +18,6 @@ RSpec.describe "Authentication", type: :request, signed_out: true do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it "does not fire an OS notification" do
-      expect(OsNotifier).not_to receive(:notify)
-      post os_notification_path, params: { title: "t", message: "m" }, as: :json
-      expect(response).to have_http_status(:unauthorized)
-    end
-
     # The poll runs on the login page too; it must not become the
     # post-login destination.
     it "returns to root after login when only the poll ran" do
