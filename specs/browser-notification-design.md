@@ -50,6 +50,8 @@ Value: silence the sound and the OS toast, per browser, from any task list.
   `click` listener on `document` for `[data-mute-toggle]` flips the flag.
   On `turbo:load` it sets the label ("Mute"/"Unmute") and `aria-pressed`.
   An unmute click also asks notification permission (it is a user gesture).
+  The S1 first-click ask and the mute toggle share one click handler, so
+  the toggle runs first and a Mute click never prompts.
 - Tests: request specs - the button renders on the 4 list views, and not
   on Search, Completed, or completed-task details. JS untested, as in S1.
 
@@ -66,7 +68,7 @@ Value: silence the sound and the OS toast, per browser, from any task list.
 - Keep `beep()`: the OS sound depends on OS settings; the beep is the sound
   you control.
 - Leave the history docs (`specs/os-notification-design.md`, `design/*`,
-  `.okf/`) as they are.
+  `.okf/`) as they are. The okf workflow updates `.okf/` (user call).
 
 ## Tasks
 
@@ -74,9 +76,7 @@ Value: silence the sound and the OS toast, per browser, from any task list.
 - [x] S1 red: `POST /os_notification` is 404
 - [x] S1 green: delete server code + specs; `Notification` in notifications.js
 - [x] S1 `bin/rspec`, `bin/rubocop`; code-reviewer; commit
-- [ ] S2 red: Mute button on 4 list views, absent on 3 others
-- [ ] S2 green: page header + notifications.js mute
-- [ ] S2 `bin/rspec`, `bin/rubocop`; code-reviewer; commit
+- [x] S2 red: Mute button on 4 list views, absent on 3 others
+- [x] S2 green: page header + notifications.js mute
+- [x] S2 `bin/rspec`, `bin/rubocop`; code-reviewer; commit
 - [ ] Hand check in a browser: permission prompt, OS toast, beep, mute
-
-- `.okf/` docs on OsNotifier stay; the okf workflow updates them (user call).

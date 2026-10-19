@@ -92,10 +92,55 @@ function requestNotificationPermission() {
   }
 }
 
+// Per-browser mute: silences the beep and the OS toast; the in-page toast
+// still shows. Storage can throw (private windows), which reads as unmuted.
+const MUTE_KEY = "notifications-muted";
+
+function muted() {
+  try {
+    return localStorage.getItem(MUTE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setMuted(value) {
+  try {
+    value ? localStorage.setItem(MUTE_KEY, "1") : localStorage.removeItem(MUTE_KEY);
+  } catch (error) {
+    console.error("mute setting not saved:", error);
+  }
+}
+
+function syncMuteButtons() {
+  for (const button of document.querySelectorAll("[data-mute-toggle]")) {
+    button.textContent = muted() ? "Unmute" : "Mute";
+    button.setAttribute("aria-pressed", String(muted()));
+  }
+}
+
+// One click handler, so the toggle lands before the permission ask: muting
+// never prompts. Ask once per tab (Turbo keeps this state across visits),
+// and again on each Unmute.
+let askedPermission = false;
+
+function onClick(event) {
+  if (event.target.closest("[data-mute-toggle]")) {
+    setMuted(!muted());
+    syncMuteButtons();
+    if (!muted()) askedPermission = false;
+  }
+  if (muted() || askedPermission) return;
+  askedPermission = true;
+  requestNotificationPermission();
+}
+
 function toast(task) {
   ensureContainer();
-  beep();
-  notifyOs(task);
+  if (!muted()) {
+    beep();
+    notifyOs(task);
+  }
   const notification = document.createElement("div");
   notification.className = "notification is-info";
   notification.appendChild(document.createTextNode(task.title));
@@ -130,10 +175,11 @@ function start() {
   if (started) return;
   started = true;
   document.addEventListener("visibilitychange", onVisibilityChange);
-  document.addEventListener("click", requestNotificationPermission, { once: true });
+  document.addEventListener("click", onClick);
   setInterval(() => poll(), INTERVAL);
   poll(); // first check shortly after load, then every INTERVAL
 }
 
 document.addEventListener("DOMContentLoaded", start);
 document.addEventListener("turbo:load", start);
+document.addEventListener("turbo:load", syncMuteButtons); // each visit renders a fresh button
