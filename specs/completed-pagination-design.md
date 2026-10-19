@@ -19,7 +19,8 @@ Single slice (one deployable unit, no slicing).
   to jump to a page. Mark the current page with
   `aria-current="page"`. On page 1, First and Previous are not links; on the
   last page, Next and Last are not links. Hide the pager when there is only
-  one page.
+  one page. Render it above and below the list; the number box has no `id`,
+  so the two copies do not repeat one.
 - Build every URL with `completed_tasks_path(page:)` (sub-path safe).
 
 ## Decisions

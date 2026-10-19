@@ -13,7 +13,7 @@
     <% end %>
   </ul>
   <%= form_with url: completed_tasks_path, method: :get, class: "field has-addons" do |f| %>
-    <div class="control"><%= f.number_field :page, min: 1, max: last_page, value: page, class: "input is-small", "aria-label": "Go to page" %></div>
+    <div class="control"><%= f.number_field :page, min: 1, max: last_page, value: page, id: nil, class: "input is-small", "aria-label": "Go to page" %></div>
     <div class="control"><%= f.button "Go", name: nil, class: "button is-small" %></div>
   <% end %>
 </nav>

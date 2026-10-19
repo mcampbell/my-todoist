@@ -3,6 +3,7 @@
 <% if @occurrences.empty? %>
   <p class="has-text-grey">No completed tasks yet.</p>
 <% else %>
+  <%= render "pager", page: @page, last_page: @last_page if @last_page > 1 %>
   <table class="table is-fullwidth">
     <tbody>
       <% @occurrences.each do |occurrence| %>

@@ -1173,6 +1173,14 @@ RSpec.describe "Tasks", type: :request do
         expect(titles).to eq([ "done-3-", "done-4-" ])
       end
 
+      it "puts the pager above and below the list, without duplicate ids" do
+        complete_tasks(5)
+        get completed_tasks_path
+        body = response.parsed_body
+        expect(body.css("nav.pagination + table, table + nav.pagination").size).to eq(2)
+        expect(body.css("nav.pagination input[id]")).to be_empty
+      end
+
       it "hides the pager when everything fits on one page" do
         complete_tasks(2)
         get completed_tasks_path
@@ -1196,7 +1204,7 @@ RSpec.describe "Tasks", type: :request do
       it "links the pages two either side of the current one and marks the current page" do
         complete_tasks(20)
         get completed_tasks_path(page: 5)
-        numbers = response.parsed_body.css("ul.pagination-list a").map { |a| a.text.strip }
+        numbers = response.parsed_body.at_css("nav.pagination").css("ul.pagination-list a").map { |a| a.text.strip }
         expect(numbers).to eq(%w[3 4 5 6 7])
         expect(response.parsed_body.at_css("a[aria-current=page]").text.strip).to eq("5")
       end
