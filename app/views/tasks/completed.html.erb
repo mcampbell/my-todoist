@@ -20,4 +20,5 @@
       <% end %>
     </tbody>
   </table>
+  <%= render "pager", page: @page, last_page: @last_page if @last_page > 1 %>
 <% end %>

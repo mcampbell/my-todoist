@@ -2,6 +2,7 @@ require "did_you_mean"
 
 class TasksController < ApplicationController
   UPCOMING_DAYS = 7
+  COMPLETED_PER_PAGE = 50
 
   before_action :set_task, only: %i[edit update destroy complete complete_with_notes skip]
   helper_method :task_list_path, :safe_return_to
@@ -12,7 +13,12 @@ class TasksController < ApplicationController
   end
 
   def completed
-    @occurrences = CompletedOccurrence.order(completed_at: :desc)
+    # id breaks completed_at ties, so equal-time rows never shift between pages.
+    occurrences = CompletedOccurrence.order(completed_at: :desc, id: :desc)
+    @last_page = [ occurrences.count.ceildiv(COMPLETED_PER_PAGE), 1 ].max
+    # Clamp: a missing, bad, or too-large ?page= shows the nearest real page.
+    @page = params[:page].to_i.clamp(1, @last_page)
+    @occurrences = occurrences.offset((@page - 1) * COMPLETED_PER_PAGE).limit(COMPLETED_PER_PAGE)
   end
 
   def today
