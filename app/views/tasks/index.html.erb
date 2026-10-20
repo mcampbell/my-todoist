@@ -1,4 +1,4 @@
-<%= render "page_header", title: @project&.name || "Inbox" %>
+<%= render "page_header", title: @project&.name || "Inbox", mute_toggle: true %>
 
 <% if @tasks.empty? %>
   <p class="has-text-grey">Nothing to do. Add a task.</p>

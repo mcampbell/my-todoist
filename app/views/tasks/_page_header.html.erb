@@ -1,4 +1,10 @@
 <div class="level">
   <h1 class="title level-left"><%= title %></h1>
-  <%= link_to "New task", new_task_path(return_to: local_assigns[:return_to] || request.path), class: "button is-primary level-right" %>
+  <div class="level-right buttons">
+    <% if local_assigns[:mute_toggle] %>
+      <%# notifications.js sets the label and aria-pressed from this browser's saved setting. %>
+      <button type="button" class="button" data-mute-toggle aria-pressed="false">Mute</button>
+    <% end %>
+    <%= link_to "New task", new_task_path(return_to: local_assigns[:return_to] || request.path), class: "button is-primary" %>
+  </div>
 </div>

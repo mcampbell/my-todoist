@@ -82,3 +82,12 @@ See design/auth.md. Conflict/rework costs only.
 | R1 | S1 signs in every existing request/system spec via one global hook | trivial | 0.5 |
 | C2 | S1 vs in-flight branches editing request spec setup | trivial | 0.5 |
 | | **Subtotal** | | **1** |
+
+## Browser notification + mute
+
+See specs/browser-notification-design.md. Conflict/rework costs only.
+
+| # | Item | Cost | Points |
+|---|---|---|---|
+| C1 | S1 and S2 both edit `toast()` in `notifications.js` if run in parallel | trivial | 0.5 |
+| | **Subtotal** | | **0.5** |
