@@ -3,7 +3,14 @@ type: Decision
 title: '"in X unit" gets its own grammar, not Chronic'
 description: The recurrence and "in X unit" free-text grammars use dedicated regex + duration math rather than the Chronic gem.
 tags: [quick-add, chronic, parsing]
-timestamp: 2026-08-22T00:00:00Z
+generated:
+  by: process:okf-migrate
+  at: 2026-08-22T00:00:00Z
+sources:
+  - resource: "../../specs/in-x-unit-design.md"
+    title: "specs/in-x-unit-design.md"
+  - resource: "../../specs/in-x-unit-grill.md"
+    title: "specs/in-x-unit-grill.md"
 ---
 
 # Decision
@@ -22,8 +29,3 @@ structured grammar like "in 3 days" is less predictable/controllable
 than a dedicated regex + `ActiveSupport::Duration` computation — and
 recurrence needs to preserve phase/rolling semantics
 ([Recurrence](/models/recurrence.md)) that Chronic has no concept of.
-
-# Citations
-
-[1] [specs/in-x-unit-design.md](../../specs/in-x-unit-design.md)
-[2] [specs/in-x-unit-grill.md](../../specs/in-x-unit-grill.md)

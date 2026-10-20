@@ -3,7 +3,14 @@ type: Feature
 title: Project tints
 description: Every project gets a deterministic faint background colour on task rows and sidebar links.
 tags: [ui, projects, styling]
-timestamp: 2026-09-01T18:00:00Z
+generated:
+  by: process:okf-migrate
+  at: 2026-09-01T18:00:00Z
+sources:
+  - resource: "../../app/helpers/projects_helper.rb"
+    title: "app/helpers/projects_helper.rb"
+  - resource: "../../app/controllers/tasks_controller.rb"
+    title: "app/controllers/tasks_controller.rb"
 ---
 
 # Overview
@@ -28,8 +35,3 @@ stored and no picker UI is needed. See
 All task index queries (`index`, `today`, `overdue`, `upcoming`,
 `search`) eager-load `:project` alongside `:labels` in
 `TasksController`, so the per-row tint never causes an N+1 read.
-
-# Citations
-
-[1] [app/helpers/projects_helper.rb](../../app/helpers/projects_helper.rb)
-[2] [app/controllers/tasks_controller.rb](../../app/controllers/tasks_controller.rb)

@@ -4,7 +4,16 @@ title: Project and Label
 description: Lightweight organizing tags for tasks — a task has at most one Project, any number of Labels.
 resource: file:///home/mcampbell/dev/my-todoist/app/models/project.rb
 tags: [core-model, active-record]
-timestamp: 2026-08-22T00:00:00Z
+generated:
+  by: process:okf-migrate
+  at: 2026-08-22T00:00:00Z
+sources:
+  - resource: "../../app/models/project.rb"
+    title: "app/models/project.rb"
+  - resource: "../../app/models/label.rb"
+    title: "app/models/label.rb"
+  - resource: "../../app/models/task_label.rb"
+    title: "app/models/task_label.rb"
 ---
 
 # Overview
@@ -26,9 +35,3 @@ un-assigns its tasks back to Inbox rather than deleting them.
 matched against existing `Project` names case-insensitively; a near-miss
 typo triggers a "did you mean" suggestion in `TasksController` via
 `DidYouMean::SpellChecker`.
-
-# Citations
-
-[1] [app/models/project.rb](../../app/models/project.rb)
-[2] [app/models/label.rb](../../app/models/label.rb)
-[3] [app/models/task_label.rb](../../app/models/task_label.rb)

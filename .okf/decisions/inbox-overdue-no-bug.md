@@ -3,7 +3,12 @@ type: Decision
 title: Inbox already shows overdue tasks — no filtering needed
 description: TasksController#index has no due_at filter, so overdue nil-project tasks already appear; a reported "bug" turned out to be a coverage gap, not a defect.
 tags: [inbox, verified-no-bug, regression-test]
-timestamp: 2026-08-22T00:00:00Z
+generated:
+  by: process:okf-migrate
+  at: 2026-08-22T00:00:00Z
+sources:
+  - resource: "/models/task.md"
+    title: "app/models/task.md"
 ---
 
 # Decision
@@ -22,7 +27,3 @@ applies `has-background-danger-light` to any `task.overdue?` row. The
 behavior already existed; only test coverage was missing. Confirmed by
 writing the test *first* and watching it pass green with zero production
 changes, before committing it as a standalone PR.
-
-# Citations
-
-[1] [app/models/task.md](/models/task.md)

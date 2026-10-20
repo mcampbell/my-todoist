@@ -4,7 +4,14 @@ title: Task search
 description: GET /tasks/search — title-only, case-insensitive substring search over active tasks, with an opt-in completed-history checkbox.
 resource: file:///home/mcampbell/dev/my-todoist/app/views/tasks/search.html.erb
 tags: [search, ui]
-timestamp: 2026-08-22T00:00:00Z
+generated:
+  by: process:okf-migrate
+  at: 2026-08-22T00:00:00Z
+sources:
+  - resource: "../../specs/task-search-design.md"
+    title: "specs/task-search-design.md"
+  - resource: "../../app/controllers/tasks_controller.rb"
+    title: "app/controllers/tasks_controller.rb"
 ---
 
 # Overview
@@ -26,8 +33,3 @@ new-task shortcut), and `autofocus` on the query input for the same
 "land focus immediately" behavior `q` gets. `Esc` on this page also
 returns to Inbox, same mechanism as `/tasks/new` — see
 [Keyboard shortcuts](/features/keyboard-shortcuts.md).
-
-# Citations
-
-[1] [specs/task-search-design.md](../../specs/task-search-design.md)
-[2] [app/controllers/tasks_controller.rb](../../app/controllers/tasks_controller.rb)

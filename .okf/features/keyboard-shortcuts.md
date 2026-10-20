@@ -4,7 +4,14 @@ title: Keyboard shortcuts
 description: Global keydown listeners in application.js — q (new task), / (search), Esc (abandon and return).
 resource: file:///home/mcampbell/dev/my-todoist/app/javascript/application.js
 tags: [ui, keyboard, javascript]
-timestamp: 2026-08-22T00:00:00Z
+generated:
+  by: process:okf-migrate
+  at: 2026-08-22T00:00:00Z
+sources:
+  - resource: "../../specs/q-shortcut-design.md"
+    title: "specs/q-shortcut-design.md"
+  - resource: "../../specs/esc-shortcut-design.md"
+    title: "specs/esc-shortcut-design.md"
 ---
 
 # Overview
@@ -27,8 +34,3 @@ No JS spec exists for any of these — the RSpec suite is `rack_test` only
 (no Selenium/Cuprite), so keydown behavior isn't exercisable from RSpec;
 each was verified by code review instead. See
 [No JS driver in the test suite](/decisions/no-js-test-driver.md).
-
-# Citations
-
-[1] [specs/q-shortcut-design.md](../../specs/q-shortcut-design.md)
-[2] [specs/esc-shortcut-design.md](../../specs/esc-shortcut-design.md)

@@ -4,7 +4,14 @@ title: my-todoist
 description: Single-user Todoist clone — Rails 8.1, Ruby 3.4, SQLite, ERB, RSpec.
 resource: file:///home/mcampbell/dev/my-todoist
 tags: [rails, sqlite, single-user, todo]
-timestamp: 2026-08-22T00:00:00Z
+generated:
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-19T00:00:00Z
+sources:
+  - resource: "../../CLAUDE.md"
+    title: "CLAUDE.md"
+  - resource: "../../specs/"
+    title: "specs/"
 ---
 
 # Overview
@@ -30,9 +37,10 @@ Assets are served via Propshaft + Importmap; there is no Node tooling.
 `TasksController` is the largest controller — collection actions for
 each smart list (`index` = Inbox, `today`, `overdue`, `upcoming`,
 `completed`, `search`) plus the standard CRUD member actions. `Project`
-and `Label` get their own controllers. `OsNotificationsController` is a
-single-action controller triggered client-side (see
-[OsNotifier](/models/os-notifier.md)).
+and `Label` get their own controllers. `completed` shows 50 rows per page
+(`COMPLETED_PER_PAGE`, clamped `?page=`). Due reminders run in the browser
+(see [Due reminders](/features/due-reminders.md)); the server only answers
+the `due_since` poll.
 
 Three grammars parse free text into structured data, each in its own
 model class computing independently of ActiveRecord — see
@@ -57,8 +65,3 @@ model class computing independently of ActiveRecord — see
 `js: true` specs; JS behavior like keyboard shortcuts is reviewed but not
 test-covered) and `bin/rubocop` (omakase) must both pass on every change.
 TDD is required: a failing spec precedes every implementation change.
-
-# Citations
-
-[1] [CLAUDE.md](../../CLAUDE.md)
-[2] [specs/](../../specs/)

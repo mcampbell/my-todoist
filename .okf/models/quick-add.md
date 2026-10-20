@@ -4,7 +4,14 @@ title: QuickAdd
 description: Parses free-text task titles into structured attributes (priority, due date/time, project, recurrence).
 resource: file:///home/mcampbell/dev/my-todoist/app/models/quick_add.rb
 tags: [grammar, parsing, chronic]
-timestamp: 2026-08-22T00:00:00Z
+generated:
+  by: process:okf-migrate
+  at: 2026-08-22T00:00:00Z
+sources:
+  - resource: "../../app/models/quick_add.rb"
+    title: "app/models/quick_add.rb"
+  - resource: "../../specs/in-x-unit-design.md"
+    title: "specs/in-x-unit-design.md"
 ---
 
 # Overview
@@ -38,8 +45,3 @@ document the wiring point inline.
 | `due_time` | Time-ish or nil | From an explicit time token or Chronic free text |
 | `project_name` | String or nil | `#project` token |
 | `recurrence` | String or nil | Raw recurrence phrase, handed to `Recurrence.parse` downstream |
-
-# Citations
-
-[1] [app/models/quick_add.rb](../../app/models/quick_add.rb)
-[2] [specs/in-x-unit-design.md](../../specs/in-x-unit-design.md)
