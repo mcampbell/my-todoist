@@ -4,8 +4,31 @@ title: OsNotifier
 description: Pops a native OS notification (macOS or WSL2/Windows) for a due task; no-op elsewhere.
 resource: file:///home/mcampbell/dev/my-todoist/app/models/os_notifier.rb
 tags: [notifications, macos, wsl2, shell-out]
-timestamp: 2026-08-22T00:00:00Z
+status: deprecated
+generated:
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-19T00:00:00Z
+sources:
+  - resource: "../../app/models/os_notifier.rb"
+    title: "app/models/os_notifier.rb"
+  - resource: "../../specs/os-notification-design.md"
+    title: "specs/os-notification-design.md"
+  - id: browser-notification-design
+    resource: "../../specs/browser-notification-design.md"
+    title: "specs/browser-notification-design.md"
 ---
+
+# Deprecation
+
+Deleted in PR #56 (2026-10-19), with `OsNotificationsController` and the
+`POST /os_notification` route. It popped the notification on the server's
+own screen, which is useless once the app runs in the cloud.[^browser-notification-design]
+The browser now shows the OS toast itself: see
+[Browser notifications replace the server notifier](/decisions/browser-notification-api.md)
+and [Due reminders](/features/due-reminders.md). The rest of this concept
+records how the deleted code worked.
+
+[^browser-notification-design]: specs/browser-notification-design.md, "Goal" and S1.
 
 # Overview
 
@@ -38,8 +61,3 @@ Instead, `POST /os_notification` (`OsNotificationsController#create`) is
 called from the client's existing `toast()` function in
 `notifications.js`, the same function that already renders the in-page
 toast — see [Due reminders](/features/due-reminders.md).
-
-# Citations
-
-[1] [app/models/os_notifier.rb](../../app/models/os_notifier.rb)
-[2] [specs/os-notification-design.md](../../specs/os-notification-design.md)

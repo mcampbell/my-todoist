@@ -3,8 +3,22 @@ type: Decision
 title: OS notification triggered client-side, not from the polling endpoint
 description: OsNotifier.notify is called from the client's toast() function via a dedicated endpoint, not from inside TasksController#due_since.
 tags: [notifications, code-review-finding]
-timestamp: 2026-08-22T00:00:00Z
+status: deprecated
+generated:
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-19T00:00:00Z
+sources:
+  - resource: "../../specs/os-notification-design.md"
+    title: "specs/os-notification-design.md"
 ---
+
+# Superseded
+
+Superseded on 2026-10-19 by
+[Browser notifications replace the server notifier](/decisions/browser-notification-api.md).
+`OsNotifier`, its endpoint, and its route are gone. The lesson below still
+holds: the OS toast fires from `toast()`, so the silent refocus poll never
+triggers it.
 
 # Decision
 
@@ -34,7 +48,3 @@ The first implementation called `OsNotifier.notify` inside
 Moving the call into `toast()` — which the silent poll path never
 invokes — fixed all three at once: notifications only fire when the
 in-page toast also fires, and `due_since`'s query shape is unchanged.
-
-# Citations
-
-[1] [specs/os-notification-design.md](../../specs/os-notification-design.md)

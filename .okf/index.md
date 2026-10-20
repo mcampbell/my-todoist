@@ -1,10 +1,10 @@
 ---
-okf_version: "0.1"
+okf_version: "0.2"
 ---
 
 # my-todoist Knowledge Bundle
 
-Local, single-user Todoist clone. Rails 8.1 / Ruby 3.4 / SQLite / ERB /
+Single-user Todoist clone, internet-facing behind nginx + login. Rails 8.1 / Ruby 3.4 / SQLite / ERB /
 RSpec. Wholly LLM-coded — see the repo's `CLAUDE.md` and `specs/` for the
 authoritative style reference; this bundle summarizes and cross-links
 that material for quick orientation.

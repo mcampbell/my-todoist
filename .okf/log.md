@@ -1,5 +1,10 @@
 # Update Log
 
+## 2026-10-19
+* **Supersession**: [Browser notifications replace the server notifier](decisions/browser-notification-api.md) supersedes [OS notification triggered client-side](decisions/os-notification-client-triggered.md) (PR #56).
+* **Deprecation**: [OsNotifier](models/os-notifier.md) - code deleted in PR #56; concept kept for history.
+* **Regeneration**: Migrated the bundle from OKF v0.1 to v0.2 (`okf_validate.py --migrate`: `timestamp` to `generated.at`, `# Citations` to `sources`).
+
 ## 2026-10-10
 * **Sync**: [Scope decision](decisions/single-user-scope.md) names the `user:modify` password-change task.
 * **Sync**: Reversed [scope decision](decisions/single-user-scope.md) - app now internet-facing behind nginx + login wall; updated [my-todoist](architecture/my-todoist-app.md) and the decisions index.
