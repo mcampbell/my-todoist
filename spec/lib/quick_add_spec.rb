@@ -637,6 +637,11 @@ RSpec.describe QuickAdd, type: :model do
       end
     end
 
+    it "reads the clause in any letter case" do
+      result = parse_at(now, "water ferns every friday ENDING AFTER 3 TIMES")
+      expect(result).to include(title: "water ferns", recurrence_count: 3)
+    end
+
     it "rejects a count below 1" do
       result = parse_at(now, "stretch every day ending after 0 times")
       expect(result).to include(recurrence_count: nil, ending_error: "end count must be at least 1")

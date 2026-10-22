@@ -512,6 +512,28 @@ RSpec.describe "Tasks", type: :request do
         expect(task.reload.recurrence_remaining).to eq(5)
       end
 
+      it "counts down across completions and ends the series on the last one" do
+        task.update!(recurrence_remaining: 2)
+        patch complete_task_path(task)
+        expect(task.reload.recurrence_remaining).to eq(1)
+        expect {
+          patch complete_task_path(task)
+        }.to change(CompletedOccurrence, :count).by(1).and change(Task, :count).by(-1)
+      end
+
+      it "422s a non-numeric count" do
+        patch task_path(task), params: { task: { recurrence_remaining: "abc" } }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.recurrence_remaining).to eq(5)
+      end
+
+      it "accepts the cap and rejects one past it" do
+        patch task_path(task), params: { task: { recurrence_remaining: "10000" } }
+        expect(task.reload.recurrence_remaining).to eq(10_000)
+        patch task_path(task), params: { task: { recurrence_remaining: "10001" } }
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+
       it "422s, not 500s, a count past the cap" do
         patch task_path(task), params: { task: { recurrence_remaining: "100000000000000000000" } }
         expect(response).to have_http_status(:unprocessable_content)
