@@ -502,5 +502,47 @@ RSpec.describe Task, type: :model do
       task.update!(recurrence: nil)
       expect(task.recurrence_ends_at).to be_nil
     end
+
+    it "rejects an end before the next occurrence" do
+      task = Task.new(title: "t", recurrence: "every day", due_at: due, recurrence_ends_at: due - 1.minute)
+      expect(task).not_to be_valid
+      expect(task.errors[:base]).to include("the task ends before its next occurrence")
+    end
+  end
+
+  describe "ends_on_date / ends_on_time (edit-form fields)" do
+    let(:task) { Task.create!(title: "t", recurrence: "every day", due_at: Time.zone.local(2030, 3, 4, 9, 30)) }
+
+    it "ends at the close of the day when only a date is given" do
+      task.update!(ends_on_date: "2030-03-09", ends_on_time: "")
+      expect(task.recurrence_ends_at).to eq(Time.zone.local(2030, 3, 9).end_of_day.change(usec: 0))
+      expect(task).to be_ends_all_day
+    end
+
+    it "ends at the exact time when one is given" do
+      task.update!(ends_on_date: "2030-03-09", ends_on_time: "17:00")
+      expect(task.recurrence_ends_at).to eq(Time.zone.local(2030, 3, 9, 17, 0))
+      expect(task).not_to be_ends_all_day
+    end
+
+    it "removes the end when the date is blank" do
+      task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9))
+      task.update!(ends_on_date: "", ends_on_time: "")
+      expect(task.recurrence_ends_at).to be_nil
+    end
+
+    it "reads the stored end back into the fields" do
+      task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9, 17, 0))
+      fresh = Task.find(task.id)
+      expect([ fresh.ends_on_date, fresh.ends_on_time ]).to eq([ "2030-03-09", "17:00" ])
+      fresh.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9).end_of_day.change(usec: 0))
+      expect(Task.find(task.id).ends_on_time).to be_nil
+    end
+
+    it "rejects a date it cannot read" do
+      task.ends_on_date = "florb"
+      expect(task).not_to be_valid
+      expect(task.errors[:recurrence_ends_at]).to include("is invalid")
+    end
   end
 end

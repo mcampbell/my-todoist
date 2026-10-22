@@ -704,7 +704,8 @@ RSpec.describe QuickAdd, type: :model do
 
     it "rejects both an end date and a count" do
       result = parse_at(now, "stretch every day ending on dec 31 ending after 3 times")
-      expect(result).to include(recurrence_ends_at: nil, recurrence_count: nil, ending_error: "use one ending: a date or a count")
+      expect(result).to include(recurrence_ends_at: nil, recurrence_count: nil, ending_error: "use one ending: a date or a count",
+                                starting_error: nil) # the leftover end date must not also trip the "use 'starting'" check
     end
 
     it "works with 'starting' on either side" do

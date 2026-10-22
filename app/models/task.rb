@@ -10,6 +10,8 @@ class Task < ApplicationRecord
             # Cap: a value past SQLite's 64-bit range raises at save (500) instead of failing validation.
             numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 10_000, allow_nil: true }
   validate :one_recurrence_limit
+  validate :ends_on_or_after_next_occurrence
+  before_validation :compose_recurrence_ends_at, if: -> { @ends_on_assigned }
   before_validation { self.recurrence_remaining = self.recurrence_ends_at = nil if recurrence.blank? }
 
   scope :ordered, -> { order(Arel.sql("in_progress DESC, due_at ASC NULLS LAST, created_at DESC")) }
@@ -85,6 +87,27 @@ class Task < ApplicationRecord
 
   before_validation :compose_due_at, if: -> { @due_date_assigned }
 
+  # Edit-form fields for recurrence_ends_at, mirroring due_date/due_time. A
+  # date alone ends at the close of that day (23:59:59, as QuickAdd stores it).
+  def ends_on_date=(value)
+    @ends_on_assigned = true
+    @ends_on_date = value
+  end
+
+  def ends_on_date
+    @ends_on_date || recurrence_ends_at&.to_date&.iso8601
+  end
+
+  attr_writer :ends_on_time
+
+  def ends_on_time
+    @ends_on_time || (recurrence_ends_at && !ends_all_day? ? recurrence_ends_at.strftime("%H:%M") : nil)
+  end
+
+  def ends_all_day?
+    recurrence_ends_at&.strftime("%T") == "23:59:59"
+  end
+
   private
 
   # Steps due_at to the recurrence rule's next occurrence, in place. Shared by
@@ -120,6 +143,30 @@ class Task < ApplicationRecord
 
   def one_recurrence_limit
     errors.add(:base, "use one ending: a date or a count") if recurrence_ends_at && recurrence_remaining
+  end
+
+  def ends_on_or_after_next_occurrence
+    return unless recurrence_ends_at && due_at && recurrence_ends_at < due_at
+
+    errors.add(:base, "the task ends before its next occurrence")
+  end
+
+  def compose_recurrence_ends_at
+    if @ends_on_date.blank?
+      self.recurrence_ends_at = nil
+      return
+    end
+
+    date = Date.iso8601(@ends_on_date)
+    self.recurrence_ends_at =
+      if @ends_on_time.present?
+        time = Time.zone.parse(@ends_on_time)
+        date.in_time_zone.change(hour: time.hour, min: time.min)
+      else
+        date.in_time_zone.end_of_day.change(usec: 0)
+      end
+  rescue ArgumentError, TypeError, Date::Error
+    errors.add(:recurrence_ends_at, "is invalid")
   end
 
   def recurrence_must_be_parseable

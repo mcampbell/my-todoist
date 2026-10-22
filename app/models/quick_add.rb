@@ -127,7 +127,7 @@ class QuickAdd
     # A recurring task's first date comes only from the rule plus an optional
     # "starting" clause. Any bare date/offset left in the title -- even
     # alongside a valid "starting" -- is incomplete input.
-    if recurrence && due_date && starting_error.nil?
+    if recurrence && due_date && starting_error.nil? && ending_error.nil?
       starting_error = NO_STARTING_MESSAGE
       due_date = due_time = nil
     end

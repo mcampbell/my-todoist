@@ -48,7 +48,7 @@ Design: `specs/recurrence-ending-design.md`
   - Options: Reuse `resolve_start_anchor` with a flag to keep the time, or add `resolve_end_anchor`; pick the one with less duplication.
   - Done when: `bin/rspec spec/lib/quick_add_spec.rb` passes with specs (under `travel_to`) for: `ending on dec 31` -> Dec 31 23:59:59; `ending dec 31 at 5pm` -> 17:00; `ending in 2 weeks`; `ending on blah` -> error; both clauses -> error; plain task keeps the text.
 
-- [ ] **T2.3: Wire end date into create, edit, and the task row**
+- [x] **T2.3: Wire end date into create, edit, and the task row**
   - Why: Slice 2 value. The end is set on create, checked against the first occurrence, shown, and editable.
   - Where: `app/controllers/tasks_controller.rb` (`create`, `task_params`, `update`), `app/views/tasks/_form.html.erb`, `app/views/tasks/_task.html.erb`, `spec/requests/tasks_spec.rb`
   - What: `create` stores `parsed[:recurrence_ends_at]`; after `apply_recurrence_anchors!` sets the first due, an end before it -> 422 "the task ends before it starts". Edit form: "Ends on" date + time fields composed into `recurrence_ends_at` (blank = no limit). Row tag adds `· ends <date>` (with time when not end-of-day).

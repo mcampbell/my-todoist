@@ -67,9 +67,11 @@ Value: "until the end of the term" tasks end on their own.
   "at <time>" stays the rule's clock time, see the grill). Date only -> end
   of that day in the app zone. Bad phrase: 422 "couldn't read the ending date".
 - Both clauses on one title: 422 "use one ending: a date or a count".
-- End before the first occurrence: 422 "the task ends before it starts"
-  (`TasksController#create`, after `apply_recurrence_anchors!` sets the
-  first due date).
+- End before the next occurrence: 422 "the task ends before its next
+  occurrence". A `Task` validation (`recurrence_ends_at < due_at`), so create,
+  edit, and a reschedule past the end all get it. (Changed in T2.3 from a
+  create-only controller check.)
+- A skip that ends the series flashes "That was the last one", not "Next:".
 - `complete!` and `skip!`: compute the next due (`rule.next_from`, already
   done inside `advance_to_next_occurrence!`); if it is after
   `recurrence_ends_at` -> final (destroy). Skip past the end also destroys,
