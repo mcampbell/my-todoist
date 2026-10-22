@@ -63,8 +63,9 @@ Value: "until the end of the term" tasks end on their own.
 - Migration: `tasks.recurrence_ends_at` (datetime, null).
 - Parse: the tail after `ending [on]` resolves like `starting`
   (`resolve_start_anchor`: offset grammar, then Chronic via `date_span`),
-  extended to keep a time when the phrase has one. Date only -> end of that
-  day in the app zone. Bad phrase: 422 "couldn't read the ending date".
+  extended to keep a time when the phrase has one (`ending dec 31 5pm`;
+  "at <time>" stays the rule's clock time, see the grill). Date only -> end
+  of that day in the app zone. Bad phrase: 422 "couldn't read the ending date".
 - Both clauses on one title: 422 "use one ending: a date or a count".
 - End before the first occurrence: 422 "the task ends before it starts"
   (`TasksController#create`, after `apply_recurrence_anchors!` sets the
