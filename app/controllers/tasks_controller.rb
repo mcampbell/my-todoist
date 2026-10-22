@@ -64,13 +64,14 @@ class TasksController < ApplicationController
       due_date: parsed[:due_date],
       due_time: parsed[:due_time],
       recurrence: parsed[:recurrence],
+      recurrence_remaining: parsed[:recurrence_count],
       notes: qp[:notes],
       label_ids: qp[:label_ids] || []
     }
     if parsed[:recurrence].present?
       apply_recurrence_anchors!(attrs, parsed[:recurrence], nil, parsed[:recurrence_start])
     end
-    if (parse_error = parsed[:due_error] || parsed[:starting_error]).present?
+    if (parse_error = parsed[:due_error] || parsed[:starting_error] || parsed[:ending_error]).present?
       failed = Task.new(attrs)
       failed.errors.add(:due_at, parse_error)
       preserve_quick_add_input!(failed)
@@ -233,7 +234,7 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, :in_progress, label_ids: [])
+    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, :recurrence_remaining, :in_progress, label_ids: [])
   end
 
   # % and _ are LIKE wildcards; escape them (and the escape char itself)

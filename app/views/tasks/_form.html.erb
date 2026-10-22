@@ -65,6 +65,14 @@
     </div>
   </div>
 
+  <div class="field">
+    <%= f.label :recurrence_remaining, "Times left", class: "label" %>
+    <div class="control">
+      <%= f.number_field :recurrence_remaining, min: 1, class: "input", placeholder: "no limit" %>
+    </div>
+    <p class="help">Completions left before a recurring task ends. Blank = no limit.</p>
+  </div>
+
   <div class="columns">
     <div class="column field">
       <%= f.label :project_id, "Project", class: "label" %>

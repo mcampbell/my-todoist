@@ -18,7 +18,7 @@ Design: `specs/recurrence-ending-design.md`
   - Options: none
   - Done when: `bin/rspec spec/lib/quick_add_spec.rb` passes with specs for: each accepted word (time, times, occurrence, occurrences, occurrance, occurrances); title stripped; `every day ending after 0 times` -> `ending_error`; plain task `read ending after 5 times` keeps the words in the title with no count; works with `starting monday` before or after it.
 
-- [ ] **T1.3 (in progress): Wire count into create, edit, and the task row**
+- [x] **T1.3: Wire count into create, edit, and the task row**
   - Why: Slice 1 value. The limit is set on create, shown on the row, and editable.
   - Where: `app/controllers/tasks_controller.rb` (`create` at the `due_error || starting_error` check, `task_params`), `app/views/tasks/_form.html.erb` (after the Recurrence field), `app/views/tasks/_task.html.erb` (the `↻` tag), `spec/requests/tasks_spec.rb`
   - What: `create` passes `parsed[:recurrence_count]` as `recurrence_remaining` and adds `ending_error` to the 422 check. Permit `:recurrence_remaining` in `task_params`. Add a "Times left" number field (`min: 1`, blank = no limit). Append `· N left` to the `↻` tag when set.
