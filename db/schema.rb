@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_002246) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_191742) do
   create_table "completed_occurrences", force: :cascade do |t|
     t.string "task_title", null: false
     t.string "project_name"
@@ -71,6 +71,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_002246) do
     t.datetime "recurrence_anchor_at"
     t.boolean "recurrence_anchor_all_day"
     t.boolean "in_progress", default: false, null: false
+    t.integer "recurrence_remaining"
     t.index ["project_id"], name: "index_tasks_on_project_id"
     t.check_constraint "priority BETWEEN 0 AND 3", name: "priority_range"
   end
