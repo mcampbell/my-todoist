@@ -409,4 +409,44 @@ RSpec.describe Task, type: :model do
       expect { task.skip! }.to raise_error(ArgumentError)
     end
   end
+
+  describe "recurrence_remaining (counted recurrence)" do
+    let(:due) { Time.zone.local(2030, 3, 4, 9, 30) }
+
+    it "decrements on complete!" do
+      task = Task.create!(title: "t", recurrence: "every day", recurrence_remaining: 3, due_at: due)
+      task.complete!
+      expect(task.reload.recurrence_remaining).to eq(2)
+    end
+
+    it "destroys the task on the last completion and logs one occurrence" do
+      task = Task.create!(title: "t", recurrence: "every day", recurrence_remaining: 1, due_at: due)
+      expect { task.complete! }.to change(Task, :count).by(-1)
+        .and change(CompletedOccurrence, :count).by(1)
+    end
+
+    it "leaves the count alone on skip!" do
+      task = Task.create!(title: "t", recurrence: "every day", recurrence_remaining: 3, due_at: due)
+      task.skip!
+      expect(task.reload.recurrence_remaining).to eq(3)
+    end
+
+    it "rejects a count below 1" do
+      task = Task.new(title: "t", recurrence: "every day", recurrence_remaining: 0)
+      expect(task).not_to be_valid
+    end
+
+    it "clears the count when recurrence is removed" do
+      task = Task.create!(title: "t", recurrence: "every day", recurrence_remaining: 3, due_at: due)
+      task.update!(recurrence: nil)
+      expect(task.recurrence_remaining).to be_nil
+    end
+
+    it "still advances with a nil count" do
+      task = Task.create!(title: "t", recurrence: "every day", due_at: due)
+      task.complete!
+      expect(task.reload.recurrence_remaining).to be_nil
+      expect(task.due_at).to be > due
+    end
+  end
 end
