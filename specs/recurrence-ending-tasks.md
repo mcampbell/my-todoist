@@ -25,6 +25,13 @@ Design: `specs/recurrence-ending-design.md`
   - Options: none
   - Done when: `bin/rspec spec/requests/tasks_spec.rb` passes with specs for: create with `every day ending after 3 times` stores 3; `ending after 0 times` -> 422 with the message; edit sets and clears the count; row shows `3 left`. Then `bin/rspec` and `bin/rubocop` are clean.
 
+- [x] **T1.4: README examples for "ending after N times"**
+  - Why: Slice 1 value. A reader finds the new clause and its rules in the README (user request, 2026-10-22).
+  - Where: `README.md` ("Recurring tasks with an end", after the "starting" section)
+  - What: Add the section with count examples, the accepted words, skip rule, and the edit field. Also fix the stale "Due reminders" bullet (server OS notification, removed in PR #56) and note Completed paging.
+  - Options: none
+  - Done when: `README.md` shows the section with 3 examples (count, with `starting`, rejected 0).
+
 ## Slice 2: "ending on <date>[ time]"
 
 - [ ] **T2.1: Date limit on the task model**
@@ -47,6 +54,13 @@ Design: `specs/recurrence-ending-design.md`
   - What: `create` stores `parsed[:recurrence_ends_at]`; after `apply_recurrence_anchors!` sets the first due, an end before it -> 422 "the task ends before it starts". Edit form: "Ends on" date + time fields composed into `recurrence_ends_at` (blank = no limit). Row tag adds `· ends <date>` (with time when not end-of-day).
   - Options: Compose the two edit fields in `Task` virtual setters, like `due_date=`/`due_time=`, rather than in the controller.
   - Done when: `bin/rspec spec/requests/tasks_spec.rb` passes with specs for: create stores the end; ends-before-start 422; both-clauses 422; edit sets and clears the end; row shows `ends Dec 31`. Then `bin/rspec` and `bin/rubocop` are clean.
+
+- [ ] **T2.4: README examples for "ending on <date>[ time]"**
+  - Why: Slice 2 value. A reader finds the date form and its rules in the README (user request, 2026-10-22).
+  - Where: `README.md` ("Recurring tasks with an end")
+  - What: Add date and date-time examples, inclusive end-of-day, skip past the end, the both-clauses and ends-before-start rejections, and the "Ends on" edit field.
+  - Options: none
+  - Done when: the section shows examples for `ending on <date>`, `ending <date> at <time>`, and both rejections.
 
 ## Questions and answers
 

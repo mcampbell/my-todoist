@@ -224,13 +224,16 @@ rails s -p 3500
 - **Projects and labels:** create, rename, and delete them from "Manage
   projects" and "Manage labels". `#name` in quick add creates a project.
   If the name is close to an existing one, the app asks "Did you mean ...?".
-- **Completed:** lists finished occurrences, each with a details page.
+- **Completed:** lists finished occurrences, 50 per page, each with a
+  details page.
 - **Keyboard:** `q` new task, `/` search, `Esc` cancel (on the new-task
   and search pages).
 - **Due reminders:** an open tab checks every 30 seconds. A due task shows
-  an in-page toast with a beep. The app also tries an OS notification on
-  macOS or WSL, and does nothing elsewhere (for example, a Linux server).
-  You get no reminder unless a tab is open.
+  an in-page toast with a beep, and a browser notification once you allow
+  it (the browser asks after your first click). The task lists have a
+  Mute button: it stops the beep and the browser notification in this
+  browser; the in-page toast still shows. You get no reminder unless a tab
+  is open.
 - **Midnight refresh:** the page reloads at midnight, so date views roll over.
 
 ## Quick add
@@ -285,6 +288,20 @@ recurring task may only get its first date this way — a bare date with no
 | `Book club every wednesday starting feb 20` | first Wednesday on or after 20 February |
 | `Review every 3 thursdays, starting on wed` | anchor = the next Wednesday; then the first Thursday on or after it; then every third Thursday |
 | `Standup every monday in 3 days` | rejected — write `starting in 3 days` |
+
+### Recurring tasks with an end
+
+Add `ending after <n> times` to stop a recurring task after its last
+completion. `time`, `times`, `occurrence(s)`, and `occurrance(s)` all
+work. Completing the final occurrence logs it and deletes the task, like a
+one-off task. A skip does not count. The task row shows how many are left,
+and the edit form's "Times left" field changes or removes the limit.
+
+| You type | Ends |
+|---|---|
+| `Stretch every day ending after 5 times` | after the 5th completion |
+| `Physio every monday starting feb 20 ending after 6 occurrences` | after the 6th completion, from the first Monday on or after 20 February |
+| `Stretch every day ending after 0 times` | rejected — the count must be at least 1 |
 
 ## Recurrence
 
