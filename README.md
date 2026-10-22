@@ -213,14 +213,16 @@ rails s -p 3500
   and one view per project. Overdue rows show red. A new task always
   lands on Today.
 - **Task row buttons:**
-  - checkbox: complete (a recurring task moves to its next date)
+  - checkbox: complete (a recurring task moves to its next date, or ends
+    when it reaches its end)
   - skip: skip this occurrence
   - **P**: mark in progress (grey row, sorted to the top); press again to clear
   - **T**: schedule tomorrow
   - **W**: schedule next week
   - edit, delete
 - **Edit form:** "Reschedule to" takes the same phrases as quick add
-  (`tomorrow`, `next wed`, `in 2 months`, ...).
+  (`tomorrow`, `next wed`, `in 2 months`, ...). "Times left" and "Ends on"
+  set or remove a recurring task's end.
 - **Projects and labels:** create, rename, and delete them from "Manage
   projects" and "Manage labels". `#name` in quick add creates a project.
   If the name is close to an existing one, the app asks "Did you mean ...?".

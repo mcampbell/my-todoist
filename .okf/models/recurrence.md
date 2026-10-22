@@ -5,8 +5,8 @@ description: Parses the "every(!)? (count)? unit" grammar and computes the next 
 resource: file:///home/mcampbell/dev/my-todoist/app/models/recurrence.rb
 tags: [grammar, parsing, dates]
 generated:
-  by: process:okf-migrate
-  at: 2026-08-22T00:00:00Z
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-22T00:00:00Z
 sources:
   - resource: "../../app/models/recurrence.rb"
     title: "app/models/recurrence.rb"
@@ -27,3 +27,11 @@ Two recurrence modes, selected by a trailing `!`:
   weekday).
 - **Rolling** (`every! 2 weeks`) — steps from *completion time* instead,
   so a late completion doesn't compound.
+
+# Ending a series
+
+`Recurrence` has no notion of an end: a rule steps forever. The limit
+("ending after N times", "ending on <date>") lives on the task, in
+`recurrence_remaining` / `recurrence_ends_at`, and `Task#complete!` /
+`#skip!` check it. See [Task](/models/task.md) and
+[QuickAdd](/models/quick-add.md). This keeps `Recurrence` pure computation.
