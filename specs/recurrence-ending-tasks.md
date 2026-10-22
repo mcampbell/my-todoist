@@ -55,7 +55,7 @@ Design: `specs/recurrence-ending-design.md`
   - Options: Compose the two edit fields in `Task` virtual setters, like `due_date=`/`due_time=`, rather than in the controller.
   - Done when: `bin/rspec spec/requests/tasks_spec.rb` passes with specs for: create stores the end; ends-before-start 422; both-clauses 422; edit sets and clears the end; row shows `ends Dec 31`. Then `bin/rspec` and `bin/rubocop` are clean.
 
-- [ ] **T2.4: README examples for "ending on <date>[ time]"**
+- [x] **T2.4: README examples for "ending on <date>[ time]"**
   - Why: Slice 2 value. A reader finds the date form and its rules in the README (user request, 2026-10-22).
   - Where: `README.md` ("Recurring tasks with an end")
   - What: Add date and date-time examples, inclusive end-of-day, skip past the end, the both-clauses and ends-before-start rejections, and the "Ends on" edit field.
