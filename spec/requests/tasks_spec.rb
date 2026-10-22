@@ -510,6 +510,12 @@ RSpec.describe "Tasks", type: :request do
         get tasks_path
         expect(response.parsed_body.at_css(".tag:contains('every day')").text).to include("5 left")
       end
+
+      it "shows no count on a recurring task without a limit" do
+        Task.create!(title: "water", recurrence: "every week", due_date: "2030-03-04")
+        get tasks_path
+        expect(response.parsed_body.at_css(".tag:contains('every week')").text).not_to include("left")
+      end
     end
 
     it "updates on valid params" do
