@@ -7,7 +7,8 @@ class Task < ApplicationRecord
   validates :priority, inclusion: { in: 0..3 }
   validate :recurrence_must_be_parseable
   validates :recurrence_remaining,
-            numericality: { only_integer: true, greater_than_or_equal_to: 1, allow_nil: true }
+            # Cap: a value past SQLite's 64-bit range raises at save (500) instead of failing validation.
+            numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 10_000, allow_nil: true }
   before_validation { self.recurrence_remaining = nil if recurrence.blank? }
 
   scope :ordered, -> { order(Arel.sql("in_progress DESC, due_at ASC NULLS LAST, created_at DESC")) }

@@ -409,6 +409,13 @@ RSpec.describe "Tasks", type: :request do
         expect(response.body).to include("end count must be at least 1")
         expect(response.body).to include('value="stretch every day ending after 0 times"')
       end
+
+      it "422s, not 500s, a count past the cap" do
+        expect {
+          post tasks_path, params: { task: { title: "stretch every day ending after 100000000000000000000 times" } }
+        }.not_to change(Task, :count)
+        expect(response).to have_http_status(:unprocessable_content)
+      end
     end
 
     it "defaults a recurring task with no time to a real time anchor for sub-day recurrence" do
@@ -501,6 +508,12 @@ RSpec.describe "Tasks", type: :request do
 
       it "422s a count below 1" do
         patch task_path(task), params: { task: { recurrence_remaining: "0" } }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.recurrence_remaining).to eq(5)
+      end
+
+      it "422s, not 500s, a count past the cap" do
+        patch task_path(task), params: { task: { recurrence_remaining: "100000000000000000000" } }
         expect(response).to have_http_status(:unprocessable_content)
         expect(task.reload.recurrence_remaining).to eq(5)
       end
