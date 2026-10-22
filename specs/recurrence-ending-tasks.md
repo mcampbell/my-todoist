@@ -4,21 +4,21 @@ Design: `specs/recurrence-ending-design.md`
 
 ## Slice 1: "ending after N times"
 
-- [ ] **T1.1: Count limit on the task model**
+- [x] **T1.1: Count limit on the task model**
   - Why: Slice 1 value. A recurring task stops after its last counted completion, logged like a one-off.
   - Where: new `db/migrate/*_add_recurrence_remaining_to_tasks.rb`, `db/schema.rb`, `app/models/task.rb` (`complete!`, `skip!`, validations, `before_validation`), `spec/models/task_spec.rb`
   - What: Add nullable integer `tasks.recurrence_remaining`. In `complete!`, inside `with_lock` and after the `CompletedOccurrence` snapshot: `remaining == 1` -> `destroy!`; else advance and decrement. `skip!` advances without touching the count. Validate nil or >= 1. Clear it in `before_validation` when `recurrence` is blank.
   - Options: Decrement inside `advance_to_next_occurrence!`'s `update!` (one write) rather than a second save.
   - Done when: `bin/rspec spec/models/task_spec.rb` passes with specs for: 3 -> 2 on complete; 1 -> task destroyed and one `CompletedOccurrence` written; skip leaves the count; 0 is invalid; clearing `recurrence` sets it to nil; nil count advances forever (unchanged behavior).
 
-- [ ] **T1.2: Parse "ending after N times" in QuickAdd**
+- [x] **T1.2: Parse "ending after N times" in QuickAdd**
   - Why: Slice 1 value. Quick-add sets the limit in the same phrase as the recurrence.
   - Where: `app/models/quick_add.rb` (`ENDING_RE`, new `extract_recurrence_end!`, `self.parse` return hash), `spec/lib/quick_add_spec.rb`
   - What: After `extract_recurrence_start!`, only when `recurrence` is present, match `,?\s*\bending\s+after\s+(\d+)\s+(?:times?|occurrences?|occurrances?)\b`, strip it, return `recurrence_count`. N < 1 -> `ending_error` "end count must be at least 1". Add `recurrence_count` and `ending_error` keys (nil by default). Document the wiring point inline.
   - Options: none
   - Done when: `bin/rspec spec/lib/quick_add_spec.rb` passes with specs for: each accepted word (time, times, occurrence, occurrences, occurrance, occurrances); title stripped; `every day ending after 0 times` -> `ending_error`; plain task `read ending after 5 times` keeps the words in the title with no count; works with `starting monday` before or after it.
 
-- [ ] **T1.3: Wire count into create, edit, and the task row**
+- [ ] **T1.3 (in progress): Wire count into create, edit, and the task row**
   - Why: Slice 1 value. The limit is set on create, shown on the row, and editable.
   - Where: `app/controllers/tasks_controller.rb` (`create` at the `due_error || starting_error` check, `task_params`), `app/views/tasks/_form.html.erb` (after the Recurrence field), `app/views/tasks/_task.html.erb` (the `↻` tag), `spec/requests/tasks_spec.rb`
   - What: `create` passes `parsed[:recurrence_count]` as `recurrence_remaining` and adds `ending_error` to the 422 check. Permit `:recurrence_remaining` in `task_params`. Add a "Times left" number field (`min: 1`, blank = no limit). Append `· N left` to the `↻` tag when set.

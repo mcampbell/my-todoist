@@ -43,6 +43,11 @@ class QuickAdd
   NO_STARTING_MESSAGE = "use 'starting' to set when a recurring task begins"
   BAD_STARTING_MESSAGE = "couldn't read the starting date"
 
+  # "ending after N times" suffix on a recurring task (specs/recurrence-ending-design.md):
+  # stop after N occurrences. Only honoured when a recurrence is also present.
+  ENDING_COUNT_RE = /,?\s*\bending\s+after\s+(\d+)\s+(?:times?|occurrences?|occurrances?)\b/i
+  BAD_ENDING_COUNT_MESSAGE = "end count must be at least 1"
+
   WORD_RE = /[^\s]+/
   NUMBER_RE = /\A\d+(?:st|nd|rd|th)?\z/i
   # Words chronic recognizes as date material (used to find candidate spans).
@@ -80,6 +85,9 @@ class QuickAdd
     recurrence, recurrence_time = extract_recurrence!(title)
     recurrence_start = starting_error = nil
     recurrence_start, starting_error = extract_recurrence_start!(title) if recurrence
+    # Wiring point: runs right after the "starting" clause, recurring titles only.
+    recurrence_count = ending_error = nil
+    recurrence_count, ending_error = extract_recurrence_end!(title) if recurrence
     # Point-in-time runs after the "every"-prefixed recurrences (so those win)
     # but before the bare weekdays/workday shorthand (so "first workday in
     # september" is a one-off date, not an "every weekday" recurrence).
@@ -138,7 +146,9 @@ class QuickAdd
       recurrence: recurrence,
       recurrence_start: recurrence_start,
       due_error: due_error,
-      starting_error: starting_error
+      starting_error: starting_error,
+      recurrence_count: recurrence_count,
+      ending_error: ending_error
     }
   end
 
@@ -160,6 +170,18 @@ class QuickAdd
     [ date, nil ]
   end
   private_class_method :extract_recurrence_start!
+
+  # "ending after N times" suffix. Returns [count, nil], [nil, message] for
+  # N < 1, or [nil, nil] when absent. Strips the matched clause from `title`.
+  def self.extract_recurrence_end!(title)
+    match = title.match(ENDING_COUNT_RE)
+    return [ nil, nil ] unless match
+
+    title[match.begin(0)...match.end(0)] = ""
+    count = match[1].to_i
+    count < 1 ? [ nil, BAD_ENDING_COUNT_MESSAGE ] : [ count, nil ]
+  end
+  private_class_method :extract_recurrence_end!
 
   # [iso_date, chars consumed from the front of `tail`], or nil. Tries the
   # "in N unit" offset grammar (only when it sits at the front of the tail),
