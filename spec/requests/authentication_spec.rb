@@ -52,6 +52,37 @@ RSpec.describe "Authentication", type: :request, signed_out: true do
     expect(cookies[:session_id]).to be_nil
   end
 
+  # The signed session cookie must be HttpOnly + SameSite=Lax; those attributes
+  # are observable in plain request specs. The Secure flag is production-only
+  # (actionpack drops `secure: true` cookies on plaintext requests, so the
+  # suite would break over http; the force_ssl middleware also flags prod
+  # cookies) and is asserted separately in the next example.
+  it "marks the login cookie HttpOnly and SameSite=Lax" do
+    https!
+    log_in
+    set_cookie = response.headers["Set-Cookie"]
+    login_cookie = Array(set_cookie).find { |line| line.start_with?("todo_session_id=") }
+    expect(login_cookie).to be_present
+    expect(login_cookie).to include("httponly")
+    expect(login_cookie).to include("samesite=lax")
+    # the session survives the redirect: the signed cookie round-trips on https
+    get root_path
+    expect(response).to have_http_status(:ok)
+  end
+
+  # The production cookie must carry Secure even if force_ssl were disabled.
+  # Stub production so the option itself is observable over https (in other
+  # envs actionpack drops `secure: true` cookies on plaintext requests).
+  it "writes the login cookie Secure in production" do
+    allow(Rails.env).to receive(:production?).and_return(true)
+    https!
+    log_in
+    set_cookie = response.headers["Set-Cookie"]
+    login_cookie = Array(set_cookie).find { |line| line.start_with?("todo_session_id=") }
+    expect(login_cookie).to be_present
+    expect(login_cookie).to include("; secure")
+  end
+
   it "rejects a wrong password" do
     log_in(password: "wrong")
     expect(response).to redirect_to(new_session_path)

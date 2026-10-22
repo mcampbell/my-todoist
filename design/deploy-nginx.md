@@ -65,7 +65,7 @@ After=network.target
 User=todoist
 WorkingDirectory=/srv/my-todoist
 EnvironmentFile=/etc/my-todoist.env
-# -b binds loopback only. config/puma.rb `port` alone binds every interface.
+# -b binds loopback only; config/puma.rb's `bind` does the same by default.
 ExecStart=/srv/my-todoist/bin/rails server -b 127.0.0.1 -p 3000
 Restart=on-failure
 

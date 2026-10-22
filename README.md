@@ -100,7 +100,7 @@ The leading space keeps the password out of shell history (bash with
 tmux new -s todo
 cd /path/to/my-todoist
 set -a; . /etc/my-todoist.env; set +a    # RAILS_ENV=production etc.
-rails s -p 3500
+rails s -p 3500 -b 127.0.0.1
 ```
 
 Detach with `Ctrl-b d`. Reattach with `tmux attach -t todo`. tmux does not
@@ -108,12 +108,12 @@ survive a reboot: start it again after one.
 
 - Load the env file first. Without `RAILS_ENV=production`, `rails s`
   starts in development, which rejects the `{HOST}` host name.
-- **Close port 3500 to the internet.** In production, `rails s` listens on
-  every network interface, so anyone can reach `http://{HOST}:3500`
-  directly. That skips TLS (the password crosses the network in clear
-  text) and skips nginx's login limit. Do one of these:
-  - block the port: `sudo ufw deny 3500` (or your firewall's equivalent)
-  - or listen on loopback only: `rails s -p 3500 -b 127.0.0.1`
+- **Keep the server on loopback.** `config/puma.rb` binds loopback by
+  default, and `-b 127.0.0.1` here makes it explicit. Without `-b`, the
+  `-p 3500` CLI flag re-opens every network interface, so anyone could
+  reach `http://{HOST}:3500` directly — plaintext, skipping TLS and
+  nginx's login limit. (Alternatively, run without `-p`/`-b` and let the
+  config's `bind` handle both.)
 
 **4. nginx changes.** You already have a `server { ... }` block for `{HOST}`
 (the one with `listen 443 ssl`). Add the `/todo` locations to it, add a

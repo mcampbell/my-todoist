@@ -6,7 +6,7 @@ resource: file:///home/mcampbell/dev/my-todoist
 tags: [rails, sqlite, single-user, todo]
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-19T00:00:00Z
+  at: 2026-10-22T00:00:00Z
 sources:
   - resource: "../../CLAUDE.md"
     title: "CLAUDE.md"
@@ -45,6 +45,18 @@ the `due_since` poll.
 Three grammars parse free text into structured data, each in its own
 model class computing independently of ActiveRecord — see
 [QuickAdd](/models/quick-add.md) and [Recurrence](/models/recurrence.md).
+
+# Deploy hardening
+
+- Puma listens on loopback only (`config/puma.rb` binds
+  `tcp://127.0.0.1:$PORT`; the systemd unit and the README tmux runbook
+  also pass `-b 127.0.0.1`). No user-supplied `-p`/`-b` on the command line
+  may open every interface, and plaintext HTTP cannot reach Puma beside
+  nginx's TLS.
+- The login cookie (`todo_session_id`) is written `httponly`, `SameSite=Lax`,
+  and `secure` in production (`secure: Rails.env.production?`). Production
+  also forces HTTPS (`force_ssl` + `assume_ssl`), so the middleware flags
+  the cookie Secure on every response.
 
 # Schema
 
