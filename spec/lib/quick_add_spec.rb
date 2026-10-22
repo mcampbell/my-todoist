@@ -682,6 +682,10 @@ RSpec.describe QuickAdd, type: :model do
       expect(ends_at("stretch every day ending dec 31")).to be_present
     end
 
+    it "reads the clause in any letter case" do
+      expect(parse_at(now, "stretch every day ENDING ON DEC 31")).to include(title: "stretch", ending_error: nil)
+    end
+
     it "keeps an exact time when the phrase has one" do
       expect(Time.iso8601(ends_at("standup every hour ending dec 31 5pm"))).to eq(Time.zone.local(2026, 12, 31, 17, 0))
     end

@@ -538,6 +538,12 @@ RSpec.describe "Tasks", type: :request do
         expect(response.parsed_body.at_css(".tag:contains('every day')").text).to include("ends Mar 9, 2030")
       end
 
+      it "shows the end time on the task row when the end is timed" do
+        task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9, 17, 0))
+        get tasks_path
+        expect(response.parsed_body.at_css(".tag:contains('every day')").text).to include("ends Mar 9, 2030, 5:00 PM")
+      end
+
       it "says the series is over when a skip ends it" do
         task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 4).end_of_day.change(usec: 0))
         patch skip_task_path(task)

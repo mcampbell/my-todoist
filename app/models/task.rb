@@ -110,8 +110,9 @@ class Task < ApplicationRecord
 
   private
 
-  # Steps due_at to the recurrence rule's next occurrence, in place. Shared by
-  # #complete! (recurring case) and #skip!.
+  # Steps due_at to the recurrence rule's next occurrence, in place, or ends
+  # the series (destroy!) when that occurrence lands past recurrence_ends_at.
+  # Shared by #complete! (recurring case) and #skip!.
   def advance_to_next_occurrence!(remaining: recurrence_remaining)
     rule = Recurrence.parse(recurrence)
     # When the next occurrence was rescheduled off the pattern, its true
