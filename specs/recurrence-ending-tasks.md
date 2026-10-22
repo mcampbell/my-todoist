@@ -34,7 +34,7 @@ Design: `specs/recurrence-ending-design.md`
 
 ## Slice 2: "ending on <date>[ time]"
 
-- [ ] **T2.1: Date limit on the task model**
+- [x] **T2.1: Date limit on the task model**
   - Why: Slice 2 value. A recurring task stops when its next occurrence would fall after the end.
   - Where: new `db/migrate/*_add_recurrence_ends_at_to_tasks.rb`, `db/schema.rb`, `app/models/task.rb`, `spec/models/task_spec.rb`
   - What: Add nullable datetime `tasks.recurrence_ends_at`. In `complete!` and `skip!`, compute the next due (move the `rule.next_from` step out of `advance_to_next_occurrence!` so both callers see it); next due > `recurrence_ends_at` -> `destroy!` (complete still logs first; skip logs nothing). Validate that a task does not carry both limits. Clear it with the recurrence.

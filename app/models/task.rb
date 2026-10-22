@@ -9,7 +9,8 @@ class Task < ApplicationRecord
   validates :recurrence_remaining,
             # Cap: a value past SQLite's 64-bit range raises at save (500) instead of failing validation.
             numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 10_000, allow_nil: true }
-  before_validation { self.recurrence_remaining = nil if recurrence.blank? }
+  validate :one_recurrence_limit
+  before_validation { self.recurrence_remaining = self.recurrence_ends_at = nil if recurrence.blank? }
 
   scope :ordered, -> { order(Arel.sql("in_progress DESC, due_at ASC NULLS LAST, created_at DESC")) }
   scope :due_today_or_undated, -> { where("due_at <= ? OR due_at IS NULL", Time.current.end_of_day) }
@@ -108,9 +109,17 @@ class Task < ApplicationRecord
     # first place).
     sub_day = rule.unit.in?(%i[hour minute])
     next_due = next_due.beginning_of_day if anchor_all_day && !sub_day
+    # Past the end date, the series is over. complete! has already logged
+    # this occurrence; skip! logs nothing.
+    return destroy! if recurrence_ends_at && next_due > recurrence_ends_at
+
     update!(due_at: next_due, all_day: anchor_all_day && !sub_day,
             recurrence_anchor_at: nil, recurrence_anchor_all_day: nil,
             recurrence_remaining: remaining)
+  end
+
+  def one_recurrence_limit
+    errors.add(:base, "use one ending: a date or a count") if recurrence_ends_at && recurrence_remaining
   end
 
   def recurrence_must_be_parseable

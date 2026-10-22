@@ -449,4 +449,58 @@ RSpec.describe Task, type: :model do
       expect(task.due_at).to be > due
     end
   end
+
+  describe "recurrence_ends_at (dated recurrence)" do
+    let(:due) { Time.zone.local(2030, 3, 4, 9, 30) }
+
+    def dated(ends_at, recurrence: "every day", due_at: due)
+      Task.create!(title: "t", recurrence: recurrence, due_at: due_at, recurrence_ends_at: ends_at)
+    end
+
+    it "advances to an occurrence on the end day (the end is inclusive)" do
+      task = dated(Time.zone.local(2030, 3, 5).end_of_day)
+      task.complete!
+      expect(task.reload.due_at).to eq(Time.zone.local(2030, 3, 5, 9, 30))
+    end
+
+    it "ends the series when the next occurrence is past the end, logging the last one" do
+      task = dated(Time.zone.local(2030, 3, 4).end_of_day)
+      expect { task.complete! }.to change(Task, :count).by(-1)
+        .and change(CompletedOccurrence, :count).by(1)
+    end
+
+    it "ends the series on a skip past the end, logging nothing" do
+      task = dated(Time.zone.local(2030, 3, 4).end_of_day)
+      expect { task.skip! }.to change(Task, :count).by(-1)
+        .and change(CompletedOccurrence, :count).by(0)
+    end
+
+    it "compares an exact end time for a sub-day recurrence" do
+      on_time = dated(Time.zone.local(2030, 3, 4, 10, 30), recurrence: "every hour")
+      on_time.complete!
+      expect(on_time.reload.due_at).to eq(Time.zone.local(2030, 3, 4, 10, 30))
+
+      late = dated(Time.zone.local(2030, 3, 4, 10, 29), recurrence: "every hour")
+      expect { late.complete! }.to change(Task, :count).by(-1)
+    end
+
+    it "checks a rolling recurrence against the date stepped from completion" do
+      travel_to(Time.zone.local(2030, 3, 10, 12, 0)) do
+        task = dated(Time.zone.local(2030, 3, 11).end_of_day, recurrence: "every! 2 days")
+        expect { task.complete! }.to change(Task, :count).by(-1) # next = Mar 12, past the Mar 11 end
+      end
+    end
+
+    it "rejects a task with both an end date and a count" do
+      task = Task.new(title: "t", recurrence: "every day", recurrence_remaining: 3,
+                      recurrence_ends_at: Time.zone.local(2030, 3, 9))
+      expect(task).not_to be_valid
+    end
+
+    it "clears the end when recurrence is removed" do
+      task = dated(Time.zone.local(2030, 3, 9))
+      task.update!(recurrence: nil)
+      expect(task.recurrence_ends_at).to be_nil
+    end
+  end
 end
