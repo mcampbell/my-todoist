@@ -41,7 +41,7 @@ Design: `specs/recurrence-ending-design.md`
   - Options: Return the next due from a small private method and keep `advance_to_next_occurrence!` taking it as an argument.
   - Done when: `bin/rspec spec/models/task_spec.rb` passes with specs for: next due on the end day (end of day) advances; next due after the end destroys and logs once; skip past the end destroys with no log; rolling `every!` uses completion time; timed end for an hourly rule; both limits invalid; clearing `recurrence` clears it.
 
-- [ ] **T2.2: Parse "ending on <date>[ time]" in QuickAdd**
+- [x] **T2.2: Parse "ending on <date>[ time]" in QuickAdd**
   - Why: Slice 2 value. Quick-add sets the end date in the same phrase.
   - Where: `app/models/quick_add.rb` (`extract_recurrence_end!`, `resolve_start_anchor` or a sibling that keeps the time, `date_span`), `spec/lib/quick_add_spec.rb`
   - What: When `ending` is not followed by `after N`, resolve the tail after `ending [on]` with the offset grammar, then `date_span`. Date only -> end of that day (app zone); `span[:time_anchor]` -> that exact time. Return `recurrence_ends_at` (ISO 8601). Unresolvable -> `ending_error` "couldn't read the ending date". Both a count and a date in one title -> `ending_error` "use one ending: a date or a count".

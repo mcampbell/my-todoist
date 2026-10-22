@@ -32,3 +32,8 @@ skips. (Own decision.)
 Q: What happens when the recurrence is cleared on edit?
 A: The limit clears too: a limit without a recurrence means nothing.
 (Own decision.)
+
+Q: What does `ending dec 31 at 9am` mean: end at 9am, or occurrences at 9am?
+A: Occurrences at 9am. "at <time>" keeps its existing meaning, the rule's
+clock time, and the end is the close of Dec 31. Write an exact end time
+without "at": `ending dec 31 5pm`. (Own decision, 2026-10-22, found in T2.2.)

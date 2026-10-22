@@ -47,7 +47,7 @@ RSpec.describe QuickAdd, type: :model do
       expect(described_class.parse("buy milk")).to eq(
         title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil, recurrence: nil,
         recurrence_start: nil, due_error: nil, starting_error: nil,
-        recurrence_count: nil, ending_error: nil
+        recurrence_count: nil, recurrence_ends_at: nil, ending_error: nil
       )
     end
   end
@@ -660,6 +660,63 @@ RSpec.describe QuickAdd, type: :model do
     it "works with 'starting' after the ending clause" do
       result = parse_at(now, "pay dues every monday ending after 4 times, starting feb 20")
       expect(result).to include(title: "pay dues", recurrence_start: "2027-02-20", recurrence_count: 4)
+    end
+  end
+
+  describe "recurrence 'ending on <date>' suffix" do
+    def parse_at(time, text)
+      travel_to(time) { described_class.parse(text) }
+    end
+
+    let(:now) { Time.zone.local(2026, 9, 1, 12, 0, 0) }
+
+    def ends_at(text) = parse_at(now, text)[:recurrence_ends_at]
+
+    it "ends at the end of a bare date's day, and strips the clause" do
+      result = parse_at(now, "stretch every day ending on dec 31")
+      expect(result).to include(title: "stretch", recurrence: "every day", ending_error: nil)
+      expect(Time.iso8601(result[:recurrence_ends_at])).to eq(Time.zone.local(2026, 12, 31).end_of_day.change(usec: 0))
+    end
+
+    it "accepts 'ending' without 'on'" do
+      expect(ends_at("stretch every day ending dec 31")).to be_present
+    end
+
+    it "keeps an exact time when the phrase has one" do
+      expect(Time.iso8601(ends_at("standup every hour ending dec 31 5pm"))).to eq(Time.zone.local(2026, 12, 31, 17, 0))
+    end
+
+    # "at <time>" keeps its existing meaning: the occurrences' clock time.
+    it "gives 'at <time>' after the end date to the rule, and ends at the close of the day" do
+      result = parse_at(now, "stretch every day ending dec 31 at 9am")
+      expect(result).to include(title: "stretch", due_time: "09:00")
+      expect(Time.iso8601(result[:recurrence_ends_at])).to eq(Time.zone.local(2026, 12, 31).end_of_day.change(usec: 0))
+    end
+
+    it "reads an 'in <n> <unit>' offset" do
+      expect(Time.iso8601(ends_at("stretch every day ending in 2 weeks"))).to eq(Time.zone.local(2026, 9, 15).end_of_day.change(usec: 0))
+    end
+
+    it "reports a phrase it cannot read" do
+      result = parse_at(now, "stretch every day ending on florb")
+      expect(result).to include(recurrence_ends_at: nil, ending_error: "couldn't read the ending date")
+    end
+
+    it "rejects both an end date and a count" do
+      result = parse_at(now, "stretch every day ending on dec 31 ending after 3 times")
+      expect(result).to include(recurrence_ends_at: nil, recurrence_count: nil, ending_error: "use one ending: a date or a count")
+    end
+
+    it "works with 'starting' on either side" do
+      [ "pay dues every monday starting feb 20 ending dec 31 2027", "pay dues every monday ending dec 31 2027, starting feb 20" ].each do |text|
+        result = parse_at(now, text)
+        expect(result).to include(title: "pay dues", recurrence_start: "2027-02-20", ending_error: nil, starting_error: nil), text
+        expect(Time.iso8601(result[:recurrence_ends_at]).to_date).to eq(Date.new(2027, 12, 31)), text
+      end
+    end
+
+    it "leaves the words in a non-recurring title" do
+      expect(parse_at(now, "read ending on dec 31")).to include(recurrence_ends_at: nil, ending_error: nil)
     end
   end
 
