@@ -65,6 +65,7 @@ class TasksController < ApplicationController
       due_time: parsed[:due_time],
       recurrence: parsed[:recurrence],
       recurrence_remaining: parsed[:recurrence_count],
+      recurrence_ends_at: parsed[:recurrence_ends_at],
       notes: qp[:notes],
       label_ids: qp[:label_ids] || []
     }
@@ -186,7 +187,10 @@ class TasksController < ApplicationController
     "“#{h(task.title)}” completed. Next: #{helpers.due_tag(task)}."
   end
 
+  # A skip past the end date ends the series (Task#skip! destroys it).
   def skip_notice(task)
+    return "“#{h(task.title)}” skipped. That was the last one." if task.destroyed?
+
     "“#{h(task.title)}” skipped. Next: #{helpers.due_tag(task)}."
   end
 
@@ -234,7 +238,7 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, :recurrence_remaining, :in_progress, label_ids: [])
+    params.require(:task).permit(:title, :notes, :due_date, :due_time, :project_id, :priority, :recurrence, :recurrence_remaining, :ends_on_date, :ends_on_time, :in_progress, label_ids: [])
   end
 
   # % and _ are LIKE wildcards; escape them (and the escape char itself)

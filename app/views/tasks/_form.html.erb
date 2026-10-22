@@ -73,6 +73,15 @@
     <p class="help">Completions left before a recurring task ends. Blank = no limit.</p>
   </div>
 
+  <div class="field">
+    <label class="label" for="task_ends_on_date">Ends on</label>
+    <div class="field has-addons">
+      <div class="control"><%= f.date_field :ends_on_date, class: "input" %></div>
+      <div class="control"><%= f.time_field :ends_on_time, class: "input", "aria-label": "Ends at time" %></div>
+    </div>
+    <p class="help">Last date (and optional time) an occurrence may land on. Blank = no end. Use this or Times left, not both.</p>
+  </div>
+
   <div class="columns">
     <div class="column field">
       <%= f.label :project_id, "Project", class: "label" %>

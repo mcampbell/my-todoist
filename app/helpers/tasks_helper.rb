@@ -23,6 +23,16 @@ module TasksHelper
     task.due_at.strftime("%b %-d#{year_suffix(task.due_at)}")
   end
 
+  # The recurrence limit for the task row's ↻ tag: " · N left" or " · ends <date>".
+  def recurrence_limit_text(task)
+    if task.recurrence_remaining
+      " · #{task.recurrence_remaining} left"
+    elsif task.recurrence_ends_at
+      ends = task.recurrence_ends_at
+      " · ends #{task.ends_all_day? ? ends.strftime("%b %-d#{year_suffix(ends)}") : format_time(ends)}"
+    end
+  end
+
   # p1..p4 display number for a stored priority integer (p1 is most urgent).
   # Single source for the display convention, shared by every priority view.
   def priority_label(priority)

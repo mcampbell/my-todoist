@@ -449,4 +449,100 @@ RSpec.describe Task, type: :model do
       expect(task.due_at).to be > due
     end
   end
+
+  describe "recurrence_ends_at (dated recurrence)" do
+    let(:due) { Time.zone.local(2030, 3, 4, 9, 30) }
+
+    def dated(ends_at, recurrence: "every day", due_at: due)
+      Task.create!(title: "t", recurrence: recurrence, due_at: due_at, recurrence_ends_at: ends_at)
+    end
+
+    it "advances to an occurrence on the end day (the end is inclusive)" do
+      task = dated(Time.zone.local(2030, 3, 5).end_of_day)
+      task.complete!
+      expect(task.reload.due_at).to eq(Time.zone.local(2030, 3, 5, 9, 30))
+    end
+
+    it "ends the series when the next occurrence is past the end, logging the last one" do
+      task = dated(Time.zone.local(2030, 3, 4).end_of_day)
+      expect { task.complete! }.to change(Task, :count).by(-1)
+        .and change(CompletedOccurrence, :count).by(1)
+    end
+
+    it "ends the series on a skip past the end, logging nothing" do
+      task = dated(Time.zone.local(2030, 3, 4).end_of_day)
+      expect { task.skip! }.to change(Task, :count).by(-1)
+        .and change(CompletedOccurrence, :count).by(0)
+    end
+
+    it "compares an exact end time for a sub-day recurrence" do
+      on_time = dated(Time.zone.local(2030, 3, 4, 10, 30), recurrence: "every hour")
+      on_time.complete!
+      expect(on_time.reload.due_at).to eq(Time.zone.local(2030, 3, 4, 10, 30))
+
+      late = dated(Time.zone.local(2030, 3, 4, 10, 29), recurrence: "every hour")
+      expect { late.complete! }.to change(Task, :count).by(-1)
+    end
+
+    it "checks a rolling recurrence against the date stepped from completion" do
+      travel_to(Time.zone.local(2030, 3, 10, 12, 0)) do
+        task = dated(Time.zone.local(2030, 3, 11).end_of_day, recurrence: "every! 2 days")
+        expect { task.complete! }.to change(Task, :count).by(-1) # next = Mar 12, past the Mar 11 end
+      end
+    end
+
+    it "rejects a task with both an end date and a count" do
+      task = Task.new(title: "t", recurrence: "every day", recurrence_remaining: 3,
+                      recurrence_ends_at: Time.zone.local(2030, 3, 9))
+      expect(task).not_to be_valid
+    end
+
+    it "clears the end when recurrence is removed" do
+      task = dated(Time.zone.local(2030, 3, 9))
+      task.update!(recurrence: nil)
+      expect(task.recurrence_ends_at).to be_nil
+    end
+
+    it "rejects an end before the next occurrence" do
+      task = Task.new(title: "t", recurrence: "every day", due_at: due, recurrence_ends_at: due - 1.minute)
+      expect(task).not_to be_valid
+      expect(task.errors[:base]).to include("the task ends before its next occurrence")
+    end
+  end
+
+  describe "ends_on_date / ends_on_time (edit-form fields)" do
+    let(:task) { Task.create!(title: "t", recurrence: "every day", due_at: Time.zone.local(2030, 3, 4, 9, 30)) }
+
+    it "ends at the close of the day when only a date is given" do
+      task.update!(ends_on_date: "2030-03-09", ends_on_time: "")
+      expect(task.recurrence_ends_at).to eq(Time.zone.local(2030, 3, 9).end_of_day.change(usec: 0))
+      expect(task).to be_ends_all_day
+    end
+
+    it "ends at the exact time when one is given" do
+      task.update!(ends_on_date: "2030-03-09", ends_on_time: "17:00")
+      expect(task.recurrence_ends_at).to eq(Time.zone.local(2030, 3, 9, 17, 0))
+      expect(task).not_to be_ends_all_day
+    end
+
+    it "removes the end when the date is blank" do
+      task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9))
+      task.update!(ends_on_date: "", ends_on_time: "")
+      expect(task.recurrence_ends_at).to be_nil
+    end
+
+    it "reads the stored end back into the fields" do
+      task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9, 17, 0))
+      fresh = Task.find(task.id)
+      expect([ fresh.ends_on_date, fresh.ends_on_time ]).to eq([ "2030-03-09", "17:00" ])
+      fresh.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9).end_of_day.change(usec: 0))
+      expect(Task.find(task.id).ends_on_time).to be_nil
+    end
+
+    it "rejects a date it cannot read" do
+      task.ends_on_date = "florb"
+      expect(task).not_to be_valid
+      expect(task.errors[:recurrence_ends_at]).to include("is invalid")
+    end
+  end
 end

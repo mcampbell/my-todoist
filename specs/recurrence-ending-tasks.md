@@ -34,28 +34,28 @@ Design: `specs/recurrence-ending-design.md`
 
 ## Slice 2: "ending on <date>[ time]"
 
-- [ ] **T2.1: Date limit on the task model**
+- [x] **T2.1: Date limit on the task model**
   - Why: Slice 2 value. A recurring task stops when its next occurrence would fall after the end.
   - Where: new `db/migrate/*_add_recurrence_ends_at_to_tasks.rb`, `db/schema.rb`, `app/models/task.rb`, `spec/models/task_spec.rb`
   - What: Add nullable datetime `tasks.recurrence_ends_at`. In `complete!` and `skip!`, compute the next due (move the `rule.next_from` step out of `advance_to_next_occurrence!` so both callers see it); next due > `recurrence_ends_at` -> `destroy!` (complete still logs first; skip logs nothing). Validate that a task does not carry both limits. Clear it with the recurrence.
   - Options: Return the next due from a small private method and keep `advance_to_next_occurrence!` taking it as an argument.
   - Done when: `bin/rspec spec/models/task_spec.rb` passes with specs for: next due on the end day (end of day) advances; next due after the end destroys and logs once; skip past the end destroys with no log; rolling `every!` uses completion time; timed end for an hourly rule; both limits invalid; clearing `recurrence` clears it.
 
-- [ ] **T2.2: Parse "ending on <date>[ time]" in QuickAdd**
+- [x] **T2.2: Parse "ending on <date>[ time]" in QuickAdd**
   - Why: Slice 2 value. Quick-add sets the end date in the same phrase.
   - Where: `app/models/quick_add.rb` (`extract_recurrence_end!`, `resolve_start_anchor` or a sibling that keeps the time, `date_span`), `spec/lib/quick_add_spec.rb`
   - What: When `ending` is not followed by `after N`, resolve the tail after `ending [on]` with the offset grammar, then `date_span`. Date only -> end of that day (app zone); `span[:time_anchor]` -> that exact time. Return `recurrence_ends_at` (ISO 8601). Unresolvable -> `ending_error` "couldn't read the ending date". Both a count and a date in one title -> `ending_error` "use one ending: a date or a count".
   - Options: Reuse `resolve_start_anchor` with a flag to keep the time, or add `resolve_end_anchor`; pick the one with less duplication.
   - Done when: `bin/rspec spec/lib/quick_add_spec.rb` passes with specs (under `travel_to`) for: `ending on dec 31` -> Dec 31 23:59:59; `ending dec 31 at 5pm` -> 17:00; `ending in 2 weeks`; `ending on blah` -> error; both clauses -> error; plain task keeps the text.
 
-- [ ] **T2.3: Wire end date into create, edit, and the task row**
+- [x] **T2.3: Wire end date into create, edit, and the task row**
   - Why: Slice 2 value. The end is set on create, checked against the first occurrence, shown, and editable.
   - Where: `app/controllers/tasks_controller.rb` (`create`, `task_params`, `update`), `app/views/tasks/_form.html.erb`, `app/views/tasks/_task.html.erb`, `spec/requests/tasks_spec.rb`
   - What: `create` stores `parsed[:recurrence_ends_at]`; after `apply_recurrence_anchors!` sets the first due, an end before it -> 422 "the task ends before it starts". Edit form: "Ends on" date + time fields composed into `recurrence_ends_at` (blank = no limit). Row tag adds `· ends <date>` (with time when not end-of-day).
   - Options: Compose the two edit fields in `Task` virtual setters, like `due_date=`/`due_time=`, rather than in the controller.
   - Done when: `bin/rspec spec/requests/tasks_spec.rb` passes with specs for: create stores the end; ends-before-start 422; both-clauses 422; edit sets and clears the end; row shows `ends Dec 31`. Then `bin/rspec` and `bin/rubocop` are clean.
 
-- [ ] **T2.4: README examples for "ending on <date>[ time]"**
+- [x] **T2.4: README examples for "ending on <date>[ time]"**
   - Why: Slice 2 value. A reader finds the date form and its rules in the README (user request, 2026-10-22).
   - Where: `README.md` ("Recurring tasks with an end")
   - What: Add date and date-time examples, inclusive end-of-day, skip past the end, the both-clauses and ends-before-start rejections, and the "Ends on" edit field.

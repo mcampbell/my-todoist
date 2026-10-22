@@ -213,14 +213,16 @@ rails s -p 3500
   and one view per project. Overdue rows show red. A new task always
   lands on Today.
 - **Task row buttons:**
-  - checkbox: complete (a recurring task moves to its next date)
+  - checkbox: complete (a recurring task moves to its next date, or ends
+    when it reaches its end)
   - skip: skip this occurrence
   - **P**: mark in progress (grey row, sorted to the top); press again to clear
   - **T**: schedule tomorrow
   - **W**: schedule next week
   - edit, delete
 - **Edit form:** "Reschedule to" takes the same phrases as quick add
-  (`tomorrow`, `next wed`, `in 2 months`, ...).
+  (`tomorrow`, `next wed`, `in 2 months`, ...). "Times left" and "Ends on"
+  set or remove a recurring task's end.
 - **Projects and labels:** create, rename, and delete them from "Manage
   projects" and "Manage labels". `#name` in quick add creates a project.
   If the name is close to an existing one, the app asks "Did you mean ...?".
@@ -291,17 +293,30 @@ recurring task may only get its first date this way — a bare date with no
 
 ### Recurring tasks with an end
 
-Add `ending after <n> times` to stop a recurring task after its last
-completion. `time`, `times`, `occurrence(s)`, and `occurrance(s)` all
-work. Completing the final occurrence logs it and deletes the task, like a
-one-off task. A skip does not count. The task row shows how many are left,
-and the edit form's "Times left" field changes or removes the limit.
+Add an end to stop a recurring task from coming back. Completing the final
+occurrence logs it and deletes the task, like a one-off task. A task has
+one end: a count or a date.
+
+- `ending after <n> times` stops after the nth completion. `time`, `times`,
+  `occurrence(s)`, and `occurrance(s)` all work. A skip does not count.
+- `ending [on] <date>[ <time>]` stops when the next occurrence would land
+  after that moment. A date alone includes the whole day. A skip past the
+  end also ends the series, without a completion log.
+
+The task row shows `· 3 left` or `· ends Dec 31`. The edit form's "Times
+left" and "Ends on" fields change or remove the end.
 
 | You type | Ends |
 |---|---|
 | `Stretch every day ending after 5 times` | after the 5th completion |
 | `Physio every monday starting feb 20 ending after 6 occurrences` | after the 6th completion, from the first Monday on or after 20 February |
+| `Water seedlings every day ending on may 31` | the occurrence on 31 May is the last |
+| `Check oven every hour ending dec 31 5pm` | the last occurrence is at or before 5pm on 31 December |
+| `Stretch every day ending dec 31 at 9am` | every day at 9am, through 31 December — "at" sets the occurrence time, not the end |
+| `Course every week ending in 6 weeks` | the last occurrence is on or before today + 6 weeks |
 | `Stretch every day ending after 0 times` | rejected — the count must be at least 1 |
+| `Gym every monday starting feb 20 ending dec 31` | rejected — the end is before the first occurrence |
+| `Stretch every day ending on dec 31 ending after 3 times` | rejected — use one end |
 
 ## Recurrence
 

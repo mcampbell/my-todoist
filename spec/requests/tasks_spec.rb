@@ -418,6 +418,33 @@ RSpec.describe "Tasks", type: :request do
       end
     end
 
+    describe "'ending on <date>' clause" do
+      around { |example| travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) { example.run } }
+
+      def creates_nothing_with(title, message)
+        expect { post tasks_path, params: { task: { title: title } } }.not_to change(Task, :count)
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.body).to include(ERB::Util.html_escape(message))
+      end
+
+      it "stores the end at the close of the day" do
+        post tasks_path, params: { task: { title: "stretch every day ending on dec 31" } }
+        expect(Task.last).to have_attributes(title: "stretch", recurrence_ends_at: Time.zone.local(2026, 12, 31).end_of_day.change(usec: 0))
+      end
+
+      it "422s an end before the first occurrence" do
+        creates_nothing_with("gym every monday starting feb 20 ending dec 31", "the task ends before its next occurrence")
+      end
+
+      it "422s both an end date and a count" do
+        creates_nothing_with("stretch every day ending on dec 31 ending after 3 times", "use one ending: a date or a count")
+      end
+
+      it "422s an end it cannot read" do
+        creates_nothing_with("stretch every day ending on florb", "couldn't read the ending date")
+      end
+    end
+
     it "defaults a recurring task with no time to a real time anchor for sub-day recurrence" do
       travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
         post tasks_path, params: { task: { title: "water plants every 10 minutes" } }
@@ -487,6 +514,44 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "PATCH /tasks/:id" do
+    describe "ends on" do
+      let(:task) { Task.create!(title: "stretch", recurrence: "every day", due_date: "2030-03-04") }
+
+      it "pre-fills the Ends on date and time fields" do
+        task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9, 17, 0))
+        get edit_task_path(task)
+        body = response.parsed_body
+        expect(body.at_css("input[name='task[ends_on_date]']")["value"]).to eq("2030-03-09")
+        expect(body.at_css("input[name='task[ends_on_time]']")["value"]).to eq("17:00")
+      end
+
+      it "sets an end from a date alone, and removes it when blank" do
+        patch task_path(task), params: { task: { ends_on_date: "2030-03-09", ends_on_time: "" } }
+        expect(task.reload.recurrence_ends_at).to eq(Time.zone.local(2030, 3, 9).end_of_day.change(usec: 0))
+        patch task_path(task), params: { task: { ends_on_date: "", ends_on_time: "" } }
+        expect(task.reload.recurrence_ends_at).to be_nil
+      end
+
+      it "shows the end date on the task row" do
+        task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9).end_of_day.change(usec: 0))
+        get tasks_path
+        expect(response.parsed_body.at_css(".tag:contains('every day')").text).to include("ends Mar 9, 2030")
+      end
+
+      it "shows the end time on the task row when the end is timed" do
+        task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 9, 17, 0))
+        get tasks_path
+        expect(response.parsed_body.at_css(".tag:contains('every day')").text).to include("ends Mar 9, 2030, 5:00 PM")
+      end
+
+      it "says the series is over when a skip ends it" do
+        task.update!(recurrence_ends_at: Time.zone.local(2030, 3, 4).end_of_day.change(usec: 0))
+        patch skip_task_path(task)
+        expect(flash[:notice]).to include("That was the last one")
+        expect(flash[:notice]).not_to include("Next")
+      end
+    end
+
     describe "times left" do
       let(:task) { Task.create!(title: "stretch", recurrence: "every day", due_date: "2030-03-04", recurrence_remaining: 5) }
 

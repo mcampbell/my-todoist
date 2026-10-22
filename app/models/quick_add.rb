@@ -47,6 +47,10 @@ class QuickAdd
   # stop after N occurrences. Only honoured when a recurrence is also present.
   ENDING_COUNT_RE = /,?\s*\bending\s+after\s+(\d+)\s+(?:times?|occurrences?|occurrances?)\b/i
   BAD_ENDING_COUNT_MESSAGE = "end count must be at least 1"
+  # "ending [on] <date>[ <time>]": the last moment an occurrence may land.
+  ENDING_DATE_RE = /,?\s*\bending\s+(?:on\s+)?/i
+  BAD_ENDING_DATE_MESSAGE = "couldn't read the ending date"
+  BOTH_ENDINGS_MESSAGE = "use one ending: a date or a count"
 
   WORD_RE = /[^\s]+/
   NUMBER_RE = /\A\d+(?:st|nd|rd|th)?\z/i
@@ -86,8 +90,8 @@ class QuickAdd
     recurrence_start = starting_error = nil
     recurrence_start, starting_error = extract_recurrence_start!(title) if recurrence
     # Wiring point: runs right after the "starting" clause, recurring titles only.
-    recurrence_count = ending_error = nil
-    recurrence_count, ending_error = extract_recurrence_end!(title) if recurrence
+    recurrence_count = recurrence_ends_at = ending_error = nil
+    recurrence_count, recurrence_ends_at, ending_error = extract_recurrence_end!(title) if recurrence
     # Point-in-time runs after the "every"-prefixed recurrences (so those win)
     # but before the bare weekdays/workday shorthand (so "first workday in
     # september" is a one-off date, not an "every weekday" recurrence).
@@ -123,7 +127,7 @@ class QuickAdd
     # A recurring task's first date comes only from the rule plus an optional
     # "starting" clause. Any bare date/offset left in the title -- even
     # alongside a valid "starting" -- is incomplete input.
-    if recurrence && due_date && starting_error.nil?
+    if recurrence && due_date && starting_error.nil? && ending_error.nil?
       starting_error = NO_STARTING_MESSAGE
       due_date = due_time = nil
     end
@@ -148,6 +152,7 @@ class QuickAdd
       due_error: due_error,
       starting_error: starting_error,
       recurrence_count: recurrence_count,
+      recurrence_ends_at: recurrence_ends_at,
       ending_error: ending_error
     }
   end
@@ -171,33 +176,58 @@ class QuickAdd
   end
   private_class_method :extract_recurrence_start!
 
-  # "ending after N times" suffix. Returns [count, nil], [nil, message] for
-  # N < 1, or [nil, nil] when absent. Strips the matched clause from `title`.
+  # "ending after N times" or "ending [on] <date>[ <time>]" suffix. Returns
+  # [count, ends_at_iso8601, error]; all nil when absent. Strips the matched
+  # clause from `title`. The count form runs first, so a leftover "ending"
+  # means the title carried both forms.
   def self.extract_recurrence_end!(title)
-    match = title.match(ENDING_COUNT_RE)
-    return [ nil, nil ] unless match
+    if (match = title.match(ENDING_COUNT_RE))
+      title[match.begin(0)...match.end(0)] = ""
+      return [ nil, nil, BOTH_ENDINGS_MESSAGE ] if title.match?(ENDING_DATE_RE)
 
-    title[match.begin(0)...match.end(0)] = ""
-    count = match[1].to_i
-    count < 1 ? [ nil, BAD_ENDING_COUNT_MESSAGE ] : [ count, nil ]
+      count = match[1].to_i
+      return count < 1 ? [ nil, nil, BAD_ENDING_COUNT_MESSAGE ] : [ count, nil, nil ]
+    end
+
+    match = title.match(ENDING_DATE_RE)
+    return [ nil, nil, nil ] unless match
+
+    moment, consumed = resolve_anchor(title[match.end(0)..])
+    return [ nil, nil, BAD_ENDING_DATE_MESSAGE ] if moment.nil?
+
+    title[match.begin(0)...(match.end(0) + consumed)] = ""
+    # A date with no time ends at the close of that day: the end is inclusive.
+    ends_at = moment[:timed] ? moment[:at] : moment[:at].end_of_day
+    [ nil, ends_at.change(usec: 0).iso8601, nil ]
   end
   private_class_method :extract_recurrence_end!
 
-  # [iso_date, chars consumed from the front of `tail`], or nil. Tries the
-  # "in N unit" offset grammar (only when it sits at the front of the tail),
-  # then Chronic via date_span.
+  # [iso_date, chars consumed from the front of `tail`], or nil. The anchor
+  # is a date only: any time in the phrase is dropped.
   def self.resolve_start_anchor(tail)
+    moment, consumed = resolve_anchor(tail)
+    [ moment[:at].to_date.iso8601, consumed ] if moment
+  end
+  private_class_method :resolve_start_anchor
+
+  # [{ at: Time, timed: bool }, chars consumed from the front of `tail`], or
+  # nil. Tries the "in N unit" offset grammar (only when it sits at the
+  # front of the tail), then Chronic via date_span.
+  def self.resolve_anchor(tail)
     work = tail.dup
-    offset_date, = extract_due_offset!(work)
-    return [ offset_date, tail.length - work.length ] if offset_date && tail.end_with?(work)
+    offset_date, offset_time = extract_due_offset!(work)
+    if offset_date && tail.end_with?(work)
+      at = Time.zone.parse([ offset_date, offset_time ].compact.join(" "))
+      return [ { at: at, timed: offset_time.present? }, tail.length - work.length ]
+    end
 
     if (span = date_span(tail))
-      return [ span[:parsed].to_date.iso8601, span[:end] ]
+      return [ { at: span[:parsed].in_time_zone, timed: span[:time_anchor] }, span[:end] ]
     end
 
     nil
   end
-  private_class_method :resolve_start_anchor
+  private_class_method :resolve_anchor
 
   # Extracts and normalizes a recurrence phrase, removing it from the title.
   # Returns the canonical recurrence string, or nil when none is present.
