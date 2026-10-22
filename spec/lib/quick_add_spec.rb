@@ -46,7 +46,8 @@ RSpec.describe QuickAdd, type: :model do
     it "returns nil due fields when no date or time token is present" do
       expect(described_class.parse("buy milk")).to eq(
         title: "buy milk", priority: nil, due_date: nil, due_time: nil, project_name: nil, recurrence: nil,
-        recurrence_start: nil, due_error: nil, starting_error: nil
+        recurrence_start: nil, due_error: nil, starting_error: nil,
+        recurrence_count: nil, ending_error: nil
       )
     end
   end
@@ -618,6 +619,47 @@ RSpec.describe QuickAdd, type: :model do
     it "strips the whole suffix, keeping a clean title" do
       result = parse_at(now, "water the ferns every friday starting in 1 week")
       expect(result[:title]).to eq("water the ferns")
+    end
+  end
+
+  describe "recurrence 'ending after N times' suffix" do
+    def parse_at(time, text)
+      travel_to(time) { described_class.parse(text) }
+    end
+
+    let(:now) { Time.zone.local(2026, 9, 1, 12, 0, 0) }
+
+    %w[time times occurrence occurrences occurrance occurrances].each do |word|
+      it "reads the count from 'ending after 3 #{word}' and strips it" do
+        result = parse_at(now, "water ferns every friday ending after 3 #{word}")
+        expect(result).to include(title: "water ferns", recurrence: "every friday",
+                                  recurrence_count: 3, ending_error: nil)
+      end
+    end
+
+    it "reads the clause in any letter case" do
+      result = parse_at(now, "water ferns every friday ENDING AFTER 3 TIMES")
+      expect(result).to include(title: "water ferns", recurrence_count: 3)
+    end
+
+    it "rejects a count below 1" do
+      result = parse_at(now, "stretch every day ending after 0 times")
+      expect(result).to include(recurrence_count: nil, ending_error: "end count must be at least 1")
+    end
+
+    it "ignores the words on a non-recurring title" do
+      result = parse_at(now, "read ending after 5 times")
+      expect(result).to include(title: "read ending after 5 times", recurrence_count: nil, ending_error: nil)
+    end
+
+    it "works with 'starting' before the ending clause" do
+      result = parse_at(now, "pay dues every monday starting feb 20 ending after 4 times")
+      expect(result).to include(title: "pay dues", recurrence_start: "2027-02-20", recurrence_count: 4)
+    end
+
+    it "works with 'starting' after the ending clause" do
+      result = parse_at(now, "pay dues every monday ending after 4 times, starting feb 20")
+      expect(result).to include(title: "pay dues", recurrence_start: "2027-02-20", recurrence_count: 4)
     end
   end
 

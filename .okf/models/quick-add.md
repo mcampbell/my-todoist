@@ -5,13 +5,16 @@ description: Parses free-text task titles into structured attributes (priority, 
 resource: file:///home/mcampbell/dev/my-todoist/app/models/quick_add.rb
 tags: [grammar, parsing, chronic]
 generated:
-  by: process:okf-migrate
-  at: 2026-08-22T00:00:00Z
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-22T00:00:00Z
 sources:
   - resource: "../../app/models/quick_add.rb"
     title: "app/models/quick_add.rb"
   - resource: "../../specs/in-x-unit-design.md"
     title: "specs/in-x-unit-design.md"
+  - id: ending-design
+    resource: "../../specs/recurrence-ending-design.md"
+    title: "specs/recurrence-ending-design.md"
 ---
 
 # Overview
@@ -45,3 +48,9 @@ document the wiring point inline.
 | `due_time` | Time-ish or nil | From an explicit time token or Chronic free text |
 | `project_name` | String or nil | `#project` token |
 | `recurrence` | String or nil | Raw recurrence phrase, handed to `Recurrence.parse` downstream |
+
+# Ending clause
+
+`ending after N {time(s)|occurrence(s)|occurrance(s)}` (case-insensitive) on a recurring title. `extract_recurrence_end!` parses it right after the `starting` clause and returns `recurrence_count`. N < 1 sets `ending_error` "end count must be at least 1"; `TasksController#create` renders it as a 422, like `starting_error`. On a non-recurring title the words stay in the title. "ending on <date>" is planned (S2) and not parsed yet.[^ending-design]
+
+[^ending-design]: specs/recurrence-ending-design.md, S1.

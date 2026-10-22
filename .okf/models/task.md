@@ -5,13 +5,16 @@ description: The core domain object — a to-do item with optional due date/time
 resource: file:///home/mcampbell/dev/my-todoist/app/models/task.rb
 tags: [core-model, active-record]
 generated:
-  by: process:okf-migrate
-  at: 2026-08-22T00:00:00Z
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-22T00:00:00Z
 sources:
   - resource: "../../app/models/task.rb"
     title: "app/models/task.rb"
   - resource: "../../db/schema.rb"
     title: "db/schema.rb"
+  - id: ending-design
+    resource: "../../specs/recurrence-ending-design.md"
+    title: "specs/recurrence-ending-design.md"
 ---
 
 # Overview
@@ -51,3 +54,9 @@ a non-recurring task's row destroyed).
 | `due_today_or_undated` | Today view |
 | `due_between(range)` | Upcoming view |
 | `overdue` | `due_at < ` start of today; also drives the danger-red row highlight in the shared `_task` partial, which is why [Inbox already shows overdue tasks](/decisions/inbox-overdue-no-bug.md) with no extra filtering needed |
+
+# Times left (recurrence_remaining)
+
+Nullable integer column `tasks.recurrence_remaining`. nil = no limit. Validated integer 1..10_000; the cap stops a value past SQLite's 64-bit range from raising `ActiveModel::RangeError` (a 500). Cleared in `before_validation` when `recurrence` is blank. `complete!` destroys the task (after writing the CompletedOccurrence snapshot) when the count is 1, else advances and decrements by 1. `skip!` advances without changing the count.[^ending-design]
+
+[^ending-design]: specs/recurrence-ending-design.md, S1.

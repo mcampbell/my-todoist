@@ -30,7 +30,7 @@
       <span class="tag is-info is-light"><%= due_tag(task) %></span>
     <% end %>
     <% if task.recurrence.present? %>
-      <span class="tag is-light">↻ <%= task.recurrence %></span>
+      <span class="tag is-light">↻ <%= task.recurrence %><%= " · #{task.recurrence_remaining} left" if task.recurrence_remaining %></span>
     <% end %>
     <% task.labels.sort_by(&:name).each do |label| %>
       <span class="tag is-light"><%= label.name %></span>

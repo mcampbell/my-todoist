@@ -394,6 +394,30 @@ RSpec.describe "Tasks", type: :request do
       end
     end
 
+    describe "'ending after N times' clause" do
+      it "stores the count of completions left" do
+        post tasks_path, params: { task: { title: "stretch every day ending after 3 times" } }
+        task = Task.last
+        expect(task).to have_attributes(title: "stretch", recurrence: "every day", recurrence_remaining: 3)
+      end
+
+      it "422s a count below 1 and keeps the typed title" do
+        expect {
+          post tasks_path, params: { task: { title: "stretch every day ending after 0 times" } }
+        }.not_to change(Task, :count)
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.body).to include("end count must be at least 1")
+        expect(response.body).to include('value="stretch every day ending after 0 times"')
+      end
+
+      it "422s, not 500s, a count past the cap" do
+        expect {
+          post tasks_path, params: { task: { title: "stretch every day ending after 100000000000000000000 times" } }
+        }.not_to change(Task, :count)
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+    end
+
     it "defaults a recurring task with no time to a real time anchor for sub-day recurrence" do
       travel_to(Time.zone.local(2026, 8, 15, 10, 0, 0)) do
         post tasks_path, params: { task: { title: "water plants every 10 minutes" } }
@@ -463,6 +487,72 @@ RSpec.describe "Tasks", type: :request do
   end
 
   describe "PATCH /tasks/:id" do
+    describe "times left" do
+      let(:task) { Task.create!(title: "stretch", recurrence: "every day", due_date: "2030-03-04", recurrence_remaining: 5) }
+
+      it "pre-fills the Times left field on the edit form" do
+        get edit_task_path(task)
+        field = response.parsed_body.at_css("input[name='task[recurrence_remaining]']")
+        expect(field.to_h).to include("type" => "number", "min" => "1", "value" => "5")
+      end
+
+      it "sets a new count" do
+        patch task_path(task), params: { task: { recurrence_remaining: "2" } }
+        expect(task.reload.recurrence_remaining).to eq(2)
+      end
+
+      it "removes the limit when the field is blank" do
+        patch task_path(task), params: { task: { recurrence_remaining: "" } }
+        expect(task.reload.recurrence_remaining).to be_nil
+      end
+
+      it "422s a count below 1" do
+        patch task_path(task), params: { task: { recurrence_remaining: "0" } }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.recurrence_remaining).to eq(5)
+      end
+
+      it "counts down across completions and ends the series on the last one" do
+        task.update!(recurrence_remaining: 2)
+        patch complete_task_path(task)
+        expect(task.reload.recurrence_remaining).to eq(1)
+        expect {
+          patch complete_task_path(task)
+        }.to change(CompletedOccurrence, :count).by(1).and change(Task, :count).by(-1)
+      end
+
+      it "422s a non-numeric count" do
+        patch task_path(task), params: { task: { recurrence_remaining: "abc" } }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.recurrence_remaining).to eq(5)
+      end
+
+      it "accepts the cap and rejects one past it" do
+        patch task_path(task), params: { task: { recurrence_remaining: "10000" } }
+        expect(task.reload.recurrence_remaining).to eq(10_000)
+        patch task_path(task), params: { task: { recurrence_remaining: "10001" } }
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+
+      it "422s, not 500s, a count past the cap" do
+        patch task_path(task), params: { task: { recurrence_remaining: "100000000000000000000" } }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.recurrence_remaining).to eq(5)
+      end
+
+      it "shows the count on the task row" do
+        task
+        get tasks_path
+        expect(response.parsed_body.at_css(".tag:contains('every day')").text).to include("5 left")
+      end
+
+      it "shows no count on a recurring task without a limit" do
+        Task.create!(title: "water", recurrence: "every week", due_date: "2030-03-04")
+        get tasks_path
+        expect(response.parsed_body.at_css(".tag:contains('every week')").text).not_to include("left")
+      end
+    end
+
     it "updates on valid params" do
       task = Task.create!(title: "old")
       patch task_path(task), params: { task: { title: "new" } }

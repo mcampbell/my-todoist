@@ -48,3 +48,6 @@
 /.serena/
 /out
 /coverage/
+
+# Lavish review pages (generated, local only)
+/.lavish/

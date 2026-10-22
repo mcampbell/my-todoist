@@ -91,3 +91,13 @@ See specs/browser-notification-design.md. Conflict/rework costs only.
 |---|---|---|---|
 | C1 | S1 and S2 both edit `toast()` in `notifications.js` if run in parallel | trivial | 0.5 |
 | | **Subtotal** | | **0.5** |
+
+## Recurrence ending ("ending on" / "ending after")
+
+See specs/recurrence-ending-design.md. Conflict/rework costs only.
+
+| # | Item | Cost | Points |
+|---|---|---|---|
+| C1 | S1 and S2 in parallel: `QuickAdd.parse`, `Task#complete!`/`#skip!`, schema, form, tag (avoided if serial) | easy | 1 |
+| R1 | S2 adds both-clauses 422 and one-limit validation over S1's parse and model | trivial | 0.5 |
+| | **Subtotal (serial: R1 only)** | | **0.5** |
