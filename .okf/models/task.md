@@ -59,4 +59,8 @@ a non-recurring task's row destroyed).
 
 Nullable integer column `tasks.recurrence_remaining`. nil = no limit. Validated integer 1..10_000; the cap stops a value past SQLite's 64-bit range from raising `ActiveModel::RangeError` (a 500). Cleared in `before_validation` when `recurrence` is blank. `complete!` destroys the task (after writing the CompletedOccurrence snapshot) when the count is 1, else advances and decrements by 1. `skip!` advances without changing the count.[^ending-design]
 
-[^ending-design]: specs/recurrence-ending-design.md, S1.
+# End date (recurrence_ends_at)
+
+Nullable datetime column `tasks.recurrence_ends_at`. Inclusive. A date with no time is stored as 23:59:59 that day (`ends_all_day?` checks for it). In `advance_to_next_occurrence!` (shared by `complete!` and `skip!`), the task is destroyed when the next occurrence lands after the end. `complete!` has already logged the CompletedOccurrence; `skip!` logs nothing. Validations: one limit only ("use one ending: a date or a count"), and the end may not be before `due_at` ("the task ends before its next occurrence"), so create, edit, and reschedule all hit it. The edit-form virtual fields `ends_on_date` / `ends_on_time` (mirroring `due_date` / `due_time`) compose it in `before_validation`; a blank date removes it. Cleared with the recurrence, like the count.[^ending-design]
+
+[^ending-design]: specs/recurrence-ending-design.md, S1 and S2.
