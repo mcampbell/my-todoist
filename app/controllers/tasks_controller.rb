@@ -112,6 +112,7 @@ class TasksController < ApplicationController
     attrs = task_params.to_h.with_indifferent_access
     @reschedule_to = params[:reschedule_to].to_s
     rescheduling = @reschedule_to.present?
+    split_recurrence_time!(attrs, set_time: !rescheduling)
 
     if rescheduling && !apply_reschedule!(attrs, @reschedule_to)
       render :edit, status: :unprocessable_content
@@ -330,6 +331,17 @@ class TasksController < ApplicationController
   # A non-reschedule edit that redefines the schedule -- a different
   # recurrence string, or a cleared due date -- drops any pending
   # single-occurrence anchor; the phase it protected no longer applies.
+  # Accept quick-add's "every workday at 4pm" in the Recurrence field: the time
+  # beats the pre-filled time picker, unless the reschedule box owns the time.
+  # Any other quick-add part leaves the text raw, so validation rejects it.
+  def split_recurrence_time!(attrs, set_time:)
+    parsed = QuickAdd.parse(attrs[:recurrence]).compact_blank
+    return unless parsed.keys.sort == %i[due_time recurrence]
+
+    attrs[:recurrence] = parsed[:recurrence]
+    attrs[:due_time] = parsed[:due_time] if set_time
+  end
+
   def clear_recurrence_anchor!(attrs)
     return unless @task.recurrence_anchor_at?
     return unless changing_recurrence?(attrs) || (attrs.key?(:due_date) && attrs[:due_date].blank?)
