@@ -26,7 +26,7 @@ RSpec.describe "Task display", type: :system do
 
   it "highlights an overdue task's row" do
     travel_to(Time.zone.local(2026, 8, 17, 10, 0, 0)) do
-      Task.create!(title: "Stale", due_date: "2026-08-10")
+      Task.create!(title: "Stale", due_date: "2026-08-16")
 
       visit tasks_path
 
