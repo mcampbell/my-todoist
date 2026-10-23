@@ -1,5 +1,8 @@
 # Update Log
 
+## 2026-10-23
+* **Sync**: Added [Clickable URLs](features/clickable-urls.md) (`TasksHelper#linkify` on task row title and notes preview).
+
 ## 2026-10-19
 * **Supersession**: [Browser notifications replace the server notifier](decisions/browser-notification-api.md) supersedes [OS notification triggered client-side](decisions/os-notification-client-triggered.md) (PR #56).
 * **Deprecation**: [OsNotifier](models/os-notifier.md) - code deleted in PR #56; concept kept for history.
