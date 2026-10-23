@@ -683,6 +683,37 @@ RSpec.describe "Tasks", type: :request do
       expect(task.reload.recurrence).to be_nil
     end
 
+    describe "a time typed in the recurrence field" do
+      let(:task) { Task.create!(title: "standup", recurrence: "every workday", due_date: "2030-03-04") }
+
+      [ "every workday at 4pm", "every workday 16:00", "Every Workday At 4PM" ].each do |typed|
+        it "moves the time in #{typed.inspect} to the due time" do
+          patch task_path(task), params: { task: { recurrence: typed, due_date: "2030-03-04", due_time: "" } }
+          task.reload
+          expect([ task.recurrence, task.due_at, task.all_day ])
+            .to eq([ "every workday", Time.zone.local(2030, 3, 4, 16, 0), false ])
+        end
+      end
+
+      # The Due time field posts pre-filled, so the recurrence text is the newer intent.
+      it "wins over the due time field" do
+        patch task_path(task), params: { task: { recurrence: "every workday at 4pm", due_date: "2030-03-04", due_time: "09:00" } }
+        expect(task.reload.due_at).to eq(Time.zone.local(2030, 3, 4, 16, 0))
+      end
+
+      it "stays invalid when the text holds more than a rule and a time" do
+        patch task_path(task), params: { task: { recurrence: "every day 4pm p1" } }
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(task.reload.recurrence).to eq("every workday")
+      end
+
+      it "leaves the due time to the reschedule box when rescheduling" do
+        patch task_path(task), params: { task: { recurrence: "every workday at 4pm" }, reschedule_to: "3/5/2030 9am" }
+        task.reload
+        expect([ task.recurrence, task.due_at ]).to eq([ "every workday", Time.zone.local(2030, 3, 5, 9, 0) ])
+      end
+    end
+
     it "bootstraps a weekday recurrence set via edit to the next matching weekday" do
       travel_to(Time.zone.local(2026, 9, 1, 10, 0, 0)) do # Tuesday
         task = Task.create!(title: "sync")
