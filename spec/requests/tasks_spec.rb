@@ -17,6 +17,24 @@ RSpec.describe "Tasks", type: :request do
       expect(link[:class]).to include("task-title")
     end
 
+    it "links a URL in the title out, and the text around it to the edit page" do
+      task = Task.create!(title: "read https://a.example/x today")
+      get tasks_path
+      page = Capybara.string(response.body)
+      expect(page.find_link("https://a.example/x")[:href]).to eq("https://a.example/x")
+      edit_links = page.all("a.task-title")
+      expect(edit_links.map(&:text)).to eq([ "read ", " today" ])
+      expect(edit_links.map { |a| a[:href] }.uniq).to eq([ edit_task_path(task, return_to: tasks_path) ])
+    end
+
+    it "links a URL in the notes preview" do
+      Task.create!(title: "buy milk", notes: "list at https://a.example/list\nsecond line")
+      get tasks_path
+      link = Capybara.string(response.body).find(".task-notes a")
+      expect(link[:href]).to eq("https://a.example/list")
+      expect(link[:target]).to eq("_blank")
+    end
+
     it "points the title link's return_to at the originating view" do
       Task.create!(title: "call mum", due_at: Time.current)
       get today_tasks_path

@@ -98,4 +98,64 @@ RSpec.describe TasksHelper, type: :helper do
       expect(helper.notes_preview("Call the plumber\n\n  ")).to eq("Call the plumber")
     end
   end
+
+  describe "#linkify" do
+    def links(html)
+      Capybara.string(html).all("a").map { |a| [ a.text, a[:href] ] }
+    end
+
+    it "returns text without a URL unchanged" do
+      expect(helper.linkify("Call the plumber")).to eq("Call the plumber")
+    end
+
+    it "returns an empty string for nil or empty text" do
+      expect([ helper.linkify(nil), helper.linkify("") ]).to eq([ "", "" ])
+    end
+
+    it "links each http and https URL, opening it in a new tab" do
+      html = helper.linkify("See http://a.example/x and https://b.example/y?q=1&r=2")
+      expect(links(html)).to eq([ [ "http://a.example/x", "http://a.example/x" ],
+                                  [ "https://b.example/y?q=1&r=2", "https://b.example/y?q=1&r=2" ] ])
+      link = Capybara.string(html).first("a")
+      expect(link[:target]).to eq("_blank")
+      expect(link[:rel]).to eq("noopener noreferrer")
+    end
+
+    it "keeps sentence punctuation after a URL out of the link" do
+      html = helper.linkify("Read https://a.example/x. Then (https://b.example/y), done")
+      expect(links(html).map(&:last)).to eq([ "https://a.example/x", "https://b.example/y" ])
+      expect(Capybara.string(html).text).to eq("Read https://a.example/x. Then (https://b.example/y), done")
+    end
+
+    it "links a URL at the end of a preview without the ellipsis" do
+      expect(links(helper.linkify("https://a.example/x..."))).to eq([ [ "https://a.example/x", "https://a.example/x" ] ])
+    end
+
+    # A phone auto-capitalizes the first word of a title.
+    it "links a scheme in any case" do
+      expect(links(helper.linkify("Https://a.example/x"))).to eq([ [ "Https://a.example/x", "Https://a.example/x" ] ])
+    end
+
+    it "does not link other schemes or a bare scheme" do
+      expect(links(helper.linkify("javascript:alert(1) ftp://a.example xhttps://a.example https://"))).to be_empty
+    end
+
+    it "escapes HTML in the text and in the URL" do
+      html = helper.linkify(%(<b>hi</b> https://a.example/<script>))
+      expect(html).to include("&lt;b&gt;hi&lt;/b&gt;")
+      expect(html).not_to include("<script>")
+      expect(links(html)).to eq([ [ "https://a.example/", "https://a.example/" ] ])
+    end
+
+    it "passes each non-URL part through the block" do
+      html = helper.linkify("Read https://a.example/x now") { |text| tag.em(text) }
+      expect(Capybara.string(html).all("em").map(&:text)).to eq([ "Read ", " now" ])
+    end
+
+    # A title that is only a URL must not grow an empty edit link before it.
+    it "does not pass empty text to the block around a URL" do
+      html = helper.linkify("https://a.example/x") { |text| tag.em(text) }
+      expect(Capybara.string(html)).to have_no_css("em")
+    end
+  end
 end
