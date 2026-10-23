@@ -5,6 +5,10 @@ module TasksHelper
   # Edit-form options in the p1..p4 convention, urgent first, each mapped to its
   # stored integer. One source of truth: QuickAdd::PRIORITY_TOKENS.
   PRIORITY_SELECT_OPTIONS = QuickAdd::PRIORITY_TOKENS.map { |p, stored| [ "P#{p}", stored ] }.freeze
+  # http(s) only, so text never yields a javascript: link. The last character
+  # excludes sentence punctuation: "see https://x.example." links x.example.
+  # shortcut: a URL that really ends in ")" loses it; balance parens if that bites.
+  URL_SPLIT = %r{\b(https?://[^\s<>"]*[^\s<>".,;:!?)\]'])}i
 
   def format_time(time)
     return unless time
@@ -52,6 +56,19 @@ module TasksHelper
     return if notes.empty?
     first, rest = notes.split("\n", 2)
     "#{first.rstrip}#{'...' if rest.present?}"
+  end
+
+  # Text with each http(s) URL as a new-tab link. The block renders the text
+  # between URLs (default: escaped as-is). Split on a capture group, so odd
+  # parts are URLs and even parts are the text around them.
+  def linkify(text)
+    safe_join(text.to_s.split(URL_SPLIT).each_with_index.filter_map do |part, i|
+      if i.odd?
+        link_to(part, part, target: "_blank", rel: "noopener noreferrer")
+      elsif !part.empty?
+        block_given? ? yield(part) : part
+      end
+    end)
   end
 
   def priority_select_options

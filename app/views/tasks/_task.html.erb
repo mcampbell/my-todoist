@@ -25,7 +25,7 @@
   </td>
   <td>
     <%= priority_badge(task) %>
-    <strong><%= link_to task.title, edit_path, class: "task-title" %></strong>
+    <strong><%= linkify(task.title) { |text| link_to text, edit_path, class: "task-title" } %></strong>
     <% if task.due_at %>
       <span class="tag is-info is-light"><%= due_tag(task) %></span>
     <% end %>
@@ -36,7 +36,7 @@
       <span class="tag is-light"><%= label.name %></span>
     <% end %>
     <% if (preview = notes_preview(task.notes)) %>
-      <p class="task-notes is-size-7 has-text-grey"><%= preview %></p>
+      <p class="task-notes is-size-7 has-text-grey"><%= linkify(preview) %></p>
     <% end %>
   </td>
   <td class="is-narrow has-text-right">
