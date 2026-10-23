@@ -6,7 +6,7 @@ resource: file:///home/mcampbell/dev/my-todoist/app/models/task.rb
 tags: [core-model, active-record]
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-22T00:00:00Z
+  at: 2026-10-23T00:00:00Z
 sources:
   - resource: "../../app/models/task.rb"
     title: "app/models/task.rb"
@@ -64,3 +64,7 @@ Nullable integer column `tasks.recurrence_remaining`. nil = no limit. Validated 
 Nullable datetime column `tasks.recurrence_ends_at`. Inclusive. A date with no time is stored as 23:59:59 that day (`ends_all_day?` checks for it). In `advance_to_next_occurrence!` (shared by `complete!` and `skip!`), the task is destroyed when the next occurrence lands after the end. `complete!` has already logged the CompletedOccurrence; `skip!` logs nothing. Validations: one limit only ("use one ending: a date or a count"), and the end may not be before `due_at` ("the task ends before its next occurrence"), so create, edit, and reschedule all hit it. The edit-form virtual fields `ends_on_date` / `ends_on_time` (mirroring `due_date` / `due_time`) compose it in `before_validation`; a blank date removes it. Cleared with the recurrence, like the count.[^ending-design]
 
 [^ending-design]: specs/recurrence-ending-design.md, S1 and S2.
+
+# Time in the Recurrence field
+
+The edit form's Recurrence field accepts quick-add's rule-plus-time text, such as "every workday at 4pm" or "every workday 16:00". `TasksController#split_recurrence_time!` runs the text through `QuickAdd.parse`. When the result holds only a recurrence and a due time, the rule goes to `recurrence` and the time goes to `due_time`. That time wins over the pre-filled Due time picker. When the reschedule box is used, the reschedule text sets the time and the field's time is dropped. Text with any other quick-add part (a date, a priority, `starting`) stays raw, so `recurrence_must_be_parseable` still rejects it.

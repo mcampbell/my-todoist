@@ -1,6 +1,7 @@
 # Update Log
 
 ## 2026-10-23
+* **Sync**: [Task](models/task.md) - the edit form's Recurrence field accepts a time ("every workday at 4pm").
 * **Sync**: Added [Clickable URLs](features/clickable-urls.md) (`TasksHelper#linkify` on task row title and notes preview).
 
 ## 2026-10-19
