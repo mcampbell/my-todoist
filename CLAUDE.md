@@ -108,6 +108,16 @@ and grill Q&A before changing a grammar; each new grammar gets its own
 `<feature>-grill.md` + `<feature>-design.md` pair. Skip work estimates —
 this project has no team to size work for.
 
+## Directory Map
+
+- `app/controllers/`, `app/helpers/`, `app/models/`, `app/views/`: Rails MVC code.
+- `app/javascript/`: in-page JS (Importmap, no Node). Use `appPath()`.
+- `config/`: Rails config, initializers, locales.
+- `db/`: schema and migrations. Each subdirectory with code has its own `CLAUDE.md`.
+- `lib/tasks/`: Rake tasks (`user:create`, `user:modify`).
+- `bin/`, `script/`: executables and helper scripts.
+- `vendor/`, `out/`, `coverage/`, `tmp/`, `log/`, `storage/`, `backups/`: not documented. Generated or third party.
+
 ## Conventions
 
 - Write array literals with interior spaces: `[ a, b ]`, per
