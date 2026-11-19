@@ -189,7 +189,7 @@ Then open `https://{HOST}/todo/` and sign in.
   arrived over HTTPS.
 - Login lasts until you log out. There is no email password reset. To
   change the password (with the env file loaded):
-  ` bin/rails user:modify EMAIL=you@example.com PASSWORD='new 12+ chars'`.
+  `bin/rails user:modify EMAIL=you@example.com PASSWORD='new 12+ chars'`.
   This also logs out every browser.
 
 **Update to a new version:**
@@ -237,6 +237,59 @@ rails s -p 3500
   browser; the in-page toast still shows. You get no reminder unless a tab
   is open.
 - **Midnight refresh:** the page reloads at midnight, so date views roll over.
+
+## Scripted access
+
+A script uses the same login as the browser. There is no API token and no
+separate API: a script sends the same requests as the browser forms.
+
+| Action | Request | Parameters |
+|---|---|---|
+| Add a task | `POST /tasks` | `task[title]` (quick-add text) |
+| Delete a task | `DELETE /tasks/:id` | none |
+| Mark a task done | `PATCH /tasks/:id/complete` | `completion_notes` (optional) |
+| Find tasks | `GET /tasks/search?q=TEXT` | `q` |
+
+Rules:
+
+- Each request needs the login cookie. A `GET` without it redirects to
+  the login page.
+- Each `POST`, `PATCH`, or `DELETE` also needs a CSRF token in the
+  `X-CSRF-Token` header (or an `authenticity_token` parameter). Without
+  it, the app answers `422`.
+- The app answers with HTML or a `302` redirect, not JSON. A `302` means
+  success. An unknown `:id` gives `404`.
+- Mark done works as the checkbox does: a one-off task is removed from the
+  list, and a recurring task moves to its next date.
+- Search returns an HTML page. A task's id is in its form actions, for
+  example `action="/tasks/12/complete"`.
+- Logins are rate-limited (10 tries per 3 minutes per IP). Log in once
+  and keep the cookie jar.
+- Behind nginx at a sub-path, put the sub-path before each path, for
+  example `https://{HOST}/todo/tasks/12`.
+
+Example with `curl` (leading space: keep the password out of shell
+history):
+
+```sh
+B=http://localhost:3000
+J=cookies.txt
+token() { grep -o 'name="csrf-token" content="[^"]*"' | sed 's/.*content="//;s/"$//'; }
+
+# Log in.
+T=$(curl -s -c $J -b $J $B/session/new | token)
+ curl -s -c $J -b $J -X POST $B/session \
+  --data-urlencode "authenticity_token=$T" \
+  --data-urlencode email_address=you@example.com \
+  --data-urlencode password='your password'
+
+# Get a token for the logged-in session.
+T=$(curl -s -c $J -b $J $B/ | token)
+
+# Delete task 12. Mark task 13 done.
+curl -s -c $J -b $J -X DELETE -H "X-CSRF-Token: $T" $B/tasks/12
+curl -s -c $J -b $J -X PATCH  -H "X-CSRF-Token: $T" $B/tasks/13/complete
+```
 
 ## Quick add
 

@@ -3,6 +3,7 @@
 Goal: work in this Rails app the way its existing patterns already work.
 
 Success means:
+
 - `bin/rspec` and `bin/rubocop` pass on every change
 - New grammars follow the `extract_*!` pattern in `quick_add.rb`
 - Scope stays single-user: one server, internet-facing behind nginx + login
@@ -29,8 +30,8 @@ Serve assets via Propshaft + Importmap; this project has no Node tooling.
 |---|---|
 | `bundle install && bin/rails db:prepare` | first-time setup |
 | `bin/rails server` | run app (localhost:3000) |
-| ` bin/rails user:create EMAIL=... PASSWORD=...` | create the login user (leading space: keep password out of shell history) |
-| ` bin/rails user:modify EMAIL=... PASSWORD=...` | change the password; ends every login |
+| `bin/rails user:create EMAIL=... PASSWORD=...` | create the login user (leading space: keep password out of shell history) |
+| `bin/rails user:modify EMAIL=... PASSWORD=...` | change the password; ends every login |
 | `bin/rspec` | full suite |
 | `bin/rspec spec/lib/quick_add_spec.rb` | single file |
 | `bin/rspec spec/lib/quick_add_spec.rb:42` | single example |
@@ -82,6 +83,9 @@ email password reset; `lib/tasks/user.rake` creates the user and changes
 the password). Opt a public action out with
 `allow_unauthenticated_access`. JSON requests get 401, not a login
 redirect, so the reminder poll never becomes the post-login destination.
+Scripts use the browser routes and login (session cookie + CSRF token);
+there is no API token and no JSON API. See README "Scripted access" before
+you add one.
 The app may be served under a sub-path (`RAILS_RELATIVE_URL_ROOT=/todo`,
 mounted in `config.ru`). Build URLs with route helpers in Ruby and
 `appPath("/...")` (`app/javascript/app_path.js`) in JS — never a bare
