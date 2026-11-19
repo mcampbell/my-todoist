@@ -40,7 +40,9 @@ each smart list (`index` = Inbox, `today`, `overdue`, `upcoming`,
 and `Label` get their own controllers. `completed` shows 50 rows per page
 (`COMPLETED_PER_PAGE`, clamped `?page=`). Due reminders run in the browser
 (see [Due reminders](/features/due-reminders.md)); the server only answers
-the `due_since` poll.
+the `due_since` poll. Scripts use the same routes and login as the
+browser forms; answers are redirects or HTML, not JSON (see
+[Scripted access](/features/scripted-access.md)).
 
 Three grammars parse free text into structured data, each in its own
 model class computing independently of ActiveRecord — see

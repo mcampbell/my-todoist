@@ -5,3 +5,4 @@
 * [Project tints](project-tints.md) - deterministic faint background colour per project on rows and sidebar links.
 * [Due reminders](due-reminders.md) - client-side poll: in-page toast, beep, browser OS notification, per-browser Mute.
 * [Clickable URLs](clickable-urls.md) - http(s) URLs in task row titles and notes previews become new-tab links.
+* [Scripted access](scripted-access.md) - scripts add, delete, and mark tasks done with the browser login (session cookie + CSRF token); no API token, no JSON.
